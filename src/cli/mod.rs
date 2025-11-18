@@ -38,7 +38,6 @@ const BANNER: &str = r#"
 
 pub fn run_cli(args: Cli) {
     let mut working_dir = std::env::current_dir().expect("Failed to get current directory");
-    let mut working_dir: PathBuf = PathBuf::new(); // if working_dir is empty, set it to current directory
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
         working_dir = working_dir.canonicalize().unwrap();

@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 pub fn resolve_path(path: &str, cwd: &PathBuf) -> PathBuf {
     // Absolute:
