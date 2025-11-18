@@ -1,6 +1,30 @@
 # DotR
 A dotfiles manager that is as dear as a daughter.
 
+## Installation
+
+### Homebrew (macOS and Linux)
+```bash
+brew tap uroybd/tap
+brew install dotr
+```
+
+### From Source
+```bash
+cargo install --git https://github.com/uroybd/DotR
+```
+
+### Pre-built Binaries
+Download the latest release for your platform from the [releases page](https://github.com/uroybd/DotR/releases):
+- **Apple Silicon (M1/M2/M3)**: `dotr-aarch64-apple-darwin.tar.gz`
+- **Linux (x86_64)**: `dotr-x86_64-unknown-linux-gnu.tar.gz`
+
+Extract and move the binary to your PATH:
+```bash
+tar xzf dotr-*.tar.gz
+sudo mv dotr /usr/local/bin/
+```
+
 ## Usage
 
 ```
