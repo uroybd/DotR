@@ -1,1 +1,4 @@
 /target
+tests/playground/dotfiles
+tests/playground/dotfiles/*
+tests/playground/config.toml

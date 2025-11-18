@@ -1,3 +1,7 @@
+use clap::Parser;
+use dotr::cli::{Cli, run_cli};
+
 fn main() {
-    println!("Hello, world!");
+    let args = Cli::parse();
+    run_cli(args);
 }
