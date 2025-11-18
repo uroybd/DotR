@@ -13,7 +13,7 @@ pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Command>,
     #[clap(short, long, global = true)]
-    pub working_dir: String,
+    pub working_dir: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -24,6 +24,7 @@ pub enum Command {
         path: String,
     },
     Copy {},
+    Update {},
 }
 
 const BANNER: &str = r#"
@@ -36,11 +37,10 @@ const BANNER: &str = r#"
 "#;
 
 pub fn run_cli(args: Cli) {
+    let mut working_dir = std::env::current_dir().expect("Failed to get current directory");
     let mut working_dir: PathBuf = PathBuf::new(); // if working_dir is empty, set it to current directory
-    if args.working_dir.is_empty() {
-        working_dir = std::env::current_dir().expect("Failed to get current directory");
-    } else {
-        working_dir = PathBuf::from(args.working_dir);
+    if let Some(wd) = args.working_dir {
+        working_dir = PathBuf::from(wd);
         working_dir = working_dir.canonicalize().unwrap();
         if !working_dir.exists() {
             panic!("The specified working directory does not exist");
@@ -67,6 +67,9 @@ pub fn run_cli(args: Cli) {
                 }
                 Some(Command::Copy {}) => {
                     copydots::copy_dots(&conf, &working_dir);
+                }
+                Some(Command::Update {}) => {
+                    importdots::backup_dots(&conf, &working_dir);
                 }
                 _ => {
                     println!("Unknown command. Use --help for more information.");

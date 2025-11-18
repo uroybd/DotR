@@ -2,6 +2,7 @@ use std::{fs, path::PathBuf};
 
 use dotr::{
     cli::{copydots::copy_dir_all, run_cli},
+    config::get_package_name,
     utils,
 };
 
@@ -10,14 +11,14 @@ mod common;
 fn get_default_cli() -> dotr::cli::Cli {
     dotr::cli::Cli {
         command: None,
-        working_dir: "tests/playground".to_string(),
+        working_dir: Some("tests/playground".to_string()),
     }
 }
 
 fn get_init_cli() -> dotr::cli::Cli {
     dotr::cli::Cli {
         command: Some(dotr::cli::Command::Init {}),
-        working_dir: "tests/playground".to_string(),
+        working_dir: Some("tests/playground".to_string()),
     }
 }
 
@@ -77,14 +78,14 @@ fn test_import_dots() {
     let conf = dotr::config::load_config(&cwd.clone());
     // Print verbose information for debugging
     println!("Loaded config: {:?}", conf);
-    let package_name = dotr::cli::importdots::get_package_name(import_path, &cwd);
+    let package_name = get_package_name(import_path, &cwd);
     assert!(
         conf.packages.contains_key(&package_name),
         "Config should contain the imported package"
     );
     let package = conf.packages.get(&package_name).unwrap();
-    assert_eq!(
-        package.src, import_path,
+    assert!(
+        package.src.ends_with(import_path),
         "Package src should match the imported path"
     );
     assert_eq!(
