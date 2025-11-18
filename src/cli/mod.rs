@@ -23,6 +23,7 @@ pub enum Command {
     Import {
         path: String,
     },
+    Copy {},
 }
 
 const BANNER: &str = r#"
@@ -63,6 +64,9 @@ pub fn run_cli(args: Cli) {
             match args.command {
                 Some(Command::Import { path }) => {
                     importdots::import_dots(&path, &mut conf, &working_dir);
+                }
+                Some(Command::Copy {}) => {
+                    copydots::copy_dots(&conf, &working_dir);
                 }
                 _ => {
                     println!("Unknown command. Use --help for more information.");

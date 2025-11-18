@@ -1,6 +1,9 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use dotr::{cli::run_cli, utils};
+use dotr::{
+    cli::{copydots::copy_dir_all, run_cli},
+    utils,
+};
 
 mod common;
 
@@ -114,4 +117,36 @@ fn test_canonical_linking() {
     println!("From Root {}", path_from_root.display());
     println!("From CWD {}", path_from_cwd.display());
     assert_eq!(1, 1);
+}
+
+#[test]
+fn test_copy_dots() {
+    // First, initialize the config
+    let cwd = get_pathbuf();
+    let init_args = get_init_cli();
+    run_cli(init_args);
+    // Now, simulate command line arguments for "import"
+    let import_path = "src/nvim/";
+    let mut import_cli = get_default_cli();
+    import_cli.command = Some(dotr::cli::Command::Import {
+        path: import_path.to_string(),
+    });
+    run_cli(import_cli);
+    // Backup "src/nvim/"
+    let abs_import_path = cwd.join(import_path);
+    let backup_path = cwd.join("src/nvim.bak/");
+    copy_dir_all(abs_import_path.clone(), backup_path.clone())
+        .expect("Failed to backup original directory");
+    let mut copy_cli = get_default_cli();
+    copy_cli.command = Some(dotr::cli::Command::Copy {});
+    run_cli(copy_cli);
+    // src/nvim/init.lua.dotrbak should exist
+    assert!(
+        cwd.join("src/nvim.dotrbak/").exists(),
+        "Backup file should exist"
+    );
+    // remove src/nvim and restore from backup
+    fs::remove_dir_all(abs_import_path.clone()).expect("Failed to remove original directory");
+    fs::rename(backup_path, abs_import_path).expect("Failed to restore backup.");
+    common::teardown(&cwd);
 }
