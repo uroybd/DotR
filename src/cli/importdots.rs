@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use crate::config::{Config, Package};
+use crate::{
+    config::{Config, Package},
+    utils::resolve_path,
+};
 
 pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
     println!("Importing dotfiles from path: {}", path);
@@ -26,7 +29,7 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
     conf.save(cwd);
     // Recursively copy the files from src to dest
     let dest_path = cwd.join(dest_path_str);
-    let src_path = cwd.join(path);
+    let src_path = resolve_path(path, cwd);
     if !dest_path.exists() {
         std::fs::create_dir_all(dest_path.clone()).expect("Failed to create destination directory");
     }
@@ -51,11 +54,10 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
 }
 
 pub fn get_package_name(pathstr: &str, cwd: &PathBuf) -> String {
-    let mut path = cwd.join(pathstr);
+    let path = resolve_path(pathstr, cwd);
     // Print current dir
     println!("Getting package name from path: {}", path.display());
     // get absolute path
-    path = std::fs::canonicalize(path).expect("Failed to canonicalize path");
     // Throw error if path does not exist
     if !path.exists() {
         panic!("Path does not exist: {}", pathstr);

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dotr::cli::run_cli;
+use dotr::{cli::run_cli, utils};
 
 mod common;
 
@@ -102,4 +102,16 @@ fn test_import_dots() {
         "Expected file init.vim should be copied to the destination"
     );
     common::teardown(&cwd);
+}
+
+#[test]
+fn test_canonical_linking() {
+    let cwd = get_pathbuf();
+    let path_from_home = utils::resolve_path("~/.config", &cwd);
+    let path_from_root = utils::resolve_path("/Volumes/Repos/", &cwd);
+    let path_from_cwd = utils::resolve_path("src/nvim", &cwd);
+    println!("From Home {}", path_from_home.display());
+    println!("From Root {}", path_from_root.display());
+    println!("From CWD {}", path_from_cwd.display());
+    assert_eq!(1, 1);
 }

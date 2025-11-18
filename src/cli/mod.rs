@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 
 use crate::config;
 
+pub mod copydots;
 pub mod importdots;
 pub mod initconfig;
 
