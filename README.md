@@ -21,6 +21,7 @@ Options:
 ## TODO
 - [x] Import configs
 - [x] Copy configs
+- [x] Update configs
 - [ ] Templating and variables
 - [ ] Actions
 - [ ] Symlinking config
