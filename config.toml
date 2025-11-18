@@ -1,6 +1,0 @@
-banner = true
-
-[packages.nvim]
-dependencies = []
-dest = "dotfiles/nvim"
-src = "src/nvim/"

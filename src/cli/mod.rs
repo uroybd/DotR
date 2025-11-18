@@ -41,9 +41,10 @@ pub fn run_cli(args: Cli) {
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
         working_dir = working_dir.canonicalize().unwrap();
-        if !working_dir.exists() {
-            panic!("The specified working directory does not exist");
-        }
+    }
+    println!("Using working directory: {}", working_dir.display());
+    if !working_dir.exists() {
+        panic!("The specified working directory does not exist");
     }
     // Print working directory
     // Print full working directory path
