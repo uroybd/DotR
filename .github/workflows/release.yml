@@ -71,7 +71,7 @@ jobs:
         with:
           use-cross: ${{ matrix.cross }}
           command: test
-          args: --release --locked --target ${{ matrix.target }}
+          args: --release --locked --test-threads=1 --target ${{ matrix.target }}
 
       - name: Build release binary
         uses: actions-rs/cargo@v1
