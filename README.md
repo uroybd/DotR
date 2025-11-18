@@ -1,5 +1,5 @@
 # DotR
-A dotfiles manager that is as dear as your daughter.
+A dotfiles manager that is as dear as a daughter.
 
 
 ## TODO

@@ -30,6 +30,7 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
     if !dest_path.exists() {
         std::fs::create_dir_all(dest_path.clone()).expect("Failed to create destination directory");
     }
+    let backup_ext = std::ffi::OsStr::new("dotrbak");
     for entry in walkdir::WalkDir::new(src_path.clone()) {
         let entry = entry.expect("Failed to read directory entry");
         let relative_path = entry
@@ -40,7 +41,10 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
         if entry.file_type().is_dir() {
             std::fs::create_dir_all(&dest_file_path).expect("Failed to create directory");
         } else {
-            std::fs::copy(entry.path(), &dest_file_path).expect("Failed to copy file");
+            // Copy if the extension is not dotrbak
+            if entry.path().extension() != Some(backup_ext) {
+                std::fs::copy(entry.path(), &dest_file_path).expect("Failed to copy file");
+            }
         }
     }
     println!("Package '{}' imported successfully.", package_name);
