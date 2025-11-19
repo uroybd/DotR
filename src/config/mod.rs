@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
-    fs, io,
+    ffi::OsStr,
+    fs,
+    io::{self, Error},
     path::{Path, PathBuf},
 };
 
@@ -23,21 +25,23 @@ pub struct Package {
     pub dependencies: Vec<String>,
 }
 
-pub fn load_config(wd: &PathBuf) -> Config {
-    let config_path = wd.join("config.toml");
-    if !config_path.exists() {
-        eprintln!("Error: config.toml not found in the current directory.");
-        std::process::exit(1);
-    }
-    let config_content = std::fs::read_to_string(config_path).expect("Failed to read config.toml");
-    let conf_table = config_content
-        .parse::<Table>()
-        .expect("Failed to parse config.");
-    let config = Config::from_table(&conf_table);
-    return config;
-}
+const BACKUP_EXT: &str = "dotrbak";
+
 impl Config {
-    pub fn save(&self, cwd: &PathBuf) {
+    pub fn from_path(cwd: &Path) -> Self {
+        let config_path = cwd.join("config.toml");
+        if !config_path.exists() {
+            eprintln!("Error: config.toml not found in the current directory.");
+            std::process::exit(1);
+        }
+        let config_content =
+            std::fs::read_to_string(config_path).expect("Failed to read config.toml");
+        let conf_table = config_content
+            .parse::<Table>()
+            .expect("Failed to parse config.");
+        Config::from_table(&conf_table)
+    }
+    pub fn save(&self, cwd: &Path) {
         let config_content = self.to_table().to_string();
 
         std::fs::write(cwd.join("config.toml"), config_content)
@@ -62,7 +66,7 @@ impl Config {
                 .get("banner")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
-            packages: packages,
+            packages,
         }
     }
     pub fn to_table(&self) -> Table {
@@ -103,24 +107,57 @@ impl Package {
     pub fn deploy(&self, cwd: &PathBuf) {
         let src_path = cwd.join(self.src.as_str());
         let dest_path = resolve_path(self.dest.as_str(), cwd);
+        let last_dest_segment = dest_path
+            .file_name()
+            .expect("Failed to get last segment of dest path");
+        // println!("SRC: {}, DST: {}", src_path.display(), dest_path.display());
         if dest_path.exists() {
             if dest_path.is_dir() {
-                let backup_path = dest_path.with_extension("dotrbak");
+                let backup_path = dest_path.with_extension(BACKUP_EXT);
                 // Delete previous backup
                 if backup_path.exists() {
                     std::fs::remove_dir_all(backup_path.clone())
                         .expect("Error removing previous backup");
                 }
                 std::fs::rename(dest_path.clone(), backup_path).expect("Failed to backup");
-                // Copy from dest_path to src_path
-                copy_dir_all(src_path, dest_path).expect("Error copying config");
+
+                // Create dest_path again
+                std::fs::create_dir_all(dest_path.clone())
+                    .expect("Failed to create dest directory");
+                let src_path = src_path.join(last_dest_segment);
+                for entry in walkdir::WalkDir::new(src_path.clone()) {
+                    let entry = entry.expect("Failed to read directory entry");
+                    let relative_path = entry
+                        .path()
+                        .strip_prefix(src_path.clone())
+                        .expect("Failed to get relative path");
+                    let dest_file_path = dest_path.join(relative_path);
+                    // println!(
+                    //     "Deploying from {} to {}",
+                    //     entry.clone().path().display(),
+                    //     dest_file_path.display()
+                    // );
+                    if entry.file_type().is_dir() {
+                        std::fs::create_dir_all(&dest_file_path)
+                            .expect("Failed to create directory");
+                    } else {
+                        std::fs::copy(entry.path(), &dest_file_path).expect("Failed to copy file");
+                    }
+                }
             } else {
                 // create backup extension. e.g. init.lua -> init.lua.dotrbak
-                let prev_extension = dest_path.extension().unwrap().to_str().unwrap();
-                let ext = format!("{}.dotrbak", prev_extension);
+                let ext = match dest_path.extension() {
+                    Some(e) => format!("{}.{}", e.to_str().unwrap(), BACKUP_EXT),
+                    None => BACKUP_EXT.to_string(),
+                };
+                // println!(
+                //     "Backing up existing file to {:?}",
+                //     dest_path.with_extension(&ext)
+                // );
                 let backup_path = dest_path.with_extension(ext);
                 std::fs::rename(&dest_path, &backup_path).expect("Failed to backup existing file");
-                std::fs::copy(src_path, dest_path).expect("Error copying dotfiles");
+                let src_file_path = src_path.join(last_dest_segment);
+                std::fs::copy(&src_file_path, &dest_path).expect("Failed to copy file");
             }
         }
     }
@@ -149,7 +186,7 @@ impl Package {
                 .as_str()
                 .unwrap()
                 .to_string(),
-            dependencies: dependencies,
+            dependencies,
         }
     }
 
@@ -168,42 +205,58 @@ impl Package {
         pkg_table
     }
 
-    pub fn backup(&self, cwd: &PathBuf) {
+    pub fn backup(&self, cwd: &PathBuf) -> Result<(), Error> {
         let src_path = cwd.join(self.src.clone());
         let dest_path = resolve_path(&self.dest, cwd);
+        // If the dest path is a file just copy it in:
         if !src_path.exists() {
-            std::fs::create_dir_all(src_path.clone())
-                .expect("Failed to create destination directory");
+            std::fs::create_dir_all(src_path.clone())?;
         }
-        let backup_ext = std::ffi::OsStr::new("dotrbak");
-        for entry in walkdir::WalkDir::new(dest_path.clone()) {
-            let entry = entry.expect("Failed to read directory entry");
-            let relative_path = entry
-                .path()
-                .strip_prefix(dest_path.clone())
-                .expect("Failed to get relative path");
-            let src_file_path = src_path.join(relative_path);
-            if entry.file_type().is_dir() {
-                std::fs::create_dir_all(&src_file_path).expect("Failed to create directory");
-            } else {
-                // Copy if the extension is not dotrbak
-                if entry.path().extension() != Some(backup_ext) {
-                    std::fs::copy(entry.path(), &src_file_path).expect("Failed to copy file");
+        let dest_path_last_segment = match dest_path.file_name() {
+            Some(name) => name,
+            None => {
+                return Err(Error::other("Failed to get last segment of dest path"));
+            }
+        };
+        if dest_path.is_file() {
+            let src_path = src_path.join(dest_path_last_segment);
+            std::fs::copy(dest_path, src_path)?;
+        } else if dest_path.is_dir() {
+            // Get last section of dest_path and create src path by adding it:
+            let src_path = src_path.join(dest_path_last_segment);
+
+            if !src_path.exists() {
+                std::fs::create_dir_all(src_path.clone())?;
+            }
+            for entry in walkdir::WalkDir::new(dest_path.clone()) {
+                let entry = entry?;
+                let relative_path = entry
+                    .path()
+                    .strip_prefix(dest_path.clone())
+                    .expect("Failed to get relative path");
+                let src_file_path = src_path.join(relative_path);
+                println!("Backing up to {}", src_file_path.display());
+                if entry.file_type().is_dir() {
+                    std::fs::create_dir_all(&src_file_path).expect("Failed to create directory");
+                } else {
+                    // Copy if the extension is not dotrbak
+                    if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
+                        std::fs::copy(entry.path(), &src_file_path).expect("Failed to copy file");
+                    }
                 }
             }
         }
+        Ok(())
     }
 }
 
 pub fn get_package_name(pathstr: &str, cwd: &PathBuf) -> String {
     let path = resolve_path(pathstr, cwd);
     let last_component = path
-        .components()
-        .last()
-        .expect("Path has no components")
-        .as_os_str()
+        .file_name()
+        .expect("Failed to get file name")
         .to_str()
-        .expect("Failed to convert OsStr to str");
+        .unwrap();
     let mut package_name = last_component.trim_start_matches('.').to_string();
 
     // Remove any trailing version numbers
@@ -211,8 +264,7 @@ pub fn get_package_name(pathstr: &str, cwd: &PathBuf) -> String {
         package_name.truncate(pos);
     }
     // replace any remaining '-' with '_', and '.' with '_'
-    package_name = package_name.replace('-', "_").replace('.', "_");
-    return package_name;
+    package_name.replace(['-', '.'], "_")
 }
 
 pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {

@@ -7,7 +7,8 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
     let package = Package::from_path(path, cwd);
     let pkg_name = package.name.clone();
     package.backup(cwd);
-    conf.packages.insert(pkg_name.clone(), package);
+    conf.packages.insert(pkg_name.clone(), package.clone());
+    println!("Config: {:?}", conf);
     conf.save(cwd);
     println!("Package '{}' imported successfully.", pkg_name);
 }

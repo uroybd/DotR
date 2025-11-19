@@ -56,7 +56,7 @@ pub fn run_cli(args: Cli) {
             println!("No command provided. Use --help for more information.");
         }
         Some(_) => {
-            let mut conf = config::load_config(&working_dir);
+            let mut conf = config::Config::from_path(&working_dir);
             if conf.banner {
                 println!("{}", BANNER);
             }

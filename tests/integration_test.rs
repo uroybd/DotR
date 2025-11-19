@@ -74,11 +74,16 @@ fn test_import_dots() {
         path: import_path.to_string(),
     });
     run_cli(import_cli);
-    // Load the config and verify the imported package
-    let conf = dotr::config::load_config(&cwd.clone());
+    let mut import_bash_rc_cli = get_default_cli();
+    import_bash_rc_cli.command = Some(dotr::cli::Command::Import {
+        path: "src/.bashrc".to_string(),
+    });
+    run_cli(import_bash_rc_cli);
+    let conf = dotr::config::Config::from_path(&cwd.clone());
     // Print verbose information for debugging
     println!("Loaded config: {:?}", conf);
     let package_name = get_package_name(import_path, &cwd);
+    println!("Package: {}", package_name.clone());
     assert!(
         conf.packages.contains_key(&package_name),
         "Config should contain the imported package"
@@ -93,6 +98,12 @@ fn test_import_dots() {
         format!("dotfiles/{}", package_name),
         "Package src should be correctly set"
     );
+    // Verify if src/.bashrc is in packages as well
+    let bashrc_package_name = get_package_name("src/.bashrc", &cwd);
+    assert!(
+        conf.packages.contains_key(&bashrc_package_name),
+        "Config should contain the imported .bashrc package"
+    );
     // Verify that files are copied to the dotfiles directory
     let src_path_str = format!("dotfiles/{}", package_name);
     let src_path = cwd.join(src_path_str);
@@ -100,7 +111,7 @@ fn test_import_dots() {
         src_path.exists(),
         "Source path for imported package should exist"
     );
-    let expected_file = src_path.join("init.lua");
+    let expected_file = src_path.join("nvim/init.lua");
     assert!(
         expected_file.exists(),
         "Expected file init.vim should be copied to the destination"
@@ -133,11 +144,21 @@ fn test_copy_dots() {
         path: import_path.to_string(),
     });
     run_cli(import_cli);
+    let mut import_bash_rc_cli = get_default_cli();
+    import_bash_rc_cli.command = Some(dotr::cli::Command::Import {
+        path: "src/.bashrc".to_string(),
+    });
+    run_cli(import_bash_rc_cli);
     // Backup "src/nvim/"
     let abs_import_path = cwd.join(import_path);
     let backup_path = cwd.join("src/nvim.bak/");
     copy_dir_all(abs_import_path.clone(), backup_path.clone())
         .expect("Failed to backup original directory");
+    // Backup "src/.bashrc"
+    let abs_bashrc_path = cwd.join("src/.bashrc");
+    let backup_bashrc_path = cwd.join("src/.bashrc.bak");
+    fs::copy(abs_bashrc_path.clone(), backup_bashrc_path.clone())
+        .expect("Failed to backup original .bashrc file");
     let mut copy_cli = get_default_cli();
     copy_cli.command = Some(dotr::cli::Command::Copy {});
     run_cli(copy_cli);
@@ -146,8 +167,22 @@ fn test_copy_dots() {
         cwd.join("src/nvim.dotrbak/").exists(),
         "Backup file should exist"
     );
+    assert!(
+        cwd.join("src/nvim/init.lua").exists(),
+        "Copied file should exist"
+    );
+    // src/.bashrc.dotrbak should exist
+    assert!(
+        cwd.join("src/.bashrc.dotrbak").exists(),
+        "Backup .bashrc file should exist"
+    );
+    assert!(
+        cwd.join("src/.bashrc").exists(),
+        "Copied .bashrc file should exist"
+    );
     // remove src/nvim and restore from backup
     fs::remove_dir_all(abs_import_path.clone()).expect("Failed to remove original directory");
     fs::rename(backup_path, abs_import_path).expect("Failed to restore backup.");
+
     common::teardown(&cwd);
 }
