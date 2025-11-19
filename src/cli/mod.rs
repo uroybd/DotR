@@ -1,12 +1,8 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
-use crate::config;
-
-pub mod copydots;
-pub mod importdots;
-pub mod initconfig;
+use crate::config::{self, Config};
 
 #[derive(Debug, Parser)]
 pub struct Cli {
@@ -18,13 +14,40 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Initialize the application
-    Init {},
-    Import {
-        path: String,
-    },
-    Copy {},
-    Update {},
+    Init(InitArgs),
+    Import(ImportArgs),
+    Deploy(DeployArgs),
+    Update(UpdateArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(name = "init", about = "Intialize dotfiles repository.")]
+pub struct InitArgs {}
+
+#[derive(Debug, Args)]
+#[command(name = "import", about = "Import dotfile and update configuration.")]
+pub struct ImportArgs {
+    #[arg(value_name = "IMPORT_PATH")]
+    pub path: String,
+}
+
+#[derive(Debug, Args)]
+#[command(name = "deploy", about = "Deploy dotfiles from repository.")]
+pub struct DeployArgs {
+    #[arg(num_args(0..), short, long)]
+    pub packages: Option<Vec<String>>,
+}
+
+#[derive(Debug, Args)]
+#[command(name = "update", about = "Update dotfiles to repository.")]
+pub struct UpdateArgs {
+    #[arg(num_args(0..), short, long)]
+    pub packages: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Context {
+    pub working_dir: PathBuf,
 }
 
 const BANNER: &str = r#"
@@ -45,12 +68,22 @@ pub fn run_cli(args: Cli) {
     if !working_dir.exists() {
         panic!("The specified working directory does not exist");
     }
+    let ctx = Context {
+        working_dir: working_dir.clone(),
+    };
     // Print working directory
     // Print full working directory path
     match args.command {
-        Some(Command::Init {}) => {
+        Some(Command::Init(_)) => {
             println!("Initializing configuration...");
-            initconfig::init_config(&working_dir);
+            match Config::init(&working_dir) {
+                Ok(_) => {
+                    println!("Configuration initialized successfully.");
+                }
+                Err(e) => {
+                    eprintln!("Failed to initialize configuration: {}", e);
+                }
+            }
         }
         None => {
             println!("No command provided. Use --help for more information.");
@@ -61,14 +94,14 @@ pub fn run_cli(args: Cli) {
                 println!("{}", BANNER);
             }
             match args.command {
-                Some(Command::Import { path }) => {
-                    importdots::import_dots(&path, &mut conf, &working_dir);
+                Some(Command::Import(args)) => {
+                    conf.import_package(&args.path, &working_dir);
                 }
-                Some(Command::Copy {}) => {
-                    copydots::copy_dots(&conf, &working_dir);
+                Some(Command::Deploy(args)) => {
+                    conf.deploy_packages(&ctx, &args);
                 }
-                Some(Command::Update {}) => {
-                    importdots::backup_dots(&conf, &working_dir);
+                Some(Command::Update(args)) => {
+                    conf.backup_packages(&ctx, &args);
                 }
                 _ => {
                     println!("Unknown command. Use --help for more information.");

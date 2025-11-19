@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn teardown(cwd: &Path) {
     // If NO_CLEANUP is set, skip cleanup

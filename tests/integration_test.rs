@@ -1,8 +1,9 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::run_cli,
-    config::{copy_dir_all, get_package_name},
+    cli::{run_cli, DeployArgs, ImportArgs, InitArgs},
+    config::copy_dir_all,
+    package::get_package_name,
     utils,
 };
 
@@ -17,9 +18,19 @@ fn get_default_cli() -> dotr::cli::Cli {
 
 fn get_init_cli() -> dotr::cli::Cli {
     dotr::cli::Cli {
-        command: Some(dotr::cli::Command::Init {}),
+        command: Some(dotr::cli::Command::Init(InitArgs {})),
         working_dir: Some("tests/playground".to_string()),
     }
+}
+
+fn import(path: &str) {
+    let cmd = dotr::cli::Cli {
+        command: Some(dotr::cli::Command::Import(ImportArgs {
+            path: path.to_string(),
+        })),
+        working_dir: Some("tests/playground".to_string()),
+    };
+    run_cli(cmd);
 }
 
 fn get_pathbuf() -> PathBuf {
@@ -69,16 +80,9 @@ fn test_import_dots() {
     run_cli(init_args);
     // Now, simulate command line arguments for "import"
     let import_path = "src/nvim/";
-    let mut import_cli = get_default_cli();
-    import_cli.command = Some(dotr::cli::Command::Import {
-        path: import_path.to_string(),
-    });
-    run_cli(import_cli);
-    let mut import_bash_rc_cli = get_default_cli();
-    import_bash_rc_cli.command = Some(dotr::cli::Command::Import {
-        path: "src/.bashrc".to_string(),
-    });
-    run_cli(import_bash_rc_cli);
+    import(&import_path);
+    let bashrc_path = "src/.bashrc";
+    import(&bashrc_path);
     let conf = dotr::config::Config::from_path(&cwd.clone());
     // Print verbose information for debugging
     println!("Loaded config: {:?}", conf);
@@ -139,16 +143,9 @@ fn test_copy_dots() {
     run_cli(init_args);
     // Now, simulate command line arguments for "import"
     let import_path = "src/nvim/";
-    let mut import_cli = get_default_cli();
-    import_cli.command = Some(dotr::cli::Command::Import {
-        path: import_path.to_string(),
-    });
-    run_cli(import_cli);
-    let mut import_bash_rc_cli = get_default_cli();
-    import_bash_rc_cli.command = Some(dotr::cli::Command::Import {
-        path: "src/.bashrc".to_string(),
-    });
-    run_cli(import_bash_rc_cli);
+    import(&import_path);
+    let bashrc_path = "src/.bashrc";
+    import(&bashrc_path);
     // Backup "src/nvim/"
     let abs_import_path = cwd.join(import_path);
     let backup_path = cwd.join("src/nvim.bak/");
@@ -160,7 +157,7 @@ fn test_copy_dots() {
     fs::copy(abs_bashrc_path.clone(), backup_bashrc_path.clone())
         .expect("Failed to backup original .bashrc file");
     let mut copy_cli = get_default_cli();
-    copy_cli.command = Some(dotr::cli::Command::Copy {});
+    copy_cli.command = Some(dotr::cli::Command::Deploy(DeployArgs { packages: None }));
     run_cli(copy_cli);
     // src/nvim/init.lua.dotrbak should exist
     assert!(

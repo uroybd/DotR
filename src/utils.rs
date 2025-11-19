@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+pub const BACKUP_EXT: &str = "dotrbak";
+
 pub fn resolve_path(path: &str, cwd: &Path) -> PathBuf {
     // Absolute:
     if path.starts_with('/') {
