@@ -250,7 +250,7 @@ impl Package {
     }
 }
 
-pub fn get_package_name(pathstr: &str, cwd: &PathBuf) -> String {
+pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
     let path = resolve_path(pathstr, cwd);
     let last_component = path
         .file_name()
