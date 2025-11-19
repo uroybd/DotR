@@ -5,3 +5,9 @@ test:
 
 release:
 	cargo release ${BUMP_TYPE} --execute --no-publish
+
+lint:
+	cargo clippy lint
+
+lint-fix:
+	cargo clippy --fix
