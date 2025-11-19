@@ -210,6 +210,8 @@ pub fn get_package_name(pathstr: &str, cwd: &PathBuf) -> String {
     if let Some(pos) = package_name.rfind('-') {
         package_name.truncate(pos);
     }
+    // replace any remaining '-' with '_', and '.' with '_'
+    package_name = package_name.replace('-', "_").replace('.', "_");
     return package_name;
 }
 
