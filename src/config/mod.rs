@@ -86,31 +86,33 @@ impl Config {
     }
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) {
-        for pkg in self.filter_packages(&args.packages).iter() {
+        for (_, pkg) in self.filter_packages(&args.packages).iter() {
             pkg.backup(&ctx.working_dir).expect("Error backing up");
         }
     }
 
-    fn filter_packages(&self, names: &Option<Vec<String>>) -> Vec<&Package> {
+    fn filter_packages(&self, names: &Option<Vec<String>>) -> HashMap<String, Package> {
         match names {
-            Some(pkg_names) => self
-                .packages
-                .iter()
-                .filter_map(|(name, pkg)| {
-                    if pkg_names.contains(name) {
-                        Some(pkg)
-                    } else {
-                        None
+            Some(pkg_names) => pkg_names.iter().fold(HashMap::new(), |mut acc, name| {
+                if let Some(pkg) = self.packages.get(name) {
+                    acc.insert(name.clone(), pkg.clone());
+                    for dep in pkg.dependencies.iter() {
+                        if let Some(dep_pkg) = self.packages.get(dep) && !acc.contains_key(dep) {
+                            acc.insert(dep.clone(), dep_pkg.clone());
+                        }
                     }
-                })
-                .collect(),
-            None => self.packages.values().collect(),
+                } else {
+                    eprintln!("Warning: Package '{}' not found in configuration.", name);
+                }
+                acc
+            }),
+            None => self.packages.clone(),
         }
     }
 
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) {
         println!("Copying dotfiles...");
-        for pkg in self.filter_packages(&args.packages).iter() {
+        for (_, pkg) in self.filter_packages(&args.packages).iter() {
             pkg.deploy(&ctx.working_dir)
         }
     }
