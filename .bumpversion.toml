@@ -1,0 +1,10 @@
+[bumpversion]
+current_version = 0.5.6
+
+[bumpversion:file:Cargo.toml]
+search = 'name = "dotr"\nversion = "{current_version}"'
+replace = 'name = "dotr"\nversion = "{new_version}"'
+
+[bumpversion:file:Cargo.lock]
+search = 'name = "dotr"\nversion = "{current_version}"'
+replace = 'name = "dotr"\nversion = "{new_version}"'
