@@ -30,15 +30,14 @@ sudo mv dotr /usr/local/bin/
 ```
 
 ## Usage
-
 ```
 Usage: dotr [OPTIONS] [COMMAND]
 
 Commands:
-  init    Initialize the application
-  import
-  copy
-  update
+  init    Intialize dotfiles repository.
+  import  Import dotfile and update configuration.
+  deploy  Deploy dotfiles from repository.
+  update  Update dotfiles to repository.
   help    Print this message or the help of the given subcommand(s)
 
 Options:
