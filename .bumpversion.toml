@@ -1,0 +1,11 @@
+[bumpversion]
+current_version = 0.5.4 # Specify the current version of your project, samne value as Cargo.toml version
+
+# Specify how to search for and replace the version in the 'Cargo.toml' file.
+[bumpversion:file:Cargo.toml]
+search = 'name = "dotr"\nversion = "{current_version}"'
+replace = 'name = "dotr"\nversion = "{new_version}"'
+
+[bumpversion:file:Cargo.lock]
+search = 'name = "dotr"\nversion = "{current_version}"'
+replace = 'name = "dotr"\nversion = "{new_version}"'
