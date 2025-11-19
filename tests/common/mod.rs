@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-pub fn teardown(cwd: &PathBuf) {
+pub fn teardown(cwd: &Path) {
     // If NO_CLEANUP is set, skip cleanup
     if std::env::var("NO_CLEANUP").is_ok() {
         return;

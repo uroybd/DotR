@@ -84,7 +84,7 @@ impl Config {
 }
 
 impl Package {
-    pub fn from_path(path: &str, cwd: &PathBuf) -> Self {
+    pub fn from_path(path: &str, cwd: &Path) -> Self {
         let resolved_path = resolve_path(path, cwd);
         if !resolved_path.clone().exists() {
             eprintln!("Error: Path '{}' does not exist.", resolved_path.display());
@@ -104,7 +104,7 @@ impl Package {
         }
     }
 
-    pub fn deploy(&self, cwd: &PathBuf) {
+    pub fn deploy(&self, cwd: &Path) {
         let src_path = cwd.join(self.src.as_str());
         let dest_path = resolve_path(self.dest.as_str(), cwd);
         let last_dest_segment = dest_path
@@ -205,7 +205,7 @@ impl Package {
         pkg_table
     }
 
-    pub fn backup(&self, cwd: &PathBuf) -> Result<(), Error> {
+    pub fn backup(&self, cwd: &Path) -> Result<(), Error> {
         let src_path = cwd.join(self.src.clone());
         let dest_path = resolve_path(&self.dest, cwd);
         // If the dest path is a file just copy it in:
