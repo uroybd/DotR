@@ -5,7 +5,7 @@ authors = ["Utsob Roy <connect@utsob.me>"]
 license = "MIT"
 version = "0.5.8"
 edition = "2024"
-repository = "https:://github.com/uroybd/dotr"
+repository = "https://github.com/uroybd/dotr"
 
 [dependencies]
 toml = "0.9.8"
