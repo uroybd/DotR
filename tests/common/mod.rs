@@ -27,4 +27,36 @@ pub fn teardown(cwd: &Path) {
             );
         }
     }
+    // Clean up any backup directories created during tests
+    cleanup_backups(cwd);
+}
+
+fn cleanup_backups(cwd: &Path) {
+    // Clean up common backup patterns in src directory
+    let src_dir = cwd.join("src");
+    if !src_dir.exists() {
+        return;
+    }
+    
+    let backup_patterns = vec![".dotrbak", ".bak", ".dotrback", ".testbak"];
+    
+    if let Ok(entries) = std::fs::read_dir(&src_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            
+            // Check if it matches any backup pattern
+            for pattern in &backup_patterns {
+                if name_str.contains(pattern) {
+                    let _ = if path.is_dir() {
+                        std::fs::remove_dir_all(&path)
+                    } else {
+                        std::fs::remove_file(&path)
+                    };
+                    break;
+                }
+            }
+        }
+    }
 }

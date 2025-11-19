@@ -1,185 +1,311 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{run_cli, DeployArgs, ImportArgs, InitArgs},
-    config::copy_dir_all,
+    cli::{run_cli, DeployArgs, ImportArgs, InitArgs, UpdateArgs},
+    config::{copy_dir_all, Config},
     package::get_package_name,
     utils,
 };
 
 mod common;
 
-fn get_default_cli() -> dotr::cli::Cli {
-    dotr::cli::Cli {
-        command: None,
-        working_dir: Some("tests/playground".to_string()),
-    }
+// Test constants
+const PLAYGROUND_DIR: &str = "tests/playground";
+const NVIM_PATH: &str = "src/nvim/";
+const BASHRC_PATH: &str = "src/.bashrc";
+
+// Test fixture helper
+struct TestFixture {
+    cwd: PathBuf,
 }
 
-fn get_init_cli() -> dotr::cli::Cli {
-    dotr::cli::Cli {
-        command: Some(dotr::cli::Command::Init(InitArgs {})),
-        working_dir: Some("tests/playground".to_string()),
+impl TestFixture {
+    fn new() -> Self {
+        Self {
+            cwd: PathBuf::from(PLAYGROUND_DIR),
+        }
     }
-}
 
-fn import(path: &str) {
-    let cmd = dotr::cli::Cli {
-        command: Some(dotr::cli::Command::Import(ImportArgs {
+    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
+        dotr::cli::Cli {
+            command,
+            working_dir: Some(PLAYGROUND_DIR.to_string()),
+        }
+    }
+
+    fn init(&self) {
+        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {}))));
+    }
+
+    fn import(&self, path: &str) {
+        run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
             path: path.to_string(),
-        })),
-        working_dir: Some("tests/playground".to_string()),
-    };
-    run_cli(cmd);
+        }))));
+    }
+
+    fn deploy(&self, packages: Option<Vec<String>>) {
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+        }))));
+    }
+
+    fn update(&self, packages: Option<Vec<String>>) {
+        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
+            packages,
+        }))));
+    }
+
+    fn get_config(&self) -> Config {
+        Config::from_path(&self.cwd)
+    }
+
+    fn get_package_name(&self, path: &str) -> String {
+        get_package_name(path, &self.cwd)
+    }
+
+    fn assert_file_exists(&self, path: &str, message: &str) {
+        assert!(self.cwd.join(path).exists(), "{}", message);
+    }
+
+    fn assert_file_not_exists(&self, path: &str, message: &str) {
+        assert!(!self.cwd.join(path).exists(), "{}", message);
+    }
+
+    fn assert_file_contains(&self, path: &str, content: &str, message: &str) {
+        let file_path = self.cwd.join(path);
+        let file_content = fs::read_to_string(&file_path)
+            .unwrap_or_else(|_| panic!("Failed to read file: {}", path));
+        assert!(file_content.contains(content), "{}", message);
+    }
+
+    fn write_file(&self, path: &str, content: &str) {
+        let file_path = self.cwd.join(path);
+        fs::write(file_path, content)
+            .unwrap_or_else(|_| panic!("Failed to write file: {}", path));
+    }
 }
 
-fn get_pathbuf() -> PathBuf {
-    PathBuf::from("tests/playground")
+impl Drop for TestFixture {
+    fn drop(&mut self) {
+        common::teardown(&self.cwd);
+    }
 }
 
 #[test]
 fn test_no_command() {
-    // Simulate no command line arguments
-    let cwd = get_pathbuf();
-    let args = get_default_cli();
-    run_cli(args);
-    // Since no command is provided, we expect no config file or dotfiles directory to be created
-    let config_path = cwd.join("config.toml");
-    assert!(!config_path.exists(), "config.toml should not be created");
-    let dotfiles_dir = cwd.join("dotfiles");
-    assert!(
-        !dotfiles_dir.exists(),
-        "dotfiles directory should not be created"
-    );
-    common::teardown(&cwd);
+    let fixture = TestFixture::new();
+    
+    run_cli(fixture.get_cli(None));
+    
+    fixture.assert_file_not_exists("config.toml", "config.toml should not be created");
+    fixture.assert_file_not_exists("dotfiles", "dotfiles directory should not be created");
 }
 
 #[test]
 fn test_init_config() {
-    let cwd = get_pathbuf();
-    // Simulate command line arguments for "init"
-    let args = get_init_cli();
-    run_cli(args);
-    // Check if config file is created
-    let config_path = cwd.join("config.toml");
-    assert!(config_path.exists(), "config.toml should be created");
-    // Check if dotfiles directory is created
-    let dotfiles_dir = cwd.join("dotfiles");
-    assert!(
-        dotfiles_dir.exists(),
-        "dotfiles directory should be created"
-    );
-    common::teardown(&cwd);
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    
+    fixture.assert_file_exists("config.toml", "config.toml should be created");
+    fixture.assert_file_exists("dotfiles", "dotfiles directory should be created");
 }
 
 #[test]
 fn test_import_dots() {
-    // First, initialize the config
-    let cwd = get_pathbuf();
-    let init_args = get_init_cli();
-    run_cli(init_args);
-    // Now, simulate command line arguments for "import"
-    let import_path = "src/nvim/";
-    import(&import_path);
-    let bashrc_path = "src/.bashrc";
-    import(&bashrc_path);
-    let conf = dotr::config::Config::from_path(&cwd.clone());
-    // Print verbose information for debugging
-    println!("Loaded config: {:?}", conf);
-    let package_name = get_package_name(import_path, &cwd);
-    println!("Package: {}", package_name.clone());
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    let config = fixture.get_config();
+    let nvim_package_name = fixture.get_package_name(NVIM_PATH);
+    let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
+    
+    // Verify nvim package
     assert!(
-        conf.packages.contains_key(&package_name),
-        "Config should contain the imported package"
+        config.packages.contains_key(&nvim_package_name),
+        "Config should contain the nvim package"
     );
-    let package = conf.packages.get(&package_name).unwrap();
+    let nvim_package = config.packages.get(&nvim_package_name).unwrap();
     assert!(
-        package.dest.ends_with(import_path),
+        nvim_package.dest.ends_with(NVIM_PATH),
         "Package dest should match the imported path"
     );
     assert_eq!(
-        package.src,
-        format!("dotfiles/{}", package_name),
+        nvim_package.src,
+        format!("dotfiles/{}", nvim_package_name),
         "Package src should be correctly set"
     );
-    // Verify if src/.bashrc is in packages as well
-    let bashrc_package_name = get_package_name("src/.bashrc", &cwd);
+    
+    // Verify bashrc package
     assert!(
-        conf.packages.contains_key(&bashrc_package_name),
-        "Config should contain the imported .bashrc package"
+        config.packages.contains_key(&bashrc_package_name),
+        "Config should contain the bashrc package"
     );
-    // Verify that files are copied to the dotfiles directory
-    let src_path_str = format!("dotfiles/{}", package_name);
-    let src_path = cwd.join(src_path_str);
-    assert!(
-        src_path.exists(),
-        "Source path for imported package should exist"
+    
+    // Verify files are copied to dotfiles directory
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        "nvim init.lua should be copied to dotfiles"
     );
-    let expected_file = src_path.join("nvim/init.lua");
-    assert!(
-        expected_file.exists(),
-        "Expected file init.vim should be copied to the destination"
-    );
-    common::teardown(&cwd);
 }
 
 #[test]
 fn test_canonical_linking() {
-    let cwd = get_pathbuf();
-    let path_from_home = utils::resolve_path("~/.config", &cwd);
-    let path_from_root = utils::resolve_path("/Volumes/Repos/", &cwd);
-    let path_from_cwd = utils::resolve_path("src/nvim", &cwd);
-    println!("From Home {}", path_from_home.display());
-    println!("From Root {}", path_from_root.display());
-    println!("From CWD {}", path_from_cwd.display());
-    assert_eq!(1, 1);
+    let fixture = TestFixture::new();
+    
+    let path_from_home = utils::resolve_path("~/.config", &fixture.cwd);
+    let path_from_root = utils::resolve_path("/Volumes/Repos/", &fixture.cwd);
+    let path_from_cwd = utils::resolve_path("src/nvim", &fixture.cwd);
+    
+    assert!(path_from_home.is_absolute());
+    assert!(path_from_root.is_absolute());
+    assert!(path_from_cwd.is_absolute());
 }
 
 #[test]
-fn test_copy_dots() {
-    // First, initialize the config
-    let cwd = get_pathbuf();
-    let init_args = get_init_cli();
-    run_cli(init_args);
-    // Now, simulate command line arguments for "import"
-    let import_path = "src/nvim/";
-    import(&import_path);
-    let bashrc_path = "src/.bashrc";
-    import(&bashrc_path);
-    // Backup "src/nvim/"
-    let abs_import_path = cwd.join(import_path);
-    let backup_path = cwd.join("src/nvim.bak/");
-    copy_dir_all(abs_import_path.clone(), backup_path.clone())
-        .expect("Failed to backup original directory");
-    // Backup "src/.bashrc"
-    let abs_bashrc_path = cwd.join("src/.bashrc");
-    let backup_bashrc_path = cwd.join("src/.bashrc.bak");
-    fs::copy(abs_bashrc_path.clone(), backup_bashrc_path.clone())
-        .expect("Failed to backup original .bashrc file");
-    let mut copy_cli = get_default_cli();
-    copy_cli.command = Some(dotr::cli::Command::Deploy(DeployArgs { packages: None }));
-    run_cli(copy_cli);
-    // src/nvim/init.lua.dotrbak should exist
-    assert!(
-        cwd.join("src/nvim.dotrbak/").exists(),
-        "Backup file should exist"
-    );
-    assert!(
-        cwd.join("src/nvim/init.lua").exists(),
-        "Copied file should exist"
-    );
-    // src/.bashrc.dotrbak should exist
-    assert!(
-        cwd.join("src/.bashrc.dotrbak").exists(),
-        "Backup .bashrc file should exist"
-    );
-    assert!(
-        cwd.join("src/.bashrc").exists(),
-        "Copied .bashrc file should exist"
-    );
-    // remove src/nvim and restore from backup
-    fs::remove_dir_all(abs_import_path.clone()).expect("Failed to remove original directory");
-    fs::rename(backup_path, abs_import_path).expect("Failed to restore backup.");
+fn test_deploy_all_packages() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    // Deploy all packages
+    fixture.deploy(None);
+    
+    // Verify backups created
+    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
+    
+    // Verify files deployed
+    fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
+    fixture.assert_file_exists("src/.bashrc", "bashrc should be deployed");
+}
 
-    common::teardown(&cwd);
+#[test]
+fn test_deploy_specific_package() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    // Deploy only nvim
+    let nvim_package_name = fixture.get_package_name(NVIM_PATH);
+    fixture.deploy(Some(vec![nvim_package_name]));
+    
+    // Verify only nvim was deployed
+    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
+    fixture.assert_file_not_exists("src/.bashrc.dotrbak", "bashrc should NOT have been deployed");
+}
+
+#[test]
+fn test_deploy_multiple_specific_packages() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    // Deploy both packages explicitly
+    let nvim_package_name = fixture.get_package_name(NVIM_PATH);
+    let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
+    fixture.deploy(Some(vec![nvim_package_name, bashrc_package_name]));
+    
+    // Verify both were deployed
+    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
+    fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
+    fixture.assert_file_exists("src/.bashrc", "bashrc should be deployed");
+}
+
+#[test]
+fn test_update_specific_package() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    // Deploy all packages
+    fixture.deploy(None);
+    
+    // Modify deployed files
+    fixture.write_file("src/nvim/init.lua", "-- Modified nvim config\n");
+    fixture.write_file("src/.bashrc", "# Modified bashrc\n");
+    
+    // Update only nvim
+    let nvim_package_name = fixture.get_package_name(NVIM_PATH);
+    fixture.update(Some(vec![nvim_package_name.clone()]));
+    
+    // Verify nvim was updated
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        "Modified nvim config",
+        "nvim config should be updated in dotfiles"
+    );
+    
+    // Verify bashrc was NOT updated
+    let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
+    let bashrc_content = fs::read_to_string(
+        fixture.cwd.join(format!("dotfiles/{}/.bashrc", bashrc_package_name))
+    ).expect("Failed to read bashrc");
+    assert!(
+        !bashrc_content.contains("Modified bashrc"),
+        "bashrc should NOT be updated in dotfiles"
+    );
+}
+
+#[test]
+fn test_update_multiple_specific_packages() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    fixture.import(BASHRC_PATH);
+    
+    // Deploy all packages
+    fixture.deploy(None);
+    
+    // Modify deployed files
+    fixture.write_file("src/nvim/init.lua", "-- Updated nvim config\n");
+    fixture.write_file("src/.bashrc", "# Updated bashrc\n");
+    
+    // Update both packages
+    let nvim_package_name = fixture.get_package_name(NVIM_PATH);
+    let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
+    fixture.update(Some(vec![nvim_package_name.clone(), bashrc_package_name.clone()]));
+    
+    // Verify both were updated
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        "Updated nvim config",
+        "nvim config should be updated"
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/.bashrc", bashrc_package_name),
+        "Updated bashrc",
+        "bashrc should be updated"
+    );
+}
+
+#[test]
+fn test_deploy_nonexistent_package() {
+    let fixture = TestFixture::new();
+    
+    fixture.init();
+    fixture.import(NVIM_PATH);
+    
+    // Try to deploy a non-existent package
+    fixture.deploy(Some(vec!["nonexistent_package".to_string()]));
+    
+    // Verify nothing was deployed
+    fixture.assert_file_not_exists(
+        "src/nvim.dotrbak/",
+        "No backup should be created for filtered out packages"
+    );
 }
