@@ -97,7 +97,9 @@ impl Config {
                 if let Some(pkg) = self.packages.get(name) {
                     acc.insert(name.clone(), pkg.clone());
                     for dep in pkg.dependencies.iter() {
-                        if let Some(dep_pkg) = self.packages.get(dep) && !acc.contains_key(dep) {
+                        if let Some(dep_pkg) = self.packages.get(dep)
+                            && !acc.contains_key(dep)
+                        {
                             acc.insert(dep.clone(), dep_pkg.clone());
                         }
                     }
