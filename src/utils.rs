@@ -9,9 +9,9 @@ pub fn resolve_path(path: &str, cwd: &PathBuf) -> PathBuf {
         // remove first segment of the path
         let p = path.splitn(2, '/').collect::<Vec<&str>>();
         // print for debug
-        return home_dir.join(&p[1..].join("/"));
+        home_dir.join(p[1..].join("/"))
     } else {
         let p = cwd.join(path);
-        return std::path::absolute(&p).expect("Failed to get absolute path");
+        std::path::absolute(&p).expect("Failed to get absolute path")
     }
 }
