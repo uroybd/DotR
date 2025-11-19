@@ -1,4 +1,9 @@
 # DotR
+
+[![PR Check](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml/badge.svg)](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml)
+[![codecov](https://codecov.io/gh/uroybd/DotR/branch/main/graph/badge.svg)](https://codecov.io/gh/uroybd/DotR)
+[![License](https://img.shields.io/github/license/uroybd/DotR)](LICENSE)
+
 A dotfiles manager that is as dear as a daughter.
 
 ## WARNING!
