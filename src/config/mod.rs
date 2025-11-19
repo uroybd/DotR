@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fs,
     io::{self, Error},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 use serde::{Deserialize, Serialize};
