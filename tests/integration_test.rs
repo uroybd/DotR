@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{run_cli, DeployArgs, ImportArgs, InitArgs, UpdateArgs},
+    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
     config::Config,
     package::get_package_name,
     utils,

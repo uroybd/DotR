@@ -3,7 +3,7 @@ use std::{ffi::OsStr, io::Error, path::Path};
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
-use crate::{utils::resolve_path, utils::BACKUP_EXT};
+use crate::{utils::BACKUP_EXT, utils::resolve_path};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Package {
