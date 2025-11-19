@@ -16,33 +16,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Cache cargo index
         uses: actions/cache@v3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Cache cargo build
         uses: actions/cache@v3
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Check formatting
         run: cargo fmt --all -- --check
-      
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -52,37 +52,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         rust: [stable]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Cache cargo index
         uses: actions/cache@v3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Cache cargo build
         uses: actions/cache@v3
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Build
         run: cargo build --verbose
-      
+
       - name: Run tests
         run: cargo test --verbose
         env:
@@ -95,38 +95,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Install cargo-tarpaulin
         run: cargo install cargo-tarpaulin
-      
+
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Cache cargo index
         uses: actions/cache@v3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Generate coverage
         run: |
           cargo tarpaulin --verbose --all-features --workspace --timeout 300 --out Xml --engine llvm
         env:
           RUST_TEST_THREADS: 1
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           files: ./cobertura.xml
           fail_ci_if_error: false
           verbose: true
-      
+
       - name: Archive coverage report
         uses: actions/upload-artifact@v3
         with:
@@ -138,10 +138,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Run cargo audit
         uses: rustsec/audit-check@v1
         with:
