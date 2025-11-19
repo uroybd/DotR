@@ -101,31 +101,26 @@ impl Package {
     }
 
     pub fn deploy(&self, cwd: &PathBuf) {
-        let src_path = resolve_path(self.src.as_str(), cwd);
-        let dest_path = cwd.join(self.dest.clone());
+        let src_path = cwd.join(self.src.as_str());
+        let dest_path = resolve_path(self.dest.as_str(), cwd);
         if dest_path.exists() {
             if dest_path.is_dir() {
-                let backup_path = src_path.with_extension("dotrbak");
+                let backup_path = dest_path.with_extension("dotrbak");
                 // Delete previous backup
                 if backup_path.exists() {
                     std::fs::remove_dir_all(backup_path.clone())
                         .expect("Error removing previous backup");
                 }
-                println!(
-                    "Src {}, backup {}",
-                    src_path.clone().display(),
-                    backup_path.clone().display()
-                );
-                std::fs::rename(src_path.clone(), backup_path.clone()).expect("Failed to backup");
+                std::fs::rename(dest_path.clone(), backup_path).expect("Failed to backup");
                 // Copy from dest_path to src_path
-                copy_dir_all(dest_path, src_path.clone()).expect("Error copying config");
+                copy_dir_all(src_path, dest_path).expect("Error copying config");
             } else {
                 // create backup extension. e.g. init.lua -> init.lua.dotrbak
-                let prev_extension = src_path.extension().unwrap().to_str().unwrap();
+                let prev_extension = dest_path.extension().unwrap().to_str().unwrap();
                 let ext = format!("{}.dotrbak", prev_extension);
-                let backup_path = src_path.with_extension(ext);
-                std::fs::rename(&src_path, &backup_path).expect("Failed to backup existing file");
-                std::fs::copy(dest_path, src_path).expect("Error copying dotfiles");
+                let backup_path = dest_path.with_extension(ext);
+                std::fs::rename(&dest_path, &backup_path).expect("Failed to backup existing file");
+                std::fs::copy(src_path, dest_path).expect("Error copying dotfiles");
             }
         }
     }
