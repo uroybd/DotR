@@ -1,6 +1,10 @@
 # DotR
 A dotfiles manager that is as dear as a daughter.
 
+## WARNING!
+
+This is still pre-alpha. The schema is evolving, performance is sub-par. Use it with caution.
+
 ## Installation
 
 ### Homebrew (macOS and Linux)

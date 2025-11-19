@@ -1,8 +1,8 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{copydots::copy_dir_all, run_cli},
-    config::get_package_name,
+    cli::run_cli,
+    config::{copy_dir_all, get_package_name},
     utils,
 };
 
@@ -85,22 +85,22 @@ fn test_import_dots() {
     );
     let package = conf.packages.get(&package_name).unwrap();
     assert!(
-        package.src.ends_with(import_path),
-        "Package src should match the imported path"
+        package.dest.ends_with(import_path),
+        "Package dest should match the imported path"
     );
     assert_eq!(
-        package.dest,
+        package.src,
         format!("dotfiles/{}", package_name),
-        "Package dest should be correctly set"
+        "Package src should be correctly set"
     );
     // Verify that files are copied to the dotfiles directory
-    let dest_path_str = format!("dotfiles/{}", package_name);
-    let dest_path = cwd.join(dest_path_str);
+    let src_path_str = format!("dotfiles/{}", package_name);
+    let src_path = cwd.join(src_path_str);
     assert!(
-        dest_path.exists(),
-        "Destination path for imported package should exist"
+        src_path.exists(),
+        "Source path for imported package should exist"
     );
-    let expected_file = dest_path.join("init.lua");
+    let expected_file = src_path.join("init.lua");
     assert!(
         expected_file.exists(),
         "Expected file init.vim should be copied to the destination"
