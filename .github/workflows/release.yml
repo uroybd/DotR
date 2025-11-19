@@ -54,17 +54,28 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
+      - name: Generate Changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v3
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGELOG.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: artifacts/**/*.tar.gz
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.content }}
 
   homebrew:
     name: Update Homebrew Tap
