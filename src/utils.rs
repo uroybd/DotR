@@ -1,6 +1,6 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-pub fn resolve_path(path: &str, cwd: &PathBuf) -> PathBuf {
+pub fn resolve_path(path: &str, cwd: &Path) -> PathBuf {
     // Absolute:
     if path.starts_with('/') {
         PathBuf::from(path)

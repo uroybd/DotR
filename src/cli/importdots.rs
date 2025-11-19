@@ -6,7 +6,7 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
     println!("Importing dotfiles from path: {}", path);
     let package = Package::from_path(path, cwd);
     let pkg_name = package.name.clone();
-    package.backup(cwd);
+    package.backup(cwd).expect("Error backing up while import");
     conf.packages.insert(pkg_name.clone(), package.clone());
     println!("Config: {:?}", conf);
     conf.save(cwd);
@@ -15,6 +15,6 @@ pub fn import_dots(path: &str, conf: &mut Config, cwd: &PathBuf) {
 
 pub fn backup_dots(conf: &Config, cwd: &PathBuf) {
     for (_, pkg) in conf.packages.iter() {
-        pkg.backup(cwd);
+        pkg.backup(cwd).expect("Error backing up");
     }
 }

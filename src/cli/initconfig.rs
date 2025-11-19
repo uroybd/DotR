@@ -1,8 +1,11 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::config;
 
-pub fn init_config(cwd: &PathBuf) {
+pub fn init_config(cwd: &Path) {
     // If config.toml already exists, do nothing
     let config_path = cwd.join("config.toml");
     if config_path.exists() {
