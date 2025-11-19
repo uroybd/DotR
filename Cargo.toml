@@ -1,10 +1,16 @@
 [package]
 name = "dotr"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 
 [dependencies]
-clap = { version = "4.5.51", features = ["derive"] }
-serde = { version = "1.0.228", features = ["derive"] }
 toml = "0.9.8"
 walkdir = "2.5.0"
+
+[dependencies.clap]
+version = "4.5.51"
+features = ["derive"]
+
+[dependencies.serde]
+version = "1.0.228"
+features = ["derive"]
