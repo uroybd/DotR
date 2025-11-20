@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -18,11 +18,16 @@ pub enum Command {
     Import(ImportArgs),
     Deploy(DeployArgs),
     Update(UpdateArgs),
+    PrintVars(PrintVarsArgs),
 }
 
 #[derive(Debug, Args)]
 #[command(name = "init", about = "Intialize dotfiles repository.")]
 pub struct InitArgs {}
+
+#[derive(Debug, Args)]
+#[command(name = "print-vars", about = "Print all user variables.")]
+pub struct PrintVarsArgs {}
 
 #[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
@@ -48,6 +53,36 @@ pub struct UpdateArgs {
 #[derive(Debug, Clone)]
 pub struct Context {
     pub working_dir: PathBuf,
+    pub variables: HashMap<String, String>,
+}
+
+impl Context {
+    pub fn get_variable(&self, key: &str) -> Option<&String> {
+        self.variables.get(key)
+    }
+    pub fn new(working_dir: PathBuf) -> Self {
+        let mut ctx = Self {
+            working_dir,
+            variables: HashMap::new(),
+        };
+        // Add environment variables to context variables
+        for (key, value) in std::env::vars() {
+            ctx.variables.insert(key, value);
+        }
+        ctx
+    }
+    pub fn print_variables(&self) {
+        println!("User Variables:");
+        if self.variables.is_empty() {
+            println!("  (none)");
+        } else {
+            let mut vars: Vec<_> = self.variables.iter().collect();
+            vars.sort_by_key(|(k, _)| k.as_str());
+            for (key, value) in vars {
+                println!("  {} = {}", key, value);
+            }
+        }
+    }
 }
 
 const BANNER: &str = r#"
@@ -68,8 +103,9 @@ pub fn run_cli(args: Cli) {
     if !working_dir.exists() {
         panic!("The specified working directory does not exist");
     }
-    let ctx = Context {
+    let mut ctx = Context {
         working_dir: working_dir.clone(),
+        variables: HashMap::new(),
     };
     // Print working directory
     // Print full working directory path
@@ -93,6 +129,7 @@ pub fn run_cli(args: Cli) {
             if conf.banner {
                 println!("{}", BANNER);
             }
+            ctx.variables = conf.variables.clone();
             match args.command {
                 Some(Command::Import(args)) => {
                     conf.import_package(&args.path, &working_dir);
@@ -102,6 +139,10 @@ pub fn run_cli(args: Cli) {
                 }
                 Some(Command::Update(args)) => {
                     conf.backup_packages(&ctx, &args);
+                }
+                Some(Command::PrintVars(_)) => {
+                    println!("User Variables:");
+                    ctx.print_variables();
                 }
                 _ => {
                     println!("Unknown command. Use --help for more information.");
