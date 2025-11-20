@@ -281,6 +281,7 @@ dependencies = [
  "anyhow",
  "clap",
  "fs_extra",
+ "regex",
  "serde",
  "tera",
  "toml",

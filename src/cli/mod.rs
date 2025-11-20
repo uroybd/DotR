@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
+use serde::Serialize;
 use toml::Table;
 
 use crate::config::{self, Config};
@@ -51,7 +52,7 @@ pub struct UpdateArgs {
     pub packages: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
     pub variables: Table,

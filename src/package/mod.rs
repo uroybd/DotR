@@ -88,6 +88,13 @@ impl Package {
 
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
+        if self.is_templated(&ctx.working_dir) {
+            println!(
+                "[INFO] Skipping backup for templated package '{}'",
+                self.name
+            );
+            return Ok(());
+        }
         let copy_from = resolve_path(&self.dest, &ctx.working_dir);
         let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
@@ -116,6 +123,7 @@ impl Package {
 
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) {
+        let is_templated = self.is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = resolve_path(&self.dest, &ctx.working_dir);
         let backup_path = copy_to.with_extension(BACKUP_EXT);
@@ -139,7 +147,15 @@ impl Package {
                 } else {
                     std::fs::create_dir_all(dest_path.parent().unwrap())
                         .expect("Failed to create parent directory");
-                    std::fs::copy(entry.path(), &dest_path).expect("Failed to copy file");
+                    if is_templated {
+                        let compiled_content = compile_template(entry.path(), &ctx.variables)
+                            .expect("Failed to compile template");
+                        std::fs::write(&dest_path, compiled_content)
+                            .expect("Failed to write compiled file");
+                    } else {
+                        // Copy directly:
+                        std::fs::copy(entry.path(), &dest_path).expect("Failed to copy file");
+                    }
                 }
             }
         } else {
@@ -158,6 +174,37 @@ impl Package {
 
     pub fn is_templated(&self, cwd: &Path) -> bool {
         // Check if src exists as a directory or file, if not return true
+        let src_path = cwd.join(&self.src);
+        if !src_path.exists() {
+            return true;
+        }
+        // Check for following templating indicators using walkdir (when necessary) and regex:
+        // {{ and }} for expressions
+        // {% and %} for statements
+        // {# and #} for comments
+        // {{- and -}} for expressions
+        // {%- and -%} for statements
+        // {#- and -#} for comments
+        let templating_regex =
+            regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap();
+        if src_path.is_dir() {
+            for entry in walkdir::WalkDir::new(&src_path) {
+                let entry = entry.expect("Failed to read directory entry");
+                if entry.path().is_file() {
+                    let content =
+                        std::fs::read_to_string(entry.path()).expect("Failed to read file content");
+                    if templating_regex.is_match(&content) {
+                        return true;
+                    }
+                }
+            }
+        } else if src_path.is_file() {
+            let content = std::fs::read_to_string(&src_path).expect("Failed to read file content");
+            if templating_regex.is_match(&content) {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -184,4 +231,11 @@ pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
     let prefix = if path.is_dir() { "d_" } else { "f_" };
     package_name = format!("{}{}", prefix, package_name);
     package_name.replace(['-', '.'], "_")
+}
+
+/// Compile a template file at the given path using Tera templating engine with the provided context. and return the rendered content as a String.
+pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> {
+    let ctx = tera::Context::from_serialize(context)?;
+    let template_content = std::fs::read_to_string(path)?;
+    Ok(tera::Tera::one_off(&template_content, &ctx, true)?)
 }

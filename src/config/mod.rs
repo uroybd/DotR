@@ -108,7 +108,7 @@ impl Config {
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) {
         for (_, pkg) in self.filter_packages(&args.packages).iter() {
-            pkg.backup(&ctx).expect("Error backing up");
+            pkg.backup(ctx).expect("Error backing up");
         }
     }
 
@@ -138,7 +138,7 @@ impl Config {
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) {
         println!("Copying dotfiles...");
         for (_, pkg) in self.filter_packages(&args.packages).iter() {
-            pkg.deploy(&ctx)
+            pkg.deploy(ctx)
         }
     }
 
