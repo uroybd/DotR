@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use toml::{Table, Value, map::Map};
+use toml::{map::Map, Table, Value};
 
 use crate::{
     cli::{Context, DeployArgs, UpdateArgs},
@@ -96,11 +96,13 @@ impl Config {
             Some(pkg_names) => pkg_names.iter().fold(HashMap::new(), |mut acc, name| {
                 if let Some(pkg) = self.packages.get(name) {
                     acc.insert(name.clone(), pkg.clone());
-                    for dep in pkg.dependencies.iter() {
-                        if let Some(dep_pkg) = self.packages.get(dep)
-                            && !acc.contains_key(dep)
-                        {
-                            acc.insert(dep.clone(), dep_pkg.clone());
+                    if let Some(deps) = &pkg.dependencies {
+                        for dep in deps.iter() {
+                            if let Some(dep_pkg) = self.packages.get(dep)
+                                && !acc.contains_key(dep)
+                            {
+                                acc.insert(dep.clone(), dep_pkg.clone());
+                            }
                         }
                     }
                 } else {
@@ -124,7 +126,7 @@ impl Config {
         let config_path = cwd.join("config.toml");
         if config_path.exists() {
             println!("config.toml already exists. Initialization skipped.");
-            return Ok(Self::from_path(&config_path));
+            return Ok(Self::from_path(cwd));
         }
         // Here you would add the logic to create a default config file
         let default_config = Config {
@@ -135,6 +137,12 @@ impl Config {
             toml::to_string(&default_config).expect("Failed to serialize default config");
         std::fs::write(config_path, toml_string).expect("Failed to write default config.toml");
         std::fs::create_dir_all(cwd.join("dotfiles")).expect("Failed to create dotfiles directory");
+
+        // Create .gitignore to ignore .uservariables.toml
+        let gitignore_path = cwd.join(".gitignore");
+        let gitignore_content = ".uservariables.toml\n";
+        std::fs::write(gitignore_path, gitignore_content).expect("Failed to write .gitignore");
+
         println!("Default config.toml created.");
         Ok(default_config)
     }

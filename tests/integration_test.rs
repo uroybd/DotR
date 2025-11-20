@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
+    cli::{run_cli, DeployArgs, ImportArgs, InitArgs, UpdateArgs},
     config::Config,
     package::get_package_name,
     utils,
@@ -104,6 +104,12 @@ fn test_init_config() {
 
     fixture.assert_file_exists("config.toml", "config.toml should be created");
     fixture.assert_file_exists("dotfiles", "dotfiles directory should be created");
+    fixture.assert_file_exists(".gitignore", ".gitignore should be created");
+    fixture.assert_file_contains(
+        ".gitignore",
+        ".uservariables.toml",
+        ".gitignore should contain .uservariables.toml",
+    );
 }
 
 #[test]
@@ -142,7 +148,7 @@ fn test_import_dots() {
 
     // Verify files are copied to dotfiles directory
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "nvim init.lua should be copied to dotfiles",
     );
 }
@@ -242,7 +248,7 @@ fn test_update_specific_package() {
 
     // Verify nvim was updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "Modified nvim config",
         "nvim config should be updated in dotfiles",
     );
@@ -252,7 +258,7 @@ fn test_update_specific_package() {
     let bashrc_content = fs::read_to_string(
         fixture
             .cwd
-            .join(format!("dotfiles/{}/.bashrc", bashrc_package_name)),
+            .join(format!("dotfiles/{}", bashrc_package_name)),
     )
     .expect("Failed to read bashrc");
     assert!(
@@ -286,12 +292,12 @@ fn test_update_multiple_specific_packages() {
 
     // Verify both were updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "Updated nvim config",
         "nvim config should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/.bashrc", bashrc_package_name),
+        &format!("dotfiles/{}", bashrc_package_name),
         "Updated bashrc",
         "bashrc should be updated",
     );

@@ -10,6 +10,11 @@ pub fn teardown(cwd: &Path) {
     if config_path.exists() {
         let _ = std::fs::remove_file(&config_path);
     }
+    // Clean up .gitignore file
+    let gitignore_path = cwd.join(".gitignore");
+    if gitignore_path.exists() {
+        let _ = std::fs::remove_file(&gitignore_path);
+    }
     // Delete the dotfiles directory if it exists
     let dotfiles_dir = cwd.join("dotfiles");
     if dotfiles_dir.exists() {
