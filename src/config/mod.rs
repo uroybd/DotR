@@ -178,8 +178,15 @@ impl Config {
     pub fn get_uservariables(cwd: &Path) -> Table {
         let path = cwd.join(".uservariables.toml");
         if path.exists() {
-            let content = fs::read_to_string(path).expect("Failed to read .uservariables.toml");
-            toml::de::from_str(&content).expect("Failed to parse .uservariables.toml")
+            let content = fs::read_to_string(&path).expect("Failed to read .uservariables.toml");
+            toml::de::from_str(&content).unwrap_or_else(|e| {
+                eprintln!(
+                    "Failed to parse .uservariables.toml at '{}': {}",
+                    path.display(),
+                    e
+                );
+                Table::new()
+            })
         } else {
             Table::new()
         }
