@@ -24,6 +24,7 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - **Nested variable structures** with TOML tables and arrays
 - **Print variables** command to view all available variables
 - Config variables **override environment variables**
+- Secret `uservariables.toml` file to save secrets you don't want to share in VCS
 
 ### 📝 Templating (Tera)
 - **Full Tera template engine** support
