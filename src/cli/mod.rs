@@ -108,7 +108,28 @@ pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
         toml::Value::Array(arr) => {
             println!("{}{} = [", indent, key);
             for v in arr.iter() {
-                print_variable("", v, level + 1);
+                let item_indent = "  ".repeat(level + 1);
+                match v {
+                    toml::Value::String(s) => {
+                        println!("{}- {}", item_indent, s);
+                    }
+                    toml::Value::Integer(i) => {
+                        println!("{}- {}", item_indent, i);
+                    }
+                    toml::Value::Float(f) => {
+                        println!("{}- {}", item_indent, f);
+                    }
+                    toml::Value::Boolean(b) => {
+                        println!("{}- {}", item_indent, b);
+                    }
+                    toml::Value::Table(_) | toml::Value::Array(_) => {
+                        println!("{}-", item_indent);
+                        print_variable("", v, level + 2);
+                    }
+                    _ => {
+                        println!("{}- {:?}", item_indent, v);
+                    }
+                }
             }
             println!("{}]", indent);
         }
