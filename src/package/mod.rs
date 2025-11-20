@@ -3,7 +3,10 @@ use std::{ffi::OsStr, path::Path};
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
-use crate::{utils::BACKUP_EXT, utils::resolve_path};
+use crate::{
+    cli::Context,
+    utils::{BACKUP_EXT, resolve_path},
+};
 
 // A package represents a dotfile package with its source, destination, and dependencies.
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -84,9 +87,9 @@ impl Package {
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
-    pub fn backup(&self, cwd: &Path) -> anyhow::Result<()> {
-        let copy_from = resolve_path(&self.dest, cwd);
-        let copy_to = cwd.join(self.src.clone());
+    pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
+        let copy_from = resolve_path(&self.dest, &ctx.working_dir);
+        let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
             // Recursively copy directory contents, avoiding files ending with BACKUP_EXT
             for entry in walkdir::WalkDir::new(&copy_from) {
@@ -112,9 +115,9 @@ impl Package {
     }
 
     /// Deploy the package by copying files from src to dest.
-    pub fn deploy(&self, cwd: &Path) {
-        let copy_from = resolve_path(&self.src, cwd);
-        let copy_to = resolve_path(&self.dest, cwd);
+    pub fn deploy(&self, ctx: &Context) {
+        let copy_from = resolve_path(&self.src, &ctx.working_dir);
+        let copy_to = resolve_path(&self.dest, &ctx.working_dir);
         let backup_path = copy_to.with_extension(BACKUP_EXT);
         // First, create a backup of the existing file/directory at dest
         if copy_to.exists() {
@@ -151,6 +154,10 @@ impl Package {
 
     pub fn is_dir(&self) -> bool {
         self.name.starts_with("d_")
+    }
+
+    pub fn is_templated(&self, cwd: &Path) -> bool {
+        // Check if src exists as a directory or file, if not return true
     }
 }
 

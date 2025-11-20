@@ -186,7 +186,7 @@ pub fn run_cli(args: Cli) {
             ctx.variables = conf.variables.clone();
             match args.command {
                 Some(Command::Import(args)) => {
-                    conf.import_package(&args.path, &working_dir);
+                    conf.import_package(&args.path, &ctx);
                 }
                 Some(Command::Deploy(args)) => {
                     conf.deploy_packages(&ctx, &args);
