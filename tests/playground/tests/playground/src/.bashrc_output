@@ -1,0 +1,4 @@
+# Generated config
+# User: {{ USER }}
+# Home: {{ HOME }}
+export EDITOR="vim"

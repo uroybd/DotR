@@ -84,12 +84,14 @@ fn restore_test_files(cwd: &Path) {
     );
 
     // Restore nvim/init.lua
+    let _ = fs::create_dir_all(src_dir.join("nvim"));
     let _ = fs::write(
         src_dir.join("nvim/init.lua"),
         "-- Neovim configuration\nvim.opt.number = true\nvim.opt.expandtab = true\n",
     );
 
     // Restore tmux files
+    let _ = fs::create_dir_all(src_dir.join("tmux"));
     let _ = fs::write(
         src_dir.join("tmux/tmux.conf"),
         "# Tmux Configuration\nset -g mouse on\nbind-key r source-file ~/.tmux.conf\n",
@@ -100,6 +102,7 @@ fn restore_test_files(cwd: &Path) {
     );
 
     // Restore alacritty config
+    let _ = fs::create_dir_all(src_dir.join("config/alacritty"));
     let _ = fs::write(
         src_dir.join("config/alacritty/alacritty.yml"),
         "# Alacritty Configuration\nwindow:\n  padding:\n    x: 10\n    y: 10\nfont:\n  size: 12.0\n",

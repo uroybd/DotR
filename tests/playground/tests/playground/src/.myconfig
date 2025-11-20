@@ -1,0 +1,2 @@
+# {{ APP_NAME }} v{{ VERSION }}
+# Home: {{ HOME }}

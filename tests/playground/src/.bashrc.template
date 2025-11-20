@@ -1,0 +1,2 @@
+# User: {{ USER }}
+export PATH="{{ HOME }}/bin:$PATH"

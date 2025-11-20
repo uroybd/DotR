@@ -158,6 +158,10 @@ impl Package {
                     }
                 }
             }
+        } else if is_templated {
+            let compiled_content =
+                compile_template(&copy_from, &ctx.variables).expect("Failed to compile template");
+            std::fs::write(&copy_to, compiled_content).expect("Failed to write compiled file");
         } else {
             std::fs::copy(&copy_from, &copy_to).expect("Failed to copy file");
         }
@@ -173,10 +177,10 @@ impl Package {
     }
 
     pub fn is_templated(&self, cwd: &Path) -> bool {
-        // Check if src exists as a directory or file, if not return true
+        // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
         if !src_path.exists() {
-            return true;
+            return false;
         }
         // Check for following templating indicators using walkdir (when necessary) and regex:
         // {{ and }} for expressions
