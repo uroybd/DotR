@@ -176,5 +176,5 @@ pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
     // replace any remaining '-' with '_', and '.' with '_'
     let prefix = if path.is_dir() { "d_" } else { "f_" };
     package_name = format!("{}{}", prefix, package_name);
-    return package_name.replace(['-', '.'], "_");
+    package_name.replace(['-', '.'], "_")
 }
