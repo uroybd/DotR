@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
 pub fn teardown(cwd: &Path) {
     // If NO_CLEANUP is set, skip cleanup
@@ -22,6 +22,8 @@ pub fn teardown(cwd: &Path) {
     }
     // Clean up any backup directories created during tests
     cleanup_backups(cwd);
+    // Restore original test files
+    restore_test_files(cwd);
 }
 
 fn cleanup_backups(cwd: &Path) {
@@ -52,4 +54,54 @@ fn cleanup_backups(cwd: &Path) {
             }
         }
     }
+}
+
+fn restore_test_files(cwd: &Path) {
+    let src_dir = cwd.join("src");
+
+    // Restore .bashrc
+    let _ = fs::write(
+        src_dir.join(".bashrc"),
+        "# Bashrc configuration\nexport PATH=\"$HOME/.local/bin:$PATH\"\nalias ls='ls --color=auto'\n",
+    );
+
+    // Restore .zshrc
+    let _ = fs::write(
+        src_dir.join(".zshrc"),
+        "# ZSH Configuration\nexport PATH=\"$HOME/bin:$PATH\"\nalias ll='ls -la'\n",
+    );
+
+    // Restore .vimrc
+    let _ = fs::write(
+        src_dir.join(".vimrc"),
+        "\" Vim Configuration\nset number\nset expandtab\nset tabstop=4\n",
+    );
+
+    // Restore .gitconfig
+    let _ = fs::write(
+        src_dir.join(".gitconfig"),
+        "# Git Configuration\n[user]\n    name = Test User\n    email = test@example.com\n[core]\n    editor = vim\n",
+    );
+
+    // Restore nvim/init.lua
+    let _ = fs::write(
+        src_dir.join("nvim/init.lua"),
+        "-- Neovim configuration\nvim.opt.number = true\nvim.opt.expandtab = true\n",
+    );
+
+    // Restore tmux files
+    let _ = fs::write(
+        src_dir.join("tmux/tmux.conf"),
+        "# Tmux Configuration\nset -g mouse on\nbind-key r source-file ~/.tmux.conf\n",
+    );
+    let _ = fs::write(
+        src_dir.join("tmux/theme.conf"),
+        "# Tmux Theme\nset -g status-bg blue\nset -g status-fg white\n",
+    );
+
+    // Restore alacritty config
+    let _ = fs::write(
+        src_dir.join("config/alacritty/alacritty.yml"),
+        "# Alacritty Configuration\nwindow:\n  padding:\n    x: 10\n    y: 10\nfont:\n  size: 12.0\n",
+    );
 }
