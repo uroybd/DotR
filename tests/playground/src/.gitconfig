@@ -1,0 +1,6 @@
+# Git Configuration
+[user]
+    name = Test User
+    email = test@example.com
+[core]
+    editor = vim

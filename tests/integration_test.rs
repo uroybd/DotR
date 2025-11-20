@@ -13,6 +13,11 @@ mod common;
 const PLAYGROUND_DIR: &str = "tests/playground";
 const NVIM_PATH: &str = "src/nvim/";
 const BASHRC_PATH: &str = "src/.bashrc";
+const ZSHRC_PATH: &str = "src/.zshrc";
+const VIMRC_PATH: &str = "src/.vimrc";
+const GITCONFIG_PATH: &str = "src/.gitconfig";
+const TMUX_PATH: &str = "src/tmux/";
+const ALACRITTY_PATH: &str = "src/config/alacritty/";
 
 // Test fixture helper
 struct TestFixture {
@@ -104,6 +109,12 @@ fn test_init_config() {
 
     fixture.assert_file_exists("config.toml", "config.toml should be created");
     fixture.assert_file_exists("dotfiles", "dotfiles directory should be created");
+    fixture.assert_file_exists(".gitignore", ".gitignore should be created");
+    fixture.assert_file_contains(
+        ".gitignore",
+        ".uservariables.toml",
+        ".gitignore should contain .uservariables.toml",
+    );
 }
 
 #[test]
@@ -142,7 +153,7 @@ fn test_import_dots() {
 
     // Verify files are copied to dotfiles directory
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "nvim init.lua should be copied to dotfiles",
     );
 }
@@ -242,7 +253,7 @@ fn test_update_specific_package() {
 
     // Verify nvim was updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "Modified nvim config",
         "nvim config should be updated in dotfiles",
     );
@@ -252,7 +263,7 @@ fn test_update_specific_package() {
     let bashrc_content = fs::read_to_string(
         fixture
             .cwd
-            .join(format!("dotfiles/{}/.bashrc", bashrc_package_name)),
+            .join(format!("dotfiles/{}", bashrc_package_name)),
     )
     .expect("Failed to read bashrc");
     assert!(
@@ -286,12 +297,12 @@ fn test_update_multiple_specific_packages() {
 
     // Verify both were updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/nvim/init.lua", nvim_package_name),
+        &format!("dotfiles/{}/init.lua", nvim_package_name),
         "Updated nvim config",
         "nvim config should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/.bashrc", bashrc_package_name),
+        &format!("dotfiles/{}", bashrc_package_name),
         "Updated bashrc",
         "bashrc should be updated",
     );
@@ -311,5 +322,255 @@ fn test_deploy_nonexistent_package() {
     fixture.assert_file_not_exists(
         "src/nvim.dotrbak/",
         "No backup should be created for filtered out packages",
+    );
+}
+
+#[test]
+fn test_import_multiple_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+    fixture.import(BASHRC_PATH);
+    fixture.import(ZSHRC_PATH);
+    fixture.import(VIMRC_PATH);
+    fixture.import(GITCONFIG_PATH);
+
+    let config = fixture.get_config();
+    let bashrc_name = fixture.get_package_name(BASHRC_PATH);
+    let zshrc_name = fixture.get_package_name(ZSHRC_PATH);
+    let vimrc_name = fixture.get_package_name(VIMRC_PATH);
+    let gitconfig_name = fixture.get_package_name(GITCONFIG_PATH);
+
+    // Verify all packages exist in config
+    assert!(config.packages.contains_key(&bashrc_name));
+    assert!(config.packages.contains_key(&zshrc_name));
+    assert!(config.packages.contains_key(&vimrc_name));
+    assert!(config.packages.contains_key(&gitconfig_name));
+
+    // Verify files are backed up
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}", bashrc_name),
+        "bashrc should be backed up",
+    );
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}", zshrc_name),
+        "zshrc should be backed up",
+    );
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}", vimrc_name),
+        "vimrc should be backed up",
+    );
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}", gitconfig_name),
+        "gitconfig should be backed up",
+    );
+
+    // Verify content
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}", bashrc_name),
+        "Bashrc configuration",
+        "bashrc content should match",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}", gitconfig_name),
+        "Test User",
+        "gitconfig content should match",
+    );
+}
+
+#[test]
+fn test_import_nested_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+    fixture.import(TMUX_PATH);
+    fixture.import(ALACRITTY_PATH);
+
+    let config = fixture.get_config();
+    let tmux_name = fixture.get_package_name(TMUX_PATH);
+    let alacritty_name = fixture.get_package_name(ALACRITTY_PATH);
+
+    // Verify packages in config
+    assert!(config.packages.contains_key(&tmux_name));
+    assert!(config.packages.contains_key(&alacritty_name));
+
+    // Verify directory contents are backed up
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        "tmux.conf should be backed up",
+    );
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}/theme.conf", tmux_name),
+        "theme.conf should be backed up",
+    );
+    fixture.assert_file_exists(
+        &format!("dotfiles/{}/alacritty.yml", alacritty_name),
+        "alacritty.yml should be backed up",
+    );
+
+    // Verify content
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        "set -g mouse on",
+        "tmux.conf content should match",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/alacritty.yml", alacritty_name),
+        "padding",
+        "alacritty.yml content should match",
+    );
+}
+
+#[test]
+fn test_deploy_all_file_types() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+    fixture.import(BASHRC_PATH);
+    fixture.import(ZSHRC_PATH);
+    fixture.import(NVIM_PATH);
+    fixture.import(TMUX_PATH);
+
+    // Deploy all packages
+    fixture.deploy(None);
+
+    // Verify file backups created
+    fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
+    fixture.assert_file_exists("src/.zshrc.dotrbak", "zshrc backup should exist");
+
+    // Verify directory backups created
+    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists("src/tmux.dotrbak/", "tmux backup should exist");
+
+    // Verify deployed files exist
+    fixture.assert_file_exists("src/.bashrc", "bashrc should be deployed");
+    fixture.assert_file_exists("src/.zshrc", "zshrc should be deployed");
+    fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
+    fixture.assert_file_exists("src/tmux/tmux.conf", "tmux.conf should be deployed");
+    fixture.assert_file_exists("src/tmux/theme.conf", "theme.conf should be deployed");
+}
+
+#[test]
+fn test_update_preserves_changes() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+    fixture.import(VIMRC_PATH);
+    fixture.import(TMUX_PATH);
+
+    // Deploy
+    fixture.deploy(None);
+
+    // Modify deployed files
+    fixture.write_file(
+        "src/.vimrc",
+        "\" Updated vimrc\nset number\nset relativenumber\n",
+    );
+    fixture.write_file("src/tmux/tmux.conf", "# Updated tmux\nset -g mouse off\n");
+
+    // Update all
+    fixture.update(None);
+
+    let vimrc_name = fixture.get_package_name(VIMRC_PATH);
+    let tmux_name = fixture.get_package_name(TMUX_PATH);
+
+    // Verify updates in dotfiles
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}", vimrc_name),
+        "Updated vimrc",
+        "vimrc should be updated",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}", vimrc_name),
+        "relativenumber",
+        "vimrc should contain new content",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        "Updated tmux",
+        "tmux.conf should be updated",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        "mouse off",
+        "tmux.conf should contain modified content",
+    );
+}
+
+#[test]
+fn test_deploy_preserves_directory_structure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+    fixture.import(ALACRITTY_PATH);
+
+    // Deploy
+    let alacritty_name = fixture.get_package_name(ALACRITTY_PATH);
+    fixture.deploy(Some(vec![alacritty_name]));
+
+    // Verify backup was created
+    fixture.assert_file_exists(
+        "src/config/alacritty.dotrbak/",
+        "alacritty backup should exist",
+    );
+
+    // Verify deployed with correct structure
+    fixture.assert_file_exists(
+        "src/config/alacritty/alacritty.yml",
+        "alacritty.yml should be deployed",
+    );
+
+    // Verify content
+    fixture.assert_file_contains(
+        "src/config/alacritty/alacritty.yml",
+        "window:",
+        "deployed file should have correct content",
+    );
+}
+
+#[test]
+fn test_mixed_files_and_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Import mix of files and directories
+    fixture.import(BASHRC_PATH);
+    fixture.import(GITCONFIG_PATH);
+    fixture.import(NVIM_PATH);
+    fixture.import(TMUX_PATH);
+
+    let config = fixture.get_config();
+
+    // Should have 4 packages
+    assert_eq!(config.packages.len(), 4, "Should have 4 packages");
+
+    // Deploy all
+    fixture.deploy(None);
+
+    // Verify all deployed correctly
+    fixture.assert_file_exists("src/.bashrc", "bashrc deployed");
+    fixture.assert_file_exists("src/.gitconfig", "gitconfig deployed");
+    fixture.assert_file_exists("src/nvim/init.lua", "nvim/init.lua deployed");
+    fixture.assert_file_exists("src/tmux/tmux.conf", "tmux/tmux.conf deployed");
+
+    // Modify and update only directories
+    fixture.write_file("src/nvim/init.lua", "-- Modified nvim\n");
+    fixture.write_file("src/tmux/theme.conf", "# Modified theme\n");
+
+    let nvim_name = fixture.get_package_name(NVIM_PATH);
+    let tmux_name = fixture.get_package_name(TMUX_PATH);
+    fixture.update(Some(vec![nvim_name.clone(), tmux_name.clone()]));
+
+    // Verify only specified packages updated
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/init.lua", nvim_name),
+        "Modified nvim",
+        "nvim should be updated",
+    );
+    fixture.assert_file_contains(
+        &format!("dotfiles/{}/theme.conf", tmux_name),
+        "Modified theme",
+        "tmux theme should be updated",
     );
 }
