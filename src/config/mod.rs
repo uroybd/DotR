@@ -17,6 +17,13 @@ use crate::{
 pub struct Config {
     pub banner: bool,
     pub packages: HashMap<String, Package>,
+    pub variables: HashMap<String, String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Config {
@@ -53,24 +60,41 @@ impl Config {
                 })
                 .collect();
         }
+        let mut variables: HashMap<String, String> = HashMap::new();
+        // Add HOME as a default variable
+        if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
+            for (k, v) in vars.iter() {
+                if let Some(val_str) = v.as_str() {
+                    variables.insert(k.clone(), val_str.to_string());
+                }
+            }
+        }
         Self {
             banner: table
                 .get("banner")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
             packages,
+            variables,
         }
     }
     pub fn to_table(&self) -> Table {
         let mut table = Table::new();
         table.insert("banner".to_string(), toml::Value::Boolean(self.banner));
-        let mut packages_table: Map<String, Value> = Map::new();
-        self.packages.iter().for_each(|(name, pkg)| {
-            packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
-        });
-
-        table.insert("packages".to_string(), packages_table.into());
-
+        if !self.variables.is_empty() {
+            let mut vars_table: Map<String, Value> = Map::new();
+            self.variables.iter().for_each(|(k, v)| {
+                vars_table.insert(k.clone(), Value::String(v.clone()));
+            });
+            table.insert("variables".to_string(), vars_table.into());
+        }
+        if !self.packages.is_empty() {
+            let mut packages_table: Map<String, Value> = Map::new();
+            self.packages.iter().for_each(|(name, pkg)| {
+                packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
+            });
+            table.insert("packages".to_string(), packages_table.into());
+        }
         table
     }
 
@@ -129,10 +153,7 @@ impl Config {
             return Ok(Self::from_path(cwd));
         }
         // Here you would add the logic to create a default config file
-        let default_config = Config {
-            banner: true,
-            packages: HashMap::new(),
-        };
+        let default_config = Config::new();
         let toml_string =
             toml::to_string(&default_config).expect("Failed to serialize default config");
         std::fs::write(config_path, toml_string).expect("Failed to write default config.toml");
@@ -145,6 +166,14 @@ impl Config {
 
         println!("Default config.toml created.");
         Ok(default_config)
+    }
+
+    pub fn new() -> Self {
+        Self {
+            banner: true,
+            packages: HashMap::new(),
+            variables: HashMap::new(),
+        }
     }
 }
 

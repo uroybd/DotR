@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
+    cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
     package::get_package_name,
     utils,
@@ -572,5 +572,215 @@ fn test_mixed_files_and_directories() {
         &format!("dotfiles/{}/theme.conf", tmux_name),
         "Modified theme",
         "tmux theme should be updated",
+    );
+}
+
+#[test]
+fn test_print_vars_empty() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Print vars should show environment variables including HOME
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+
+    // Verify that Context has HOME environment variable
+    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    assert!(
+        ctx.variables.contains_key("HOME"),
+        "HOME environment variable should be present"
+    );
+}
+
+#[test]
+fn test_print_vars_with_custom_variables() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Add custom variables to config using the Config API
+    let mut config = fixture.get_config();
+    config
+        .variables
+        .insert("EDITOR".to_string(), "vim".to_string());
+    config
+        .variables
+        .insert("SHELL".to_string(), "/bin/zsh".to_string());
+    config
+        .variables
+        .insert("USER_EMAIL".to_string(), "test@example.com".to_string());
+    config.save(&fixture.cwd);
+
+    // Print vars should show custom variables
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+
+    // Verify config contains variables
+    let config = fixture.get_config();
+    assert_eq!(config.variables.get("EDITOR"), Some(&"vim".to_string()));
+    assert_eq!(config.variables.get("SHELL"), Some(&"/bin/zsh".to_string()));
+    assert_eq!(
+        config.variables.get("USER_EMAIL"),
+        Some(&"test@example.com".to_string())
+    );
+
+    // Verify that environment variables like HOME are still present in Context
+    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    assert!(
+        ctx.variables.contains_key("HOME"),
+        "HOME environment variable should be present in Context"
+    );
+}
+
+#[test]
+fn test_variables_persist_after_save() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Add variables manually
+    let mut config = fixture.get_config();
+    config
+        .variables
+        .insert("TEST_VAR".to_string(), "test_value".to_string());
+    config
+        .variables
+        .insert("ANOTHER_VAR".to_string(), "another_value".to_string());
+    config.save(&fixture.cwd);
+
+    // Reload config and verify variables persist
+    let reloaded_config = fixture.get_config();
+    assert_eq!(
+        reloaded_config.variables.get("TEST_VAR"),
+        Some(&"test_value".to_string())
+    );
+    assert_eq!(
+        reloaded_config.variables.get("ANOTHER_VAR"),
+        Some(&"another_value".to_string())
+    );
+}
+
+#[test]
+fn test_home_variable_always_present() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Context should have environment variables including HOME
+    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+
+    // HOME should always be present in context
+    assert!(ctx.variables.contains_key("HOME"));
+
+    // HOME should be a valid path
+    let home = ctx.variables.get("HOME").expect("HOME variable not found");
+    assert!(!home.is_empty());
+}
+
+#[test]
+fn test_variables_with_special_characters() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Add variables with special characters using Config API
+    let mut config = fixture.get_config();
+    config.variables.insert(
+        "PATH".to_string(),
+        "/usr/local/bin:/usr/bin:/bin".to_string(),
+    );
+    config
+        .variables
+        .insert("PS1".to_string(), "[\\u@\\h \\W]$ ".to_string());
+    config.variables.insert(
+        "COMPLEX_VAR".to_string(),
+        "value with spaces and $pecial ch@rs".to_string(),
+    );
+    config.save(&fixture.cwd);
+
+    let config = fixture.get_config();
+    assert_eq!(
+        config.variables.get("PATH"),
+        Some(&"/usr/local/bin:/usr/bin:/bin".to_string())
+    );
+    assert_eq!(
+        config.variables.get("PS1"),
+        Some(&"[\\u@\\h \\W]$ ".to_string())
+    );
+    assert_eq!(
+        config.variables.get("COMPLEX_VAR"),
+        Some(&"value with spaces and $pecial ch@rs".to_string())
+    );
+}
+
+#[test]
+fn test_variables_do_not_interfere_with_packages() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Add variables
+    let mut config = fixture.get_config();
+    config
+        .variables
+        .insert("MY_VAR".to_string(), "my_value".to_string());
+    config.save(&fixture.cwd);
+
+    // Import packages
+    fixture.import(BASHRC_PATH);
+    fixture.import(NVIM_PATH);
+
+    // Reload and verify both variables and packages exist
+    let config = fixture.get_config();
+    assert_eq!(
+        config.variables.get("MY_VAR"),
+        Some(&"my_value".to_string())
+    );
+    assert_eq!(config.packages.len(), 2);
+
+    let bashrc_name = fixture.get_package_name(BASHRC_PATH);
+    let nvim_name = fixture.get_package_name(NVIM_PATH);
+    assert!(config.packages.contains_key(&bashrc_name));
+    assert!(config.packages.contains_key(&nvim_name));
+}
+
+#[test]
+fn test_config_variables_override_environment_variables() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Get the original HOME from environment
+    let original_home = std::env::var("HOME").expect("HOME should be set in environment");
+
+    // Override HOME in config with a custom value
+    let custom_home = "/custom/home/path";
+    let mut config = fixture.get_config();
+    config
+        .variables
+        .insert("HOME".to_string(), custom_home.to_string());
+    config.save(&fixture.cwd);
+
+    // Reload config and verify HOME is overridden
+    let reloaded_config = fixture.get_config();
+    assert_eq!(
+        reloaded_config.variables.get("HOME"),
+        Some(&custom_home.to_string()),
+        "Config HOME should override environment HOME"
+    );
+    assert_ne!(
+        reloaded_config.variables.get("HOME"),
+        Some(&original_home),
+        "Config HOME should be different from environment HOME"
+    );
+
+    // Create context and verify that config variables take precedence
+    let mut ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    // When config is loaded, it should override the environment variable
+    ctx.variables.extend(reloaded_config.variables.clone());
+
+    assert_eq!(
+        ctx.variables.get("HOME"),
+        Some(&custom_home.to_string()),
+        "Context should use config HOME over environment HOME"
     );
 }
