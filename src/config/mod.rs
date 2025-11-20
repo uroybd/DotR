@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use toml::{Table, Value, map::Map};
+use toml::{map::Map, Table, Value};
 
 use crate::{
     cli::{Context, DeployArgs, UpdateArgs},
