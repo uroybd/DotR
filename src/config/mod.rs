@@ -38,11 +38,44 @@ impl Config {
         let conf_table = config_content
             .parse::<Table>()
             .expect("Failed to parse config.");
-        Config::from_table(&conf_table)
+        let mut conf = Config::from_table(&conf_table);
+        let user_vars = Config::get_uservariables(cwd);
+        for (k, v) in user_vars.iter() {
+            conf.variables.insert(k.clone(), v.clone());
+        }
+        conf
     }
     pub fn save(&self, cwd: &Path) {
-        let config_content = self.to_table().to_string();
+        // Re-read only the config variables (not user variables) to save
+        let mut table = Table::new();
+        table.insert("banner".to_string(), toml::Value::Boolean(self.banner));
 
+        // Get user variables to exclude them
+        let user_vars = Config::get_uservariables(cwd);
+
+        // Save variables that are NOT from uservariables.toml
+        let mut config_vars = Table::new();
+        for (k, v) in self.variables.iter() {
+            // Only save if it's not a user variable
+            if !user_vars.contains_key(k) {
+                config_vars.insert(k.clone(), v.clone());
+            }
+        }
+
+        if !config_vars.is_empty() {
+            table.insert("variables".to_string(), Value::Table(config_vars));
+        }
+
+        // Save packages
+        if !self.packages.is_empty() {
+            let mut packages_table: Map<String, Value> = Map::new();
+            self.packages.iter().for_each(|(name, pkg)| {
+                packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
+            });
+            table.insert("packages".to_string(), packages_table.into());
+        }
+
+        let config_content = table.to_string();
         std::fs::write(cwd.join("config.toml"), config_content)
             .expect("Failed to write config.toml");
     }
@@ -142,6 +175,15 @@ impl Config {
         }
     }
 
+    pub fn get_uservariables(cwd: &Path) -> Table {
+        let path = cwd.join(".uservariables.toml");
+        if path.exists() {
+            let content = fs::read_to_string(path).expect("Failed to read .uservariables.toml");
+            toml::de::from_str(&content).expect("Failed to parse .uservariables.toml")
+        } else {
+            Table::new()
+        }
+    }
     pub fn init(cwd: &Path) -> Result<Self, Error> {
         // If config.toml already exists, do nothing
         let config_path = cwd.join("config.toml");
