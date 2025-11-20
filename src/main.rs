@@ -1,5 +1,5 @@
 use clap::Parser;
-use dotr::cli::{run_cli, Cli};
+use dotr::cli::{Cli, run_cli};
 
 fn main() {
     let args = Cli::parse();
