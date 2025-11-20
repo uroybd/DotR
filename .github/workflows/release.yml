@@ -19,6 +19,9 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
             name: dotr-aarch64-apple-darwin.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-13
+            name: dotr-x86_64-apple-darwin.tar.gz
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: dotr-x86_64-unknown-linux-gnu.tar.gz
@@ -82,11 +85,63 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     steps:
-      - name: Update Homebrew formula
-        uses: mislav/bump-homebrew-formula-action@v3
+      - uses: actions/checkout@v4
         with:
-          formula-name: dotr
-          homebrew-tap: uroybd/homebrew-tap
-          download-url: https://github.com/uroybd/DotR/releases/download/${{ github.ref_name }}/dotr-aarch64-apple-darwin.tar.gz
-        env:
-          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: uroybd/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          
+      - name: Update formula with multi-arch support
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION_NUM="${VERSION#v}"
+          
+          # Calculate checksums
+          curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-aarch64-apple-darwin.tar.gz" -o arm64.tar.gz
+          curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-apple-darwin.tar.gz" -o intel.tar.gz
+          curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-unknown-linux-gnu.tar.gz" -o linux.tar.gz
+          
+          ARM64_SHA=$(shasum -a 256 arm64.tar.gz | awk '{print $1}')
+          INTEL_SHA=$(shasum -a 256 intel.tar.gz | awk '{print $1}')
+          LINUX_SHA=$(shasum -a 256 linux.tar.gz | awk '{print $1}')
+          
+          # Update formula
+          cat > Formula/dotr.rb << EOF
+          class Dotr < Formula
+            desc "A dotfiles manager that is as dear as a daughter"
+            homepage "https://github.com/uroybd/DotR"
+            version "${VERSION_NUM}"
+            
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-aarch64-apple-darwin.tar.gz"
+                sha256 "${ARM64_SHA}"
+              end
+              if Hardware::CPU.intel?
+                url "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-apple-darwin.tar.gz"
+                sha256 "${INTEL_SHA}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.intel?
+                url "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${LINUX_SHA}"
+              end
+            end
+
+            def install
+              bin.install "dotr"
+            end
+
+            test do
+              system "#{bin}/dotr", "--help"
+            end
+          end
+          EOF
+          
+          # Commit and push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/dotr.rb
+          git commit -m "Update dotr to ${VERSION}"
+          git push
