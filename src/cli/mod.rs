@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
+use serde::Serialize;
 use toml::Table;
 
 use crate::config::{self, Config};
@@ -51,7 +52,7 @@ pub struct UpdateArgs {
     pub packages: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
     pub variables: Table,
@@ -157,10 +158,6 @@ pub fn run_cli(args: Cli) {
     if !working_dir.exists() {
         panic!("The specified working directory does not exist");
     }
-    let mut ctx = Context {
-        working_dir: working_dir.clone(),
-        variables: Table::new(),
-    };
     // Print working directory
     // Print full working directory path
     match args.command {
@@ -183,10 +180,13 @@ pub fn run_cli(args: Cli) {
             if conf.banner {
                 println!("{}", BANNER);
             }
-            ctx.variables = conf.variables.clone();
+            // Start with environment variables from Context::new()
+            let mut ctx = Context::new(working_dir.clone());
+            // Merge config variables, which override environment variables
+            ctx.variables.extend(conf.variables.clone());
             match args.command {
                 Some(Command::Import(args)) => {
-                    conf.import_package(&args.path, &working_dir);
+                    conf.import_package(&args.path, &ctx);
                 }
                 Some(Command::Deploy(args)) => {
                     conf.deploy_packages(&ctx, &args);

@@ -10,6 +10,96 @@ A dotfiles manager that is as dear as a daughter.
 
 For detailed documentation, guides, and examples, visit the [DotR Wiki](https://github.com/uroybd/DotR/wiki).
 
+## Features
+
+### 📦 Package Management
+- **Import dotfiles** from any location into your repository
+- **Deploy dotfiles** to their target locations
+- **Update changes** back to your repository
+- Support for both **files and directories**
+
+### 🔧 Variables
+- **Environment variables** automatically available in all templates
+- **Custom user variables** defined in `config.toml`
+- **Nested variable structures** with TOML tables and arrays
+- **Print variables** command to view all available variables
+- Config variables **override environment variables**
+
+### 📝 Templating (Tera)
+- **Full Tera template engine** support
+- Use `{{ variable }}` for variable substitution
+- Use `{% if condition %}` for conditional logic
+- Use `{# comment #}` for template comments
+- **Automatic template detection** - no configuration needed
+- Templates are **compiled during deployment** with live variables
+- Templated files are **never backed up** (source of truth stays in templates)
+
+### 🎯 Smart Workflows
+- Templated and regular files can coexist in the same repository
+- Selective package deployment and updates
+- Automatic backup before deployment
+- Directory structure preservation
+
+## Quick Start
+
+1. **Initialize** a dotfiles repository:
+```bash
+dotr init
+```
+
+2. **Import** your existing dotfiles:
+```bash
+dotr import ~/.bashrc
+dotr import ~/.config/nvim/
+```
+
+3. **Deploy** dotfiles to a new machine:
+```bash
+dotr deploy
+```
+
+4. **Update** after making changes:
+```bash
+dotr update
+```
+
+## Variables Example
+
+Define variables in `config.toml`:
+```toml
+[variables]
+EDITOR = "nvim"
+THEME = "dracula"
+
+[variables.git]
+name = "Your Name"
+email = "you@example.com"
+```
+
+Use in your dotfiles:
+```bash
+# ~/.bashrc (can be templated)
+export EDITOR="{{ EDITOR }}"
+export PS1="{% if THEME == 'dracula' %}🧛{% endif %} $ "
+```
+
+## Templating Example
+
+Create a templated config file:
+```toml
+# ~/.config/myapp/config.toml
+[user]
+name = "{{ git.name }}"
+email = "{{ git.email }}"
+editor = "{{ EDITOR }}"
+
+[paths]
+home = "{{ HOME }}"
+data = "{{ HOME }}/Data"
+```
+
+When deployed, variables are automatically substituted. Template files are never backed up during `update` - they remain as templates in your repository.
+
 ## WARNING!
 
 This is still pre-alpha. The schema is evolving, performance is sub-par. Use it with caution.
@@ -63,7 +153,7 @@ Options:
 - [x] Import configs
 - [x] Copy configs
 - [x] Update configs
-- [x] Variables
-- [ ] Templating
-- [ ] Actions
+- [x] Variables (with nested structures)
+- [x] Templating (Tera engine)
+- [ ] Actions (pre/post hooks)
 - [ ] Symlinking config

@@ -95,20 +95,20 @@ impl Config {
         table
     }
 
-    pub fn import_package(&mut self, path: &str, cwd: &Path) {
+    pub fn import_package(&mut self, path: &str, ctx: &Context) {
         println!("Importing dotfiles from path: {}", path);
-        let package = Package::from_path(path, cwd);
+        let package = Package::from_path(path, &ctx.working_dir);
         let pkg_name = package.name.clone();
-        package.backup(cwd).expect("Error backing up while import");
+        package.backup(ctx).expect("Error backing up while import");
         self.packages.insert(pkg_name.clone(), package);
         println!("Config: {:?}", self);
-        self.save(cwd);
+        self.save(&ctx.working_dir);
         println!("Package '{}' imported successfully.", pkg_name);
     }
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) {
         for (_, pkg) in self.filter_packages(&args.packages).iter() {
-            pkg.backup(&ctx.working_dir).expect("Error backing up");
+            pkg.backup(ctx).expect("Error backing up");
         }
     }
 
@@ -138,7 +138,7 @@ impl Config {
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) {
         println!("Copying dotfiles...");
         for (_, pkg) in self.filter_packages(&args.packages).iter() {
-            pkg.deploy(&ctx.working_dir)
+            pkg.deploy(ctx)
         }
     }
 
