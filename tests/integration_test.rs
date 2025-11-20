@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
+    cli::{run_cli, DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs},
     config::Config,
     package::get_package_name,
     utils,
@@ -602,13 +602,15 @@ fn test_print_vars_with_custom_variables() {
     let mut config = fixture.get_config();
     config
         .variables
-        .insert("EDITOR".to_string(), "vim".to_string());
-    config
-        .variables
-        .insert("SHELL".to_string(), "/bin/zsh".to_string());
-    config
-        .variables
-        .insert("USER_EMAIL".to_string(), "test@example.com".to_string());
+        .insert("EDITOR".to_string(), toml::Value::String("vim".to_string()));
+    config.variables.insert(
+        "SHELL".to_string(),
+        toml::Value::String("/bin/zsh".to_string()),
+    );
+    config.variables.insert(
+        "USER_EMAIL".to_string(),
+        toml::Value::String("test@example.com".to_string()),
+    );
     config.save(&fixture.cwd);
 
     // Print vars should show custom variables
@@ -616,11 +618,17 @@ fn test_print_vars_with_custom_variables() {
 
     // Verify config contains variables
     let config = fixture.get_config();
-    assert_eq!(config.variables.get("EDITOR"), Some(&"vim".to_string()));
-    assert_eq!(config.variables.get("SHELL"), Some(&"/bin/zsh".to_string()));
+    assert_eq!(
+        config.variables.get("EDITOR"),
+        Some(&toml::Value::String("vim".to_string()))
+    );
+    assert_eq!(
+        config.variables.get("SHELL"),
+        Some(&toml::Value::String("/bin/zsh".to_string()))
+    );
     assert_eq!(
         config.variables.get("USER_EMAIL"),
-        Some(&"test@example.com".to_string())
+        Some(&toml::Value::String("test@example.com".to_string()))
     );
 
     // Verify that environment variables like HOME are still present in Context
@@ -639,23 +647,25 @@ fn test_variables_persist_after_save() {
 
     // Add variables manually
     let mut config = fixture.get_config();
-    config
-        .variables
-        .insert("TEST_VAR".to_string(), "test_value".to_string());
-    config
-        .variables
-        .insert("ANOTHER_VAR".to_string(), "another_value".to_string());
+    config.variables.insert(
+        "TEST_VAR".to_string(),
+        toml::Value::String("test_value".to_string()),
+    );
+    config.variables.insert(
+        "ANOTHER_VAR".to_string(),
+        toml::Value::String("another_value".to_string()),
+    );
     config.save(&fixture.cwd);
 
     // Reload config and verify variables persist
     let reloaded_config = fixture.get_config();
     assert_eq!(
         reloaded_config.variables.get("TEST_VAR"),
-        Some(&"test_value".to_string())
+        Some(&toml::Value::String("test_value".to_string()))
     );
     assert_eq!(
         reloaded_config.variables.get("ANOTHER_VAR"),
-        Some(&"another_value".to_string())
+        Some(&toml::Value::String("another_value".to_string()))
     );
 }
 
@@ -673,7 +683,11 @@ fn test_home_variable_always_present() {
 
     // HOME should be a valid path
     let home = ctx.variables.get("HOME").expect("HOME variable not found");
-    assert!(!home.is_empty());
+    if let toml::Value::String(s) = home {
+        assert!(!s.is_empty());
+    } else {
+        panic!("HOME should be a string value");
+    }
 }
 
 #[test]
@@ -686,29 +700,34 @@ fn test_variables_with_special_characters() {
     let mut config = fixture.get_config();
     config.variables.insert(
         "PATH".to_string(),
-        "/usr/local/bin:/usr/bin:/bin".to_string(),
+        toml::Value::String("/usr/local/bin:/usr/bin:/bin".to_string()),
     );
-    config
-        .variables
-        .insert("PS1".to_string(), "[\\u@\\h \\W]$ ".to_string());
+    config.variables.insert(
+        "PS1".to_string(),
+        toml::Value::String("[\\u@\\h \\W]$ ".to_string()),
+    );
     config.variables.insert(
         "COMPLEX_VAR".to_string(),
-        "value with spaces and $pecial ch@rs".to_string(),
+        toml::Value::String("value with spaces and $pecial ch@rs".to_string()),
     );
     config.save(&fixture.cwd);
 
     let config = fixture.get_config();
     assert_eq!(
         config.variables.get("PATH"),
-        Some(&"/usr/local/bin:/usr/bin:/bin".to_string())
+        Some(&toml::Value::String(
+            "/usr/local/bin:/usr/bin:/bin".to_string()
+        ))
     );
     assert_eq!(
         config.variables.get("PS1"),
-        Some(&"[\\u@\\h \\W]$ ".to_string())
+        Some(&toml::Value::String("[\\u@\\h \\W]$ ".to_string()))
     );
     assert_eq!(
         config.variables.get("COMPLEX_VAR"),
-        Some(&"value with spaces and $pecial ch@rs".to_string())
+        Some(&toml::Value::String(
+            "value with spaces and $pecial ch@rs".to_string()
+        ))
     );
 }
 
@@ -720,9 +739,10 @@ fn test_variables_do_not_interfere_with_packages() {
 
     // Add variables
     let mut config = fixture.get_config();
-    config
-        .variables
-        .insert("MY_VAR".to_string(), "my_value".to_string());
+    config.variables.insert(
+        "MY_VAR".to_string(),
+        toml::Value::String("my_value".to_string()),
+    );
     config.save(&fixture.cwd);
 
     // Import packages
@@ -733,7 +753,7 @@ fn test_variables_do_not_interfere_with_packages() {
     let config = fixture.get_config();
     assert_eq!(
         config.variables.get("MY_VAR"),
-        Some(&"my_value".to_string())
+        Some(&toml::Value::String("my_value".to_string()))
     );
     assert_eq!(config.packages.len(), 2);
 
@@ -755,21 +775,22 @@ fn test_config_variables_override_environment_variables() {
     // Override HOME in config with a custom value
     let custom_home = "/custom/home/path";
     let mut config = fixture.get_config();
-    config
-        .variables
-        .insert("HOME".to_string(), custom_home.to_string());
+    config.variables.insert(
+        "HOME".to_string(),
+        toml::Value::String(custom_home.to_string()),
+    );
     config.save(&fixture.cwd);
 
     // Reload config and verify HOME is overridden
     let reloaded_config = fixture.get_config();
     assert_eq!(
         reloaded_config.variables.get("HOME"),
-        Some(&custom_home.to_string()),
+        Some(&toml::Value::String(custom_home.to_string())),
         "Config HOME should override environment HOME"
     );
     assert_ne!(
         reloaded_config.variables.get("HOME"),
-        Some(&original_home),
+        Some(&toml::Value::String(original_home.clone())),
         "Config HOME should be different from environment HOME"
     );
 
@@ -780,7 +801,314 @@ fn test_config_variables_override_environment_variables() {
 
     assert_eq!(
         ctx.variables.get("HOME"),
-        Some(&custom_home.to_string()),
+        Some(&toml::Value::String(custom_home.to_string())),
         "Context should use config HOME over environment HOME"
     );
+}
+
+#[test]
+fn test_nested_variables_simple() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create nested variable structure
+    let mut config = fixture.get_config();
+    let mut database_config = toml::map::Map::new();
+    database_config.insert(
+        "host".to_string(),
+        toml::Value::String("localhost".to_string()),
+    );
+    database_config.insert("port".to_string(), toml::Value::Integer(5432));
+    database_config.insert("name".to_string(), toml::Value::String("mydb".to_string()));
+
+    config
+        .variables
+        .insert("database".to_string(), toml::Value::Table(database_config));
+    config.save(&fixture.cwd);
+
+    // Reload and verify nested structure
+    let reloaded_config = fixture.get_config();
+    let db_var = reloaded_config.variables.get("database");
+    assert!(db_var.is_some(), "database variable should exist");
+
+    if let Some(toml::Value::Table(db_table)) = db_var {
+        assert_eq!(
+            db_table.get("host"),
+            Some(&toml::Value::String("localhost".to_string()))
+        );
+        assert_eq!(db_table.get("port"), Some(&toml::Value::Integer(5432)));
+        assert_eq!(
+            db_table.get("name"),
+            Some(&toml::Value::String("mydb".to_string()))
+        );
+    } else {
+        panic!("database should be a table");
+    }
+}
+
+#[test]
+fn test_nested_variables_deep() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create deeply nested structure
+    let mut config = fixture.get_config();
+
+    // Build: app.server.config.port
+    let mut port_config = toml::map::Map::new();
+    port_config.insert("http".to_string(), toml::Value::Integer(8080));
+    port_config.insert("https".to_string(), toml::Value::Integer(8443));
+
+    let mut server_config = toml::map::Map::new();
+    server_config.insert(
+        "host".to_string(),
+        toml::Value::String("0.0.0.0".to_string()),
+    );
+    server_config.insert("ports".to_string(), toml::Value::Table(port_config));
+
+    let mut app_config = toml::map::Map::new();
+    app_config.insert("name".to_string(), toml::Value::String("myapp".to_string()));
+    app_config.insert("server".to_string(), toml::Value::Table(server_config));
+
+    config
+        .variables
+        .insert("app".to_string(), toml::Value::Table(app_config));
+    config.save(&fixture.cwd);
+
+    // Reload and verify deep nesting
+    let reloaded_config = fixture.get_config();
+    let app_var = reloaded_config.variables.get("app");
+    assert!(app_var.is_some(), "app variable should exist");
+
+    if let Some(toml::Value::Table(app_table)) = app_var {
+        assert_eq!(
+            app_table.get("name"),
+            Some(&toml::Value::String("myapp".to_string()))
+        );
+
+        if let Some(toml::Value::Table(server_table)) = app_table.get("server") {
+            assert_eq!(
+                server_table.get("host"),
+                Some(&toml::Value::String("0.0.0.0".to_string()))
+            );
+
+            if let Some(toml::Value::Table(ports_table)) = server_table.get("ports") {
+                assert_eq!(ports_table.get("http"), Some(&toml::Value::Integer(8080)));
+                assert_eq!(ports_table.get("https"), Some(&toml::Value::Integer(8443)));
+            } else {
+                panic!("ports should be a table");
+            }
+        } else {
+            panic!("server should be a table");
+        }
+    } else {
+        panic!("app should be a table");
+    }
+}
+
+#[test]
+fn test_nested_variables_with_arrays() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create nested structure with arrays
+    let mut config = fixture.get_config();
+
+    let hosts = vec![
+        toml::Value::String("server1.example.com".to_string()),
+        toml::Value::String("server2.example.com".to_string()),
+        toml::Value::String("server3.example.com".to_string()),
+    ];
+
+    let mut cluster_config = toml::map::Map::new();
+    cluster_config.insert(
+        "name".to_string(),
+        toml::Value::String("production".to_string()),
+    );
+    cluster_config.insert("hosts".to_string(), toml::Value::Array(hosts));
+    cluster_config.insert("replicas".to_string(), toml::Value::Integer(3));
+
+    config
+        .variables
+        .insert("cluster".to_string(), toml::Value::Table(cluster_config));
+    config.save(&fixture.cwd);
+
+    // Reload and verify arrays in nested structures
+    let reloaded_config = fixture.get_config();
+    let cluster_var = reloaded_config.variables.get("cluster");
+    assert!(cluster_var.is_some(), "cluster variable should exist");
+
+    if let Some(toml::Value::Table(cluster_table)) = cluster_var {
+        assert_eq!(
+            cluster_table.get("name"),
+            Some(&toml::Value::String("production".to_string()))
+        );
+        assert_eq!(
+            cluster_table.get("replicas"),
+            Some(&toml::Value::Integer(3))
+        );
+
+        if let Some(toml::Value::Array(hosts_array)) = cluster_table.get("hosts") {
+            assert_eq!(hosts_array.len(), 3);
+            assert_eq!(
+                hosts_array[0],
+                toml::Value::String("server1.example.com".to_string())
+            );
+            assert_eq!(
+                hosts_array[1],
+                toml::Value::String("server2.example.com".to_string())
+            );
+            assert_eq!(
+                hosts_array[2],
+                toml::Value::String("server3.example.com".to_string())
+            );
+        } else {
+            panic!("hosts should be an array");
+        }
+    } else {
+        panic!("cluster should be a table");
+    }
+}
+
+#[test]
+fn test_nested_variables_mixed_types() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create nested structure with mixed types
+    let mut config = fixture.get_config();
+
+    let mut settings = toml::map::Map::new();
+    settings.insert("debug".to_string(), toml::Value::Boolean(true));
+    settings.insert("timeout".to_string(), toml::Value::Float(30.5));
+    settings.insert("retries".to_string(), toml::Value::Integer(3));
+    settings.insert(
+        "endpoint".to_string(),
+        toml::Value::String("https://api.example.com".to_string()),
+    );
+
+    config
+        .variables
+        .insert("settings".to_string(), toml::Value::Table(settings));
+    config.save(&fixture.cwd);
+
+    // Reload and verify mixed types
+    let reloaded_config = fixture.get_config();
+    let settings_var = reloaded_config.variables.get("settings");
+    assert!(settings_var.is_some(), "settings variable should exist");
+
+    if let Some(toml::Value::Table(settings_table)) = settings_var {
+        assert_eq!(
+            settings_table.get("debug"),
+            Some(&toml::Value::Boolean(true))
+        );
+        assert_eq!(
+            settings_table.get("timeout"),
+            Some(&toml::Value::Float(30.5))
+        );
+        assert_eq!(
+            settings_table.get("retries"),
+            Some(&toml::Value::Integer(3))
+        );
+        assert_eq!(
+            settings_table.get("endpoint"),
+            Some(&toml::Value::String("https://api.example.com".to_string()))
+        );
+    } else {
+        panic!("settings should be a table");
+    }
+}
+
+#[test]
+fn test_nested_variables_print() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create nested variable structure for print test
+    let mut config = fixture.get_config();
+
+    let mut api_config = toml::map::Map::new();
+    api_config.insert(
+        "key".to_string(),
+        toml::Value::String("secret123".to_string()),
+    );
+    api_config.insert("timeout".to_string(), toml::Value::Integer(30));
+
+    config
+        .variables
+        .insert("api".to_string(), toml::Value::Table(api_config));
+    config.variables.insert(
+        "version".to_string(),
+        toml::Value::String("1.0.0".to_string()),
+    );
+    config.save(&fixture.cwd);
+
+    // Test that print-vars works with nested variables
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+
+    // Verify the nested structure is preserved
+    let reloaded_config = fixture.get_config();
+    assert!(reloaded_config.variables.contains_key("api"));
+    assert!(reloaded_config.variables.contains_key("version"));
+}
+
+#[test]
+fn test_nested_variables_do_not_interfere_with_flat_variables() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Mix flat and nested variables
+    let mut config = fixture.get_config();
+
+    // Flat variables
+    config
+        .variables
+        .insert("EDITOR".to_string(), toml::Value::String("vim".to_string()));
+    config.variables.insert(
+        "SHELL".to_string(),
+        toml::Value::String("/bin/bash".to_string()),
+    );
+
+    // Nested variable
+    let mut db_config = toml::map::Map::new();
+    db_config.insert(
+        "host".to_string(),
+        toml::Value::String("localhost".to_string()),
+    );
+    db_config.insert("port".to_string(), toml::Value::Integer(3306));
+    config
+        .variables
+        .insert("database".to_string(), toml::Value::Table(db_config));
+
+    config.save(&fixture.cwd);
+
+    // Reload and verify both flat and nested coexist
+    let reloaded_config = fixture.get_config();
+
+    // Check flat variables
+    assert_eq!(
+        reloaded_config.variables.get("EDITOR"),
+        Some(&toml::Value::String("vim".to_string()))
+    );
+    assert_eq!(
+        reloaded_config.variables.get("SHELL"),
+        Some(&toml::Value::String("/bin/bash".to_string()))
+    );
+
+    // Check nested variable
+    if let Some(toml::Value::Table(db_table)) = reloaded_config.variables.get("database") {
+        assert_eq!(
+            db_table.get("host"),
+            Some(&toml::Value::String("localhost".to_string()))
+        );
+        assert_eq!(db_table.get("port"), Some(&toml::Value::Integer(3306)));
+    } else {
+        panic!("database should be a table");
+    }
 }

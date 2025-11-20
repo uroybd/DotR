@@ -1,6 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand};
+use toml::Table;
 
 use crate::config::{self, Config};
 
@@ -53,21 +54,21 @@ pub struct UpdateArgs {
 #[derive(Debug, Clone)]
 pub struct Context {
     pub working_dir: PathBuf,
-    pub variables: HashMap<String, String>,
+    pub variables: Table,
 }
 
 impl Context {
-    pub fn get_variable(&self, key: &str) -> Option<&String> {
+    pub fn get_variable(&self, key: &str) -> Option<&toml::Value> {
         self.variables.get(key)
     }
     pub fn new(working_dir: PathBuf) -> Self {
         let mut ctx = Self {
             working_dir,
-            variables: HashMap::new(),
+            variables: Table::new(),
         };
         // Add environment variables to context variables
         for (key, value) in std::env::vars() {
-            ctx.variables.insert(key, value);
+            ctx.variables.insert(key, toml::Value::String(value));
         }
         ctx
     }
@@ -76,11 +77,43 @@ impl Context {
         if self.variables.is_empty() {
             println!("  (none)");
         } else {
-            let mut vars: Vec<_> = self.variables.iter().collect();
-            vars.sort_by_key(|(k, _)| k.as_str());
-            for (key, value) in vars {
-                println!("  {} = {}", key, value);
+            for (key, value) in self.variables.iter() {
+                print_variable(key, value, 1);
             }
+        }
+    }
+}
+
+pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
+    let indent = "  ".repeat(level);
+    match value {
+        toml::Value::String(s) => {
+            println!("{}{} = {}", indent, key, s);
+        }
+        toml::Value::Integer(i) => {
+            println!("{}{} = {}", indent, key, i);
+        }
+        toml::Value::Float(f) => {
+            println!("{}{} = {}", indent, key, f);
+        }
+        toml::Value::Boolean(b) => {
+            println!("{}{} = {}", indent, key, b);
+        }
+        toml::Value::Table(t) => {
+            println!("{}{} =", indent, key);
+            for (k, v) in t.iter() {
+                print_variable(k, v, level + 1);
+            }
+        }
+        toml::Value::Array(arr) => {
+            println!("{}{} = [", indent, key);
+            for v in arr.iter() {
+                print_variable("", v, level + 1);
+            }
+            println!("{}]", indent);
+        }
+        _ => {
+            println!("{}{} = {:?}", indent, key, value);
         }
     }
 }
@@ -105,7 +138,7 @@ pub fn run_cli(args: Cli) {
     }
     let mut ctx = Context {
         working_dir: working_dir.clone(),
-        variables: HashMap::new(),
+        variables: Table::new(),
     };
     // Print working directory
     // Print full working directory path

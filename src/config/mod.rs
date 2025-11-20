@@ -6,7 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use toml::{Table, Value, map::Map};
+use toml::{map::Map, Table, Value};
 
 use crate::{
     cli::{Context, DeployArgs, UpdateArgs},
@@ -17,7 +17,7 @@ use crate::{
 pub struct Config {
     pub banner: bool,
     pub packages: HashMap<String, Package>,
-    pub variables: HashMap<String, String>,
+    pub variables: Table,
 }
 
 impl Default for Config {
@@ -60,13 +60,11 @@ impl Config {
                 })
                 .collect();
         }
-        let mut variables: HashMap<String, String> = HashMap::new();
+        let mut variables: Table = Table::new();
         // Add HOME as a default variable
         if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
             for (k, v) in vars.iter() {
-                if let Some(val_str) = v.as_str() {
-                    variables.insert(k.clone(), val_str.to_string());
-                }
+                variables.insert(k.clone(), v.clone());
             }
         }
         Self {
@@ -82,11 +80,10 @@ impl Config {
         let mut table = Table::new();
         table.insert("banner".to_string(), toml::Value::Boolean(self.banner));
         if !self.variables.is_empty() {
-            let mut vars_table: Map<String, Value> = Map::new();
-            self.variables.iter().for_each(|(k, v)| {
-                vars_table.insert(k.clone(), Value::String(v.clone()));
-            });
-            table.insert("variables".to_string(), vars_table.into());
+            table.insert(
+                "variables".to_string(),
+                Value::Table(self.variables.clone()),
+            );
         }
         if !self.packages.is_empty() {
             let mut packages_table: Map<String, Value> = Map::new();
@@ -172,7 +169,7 @@ impl Config {
         Self {
             banner: true,
             packages: HashMap::new(),
-            variables: HashMap::new(),
+            variables: Table::new(),
         }
     }
 }

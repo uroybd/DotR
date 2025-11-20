@@ -3,7 +3,7 @@ use std::{ffi::OsStr, path::Path};
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
-use crate::{utils::BACKUP_EXT, utils::resolve_path};
+use crate::{utils::resolve_path, utils::BACKUP_EXT};
 
 // A package represents a dotfile package with its source, destination, and dependencies.
 #[derive(Deserialize, Serialize, Debug, Clone)]
