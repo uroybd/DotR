@@ -392,17 +392,20 @@ impl Package {
             for entry in walkdir::WalkDir::new(&src_path) {
                 let entry = entry.expect("Failed to read directory entry");
                 if entry.path().is_file() {
-                    let content =
-                        std::fs::read_to_string(entry.path()).expect("Failed to read file content");
-                    if templating_regex.is_match(&content) {
-                        return true;
+                    // Skip files that cannot be read as UTF-8 (likely binary files)
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if templating_regex.is_match(&content) {
+                            return true;
+                        }
                     }
                 }
             }
         } else if src_path.is_file() {
-            let content = std::fs::read_to_string(&src_path).expect("Failed to read file content");
-            if templating_regex.is_match(&content) {
-                return true;
+            // Skip files that cannot be read as UTF-8 (likely binary files)
+            if let Ok(content) = std::fs::read_to_string(&src_path) {
+                if templating_regex.is_match(&content) {
+                    return true;
+                }
             }
         }
         false
