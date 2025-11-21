@@ -35,8 +35,8 @@ impl Context {
 
     pub fn get_context_variable(&self, key: &str) -> Option<&toml::Value> {
         self.get_user_variable(key).or_else(|| {
-            self.get_variable(key)
-                .or_else(|| self.get_profile_variable(key))
+            self.get_profile_variable(key)
+                .or_else(|| self.get_variable(key))
         })
     }
 
