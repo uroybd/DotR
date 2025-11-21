@@ -22,3 +22,7 @@ features = ["derive"]
 [dependencies.serde]
 version = "1.0.228"
 features = ["derive"]
+
+[profile.release]
+lto = true    # Link Time Optimization - improves speed and size
+strip = true  # Strip symbols - reduces size without performance impact
