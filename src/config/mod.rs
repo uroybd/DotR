@@ -133,7 +133,6 @@ impl Config {
             package.targets.insert(p_name.clone(), package.dest.clone());
         }
         self.packages.insert(pkg_name.clone(), package);
-        println!("Config: {:?}", self);
         self.save(&ctx.working_dir)?;
         println!("Package '{}' imported successfully.", pkg_name);
         Ok(())
