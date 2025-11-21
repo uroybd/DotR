@@ -141,3 +141,442 @@ pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn create_temp_dir() -> PathBuf {
+        let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp_dir = std::env::temp_dir().join(format!("dotr_test_{}_{}", std::process::id(), counter));
+        fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
+        temp_dir
+    }
+
+    #[test]
+    fn test_context_new() {
+        let temp_dir = create_temp_dir();        let ctx = Context::new(&temp_dir);
+
+        assert_eq!(&ctx.working_dir, &temp_dir);
+        assert!(!ctx.variables.is_empty(), "Should have environment variables");
+        assert!(ctx.user_variables.is_empty(), "Should have no user variables initially");    }
+
+    #[test]
+    fn test_context_contains_env_variables() {
+        let temp_dir = create_temp_dir();        let ctx = Context::new(&temp_dir);
+
+        // HOME should always be in environment
+        assert!(ctx.get_variable("HOME").is_some(), "Should have HOME env var");
+    }
+
+    #[test]
+    fn test_parse_uservariables_no_file() {
+        let temp_dir = create_temp_dir();        let user_vars = Context::parse_uservariables(&temp_dir);
+
+        assert!(user_vars.is_empty(), "Should return empty table when no file exists");
+    }
+
+    #[test]
+    fn test_parse_uservariables_simple() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(
+            &uservars_path,
+            r#"
+TEST_VAR = "test_value"
+ANOTHER_VAR = "another_value"
+"#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let user_vars = Context::parse_uservariables(&temp_dir);
+
+        assert_eq!(user_vars.len(), 2);
+        assert_eq!(
+            user_vars.get("TEST_VAR"),
+            Some(&toml::Value::String("test_value".to_string()))
+        );
+        assert_eq!(
+            user_vars.get("ANOTHER_VAR"),
+            Some(&toml::Value::String("another_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_parse_uservariables_nested() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(
+            &uservars_path,
+            r#"
+[database]
+host = "localhost"
+port = 5432
+
+[api]
+key = "secret-key"
+"#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let user_vars = Context::parse_uservariables(&temp_dir);
+
+        assert!(user_vars.contains_key("database"));
+        assert!(user_vars.contains_key("api"));
+
+        if let Some(toml::Value::Table(db)) = user_vars.get("database") {
+            assert_eq!(
+                db.get("host"),
+                Some(&toml::Value::String("localhost".to_string()))
+            );
+            assert_eq!(db.get("port"), Some(&toml::Value::Integer(5432)));
+        } else {
+            panic!("database should be a table");
+        }
+    }
+
+    #[test]
+    fn test_parse_uservariables_invalid_toml() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(&uservars_path, "invalid toml {{{")
+            .expect("Failed to write .uservariables.toml");
+
+        let user_vars = Context::parse_uservariables(&temp_dir);
+
+        assert!(
+            user_vars.is_empty(),
+            "Should return empty table on parse error"
+        );
+    }
+
+    #[test]
+    fn test_get_variable() {
+        let temp_dir = create_temp_dir();        let mut ctx = Context::new(&temp_dir);
+
+        ctx.variables.insert(
+            "TEST_VAR".to_string(),
+            toml::Value::String("test_value".to_string()),
+        );
+
+        assert_eq!(
+            ctx.get_variable("TEST_VAR"),
+            Some(&toml::Value::String("test_value".to_string()))
+        );
+        assert_eq!(ctx.get_variable("NONEXISTENT"), None);
+    }
+
+    #[test]
+    fn test_get_user_variable() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(&uservars_path, r#"USER_VAR = "user_value""#)
+            .expect("Failed to write .uservariables.toml");
+
+        let ctx = Context::new(&temp_dir);
+
+        assert_eq!(
+            ctx.get_user_variable("USER_VAR"),
+            Some(&toml::Value::String("user_value".to_string()))
+        );
+        assert_eq!(ctx.get_user_variable("NONEXISTENT"), None);
+    }
+
+    #[test]
+    fn test_get_context_variable_priority() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(&uservars_path, r#"PRIORITY_VAR = "user_value""#)
+            .expect("Failed to write .uservariables.toml");
+
+        let mut ctx = Context::new(&temp_dir);
+        ctx.variables.insert(
+            "PRIORITY_VAR".to_string(),
+            toml::Value::String("config_value".to_string()),
+        );
+
+        // User variable should have priority
+        assert_eq!(
+            ctx.get_context_variable("PRIORITY_VAR"),
+            Some(&toml::Value::String("user_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_context_variable_fallback_to_config() {
+        let temp_dir = create_temp_dir();        let mut ctx = Context::new(&temp_dir);
+
+        ctx.variables.insert(
+            "CONFIG_ONLY".to_string(),
+            toml::Value::String("config_value".to_string()),
+        );
+
+        // Should fallback to config variable
+        assert_eq!(
+            ctx.get_context_variable("CONFIG_ONLY"),
+            Some(&toml::Value::String("config_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_variables() {
+        let temp_dir = create_temp_dir();        let mut ctx = Context::new(&temp_dir);
+
+        ctx.variables.insert(
+            "TEST".to_string(),
+            toml::Value::String("value".to_string()),
+        );
+
+        let vars = ctx.get_variables();
+        assert!(vars.contains_key("TEST"));
+        assert!(vars.contains_key("HOME")); // Env var
+    }
+
+    #[test]
+    fn test_get_user_variables() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(&uservars_path, r#"USER_VAR = "value""#)
+            .expect("Failed to write .uservariables.toml");
+
+        let ctx = Context::new(&temp_dir);
+        let user_vars = ctx.get_user_variables();
+
+        assert_eq!(user_vars.len(), 1);
+        assert!(user_vars.contains_key("USER_VAR"));
+    }
+
+    #[test]
+    fn test_get_context_variables_merges_correctly() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(
+            &uservars_path,
+            r#"
+USER_VAR = "user_value"
+OVERRIDE_VAR = "user_override"
+"#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let mut ctx = Context::new(&temp_dir);
+        ctx.variables.insert(
+            "CONFIG_VAR".to_string(),
+            toml::Value::String("config_value".to_string()),
+        );
+        ctx.variables.insert(
+            "OVERRIDE_VAR".to_string(),
+            toml::Value::String("config_value".to_string()),
+        );
+
+        let merged = ctx.get_context_variables();
+
+        // Should have both config and user variables
+        assert!(merged.contains_key("CONFIG_VAR"));
+        assert!(merged.contains_key("USER_VAR"));
+
+        // User variable should override config variable
+        assert_eq!(
+            merged.get("OVERRIDE_VAR"),
+            Some(&toml::Value::String("user_override".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_extend_variables() {
+        let temp_dir = create_temp_dir();        let mut ctx = Context::new(&temp_dir);
+
+        let mut new_vars = Table::new();
+        new_vars.insert(
+            "NEW_VAR".to_string(),
+            toml::Value::String("new_value".to_string()),
+        );
+
+        ctx.extend_variables(new_vars);
+
+        assert_eq!(
+            ctx.get_variable("NEW_VAR"),
+            Some(&toml::Value::String("new_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_extend_variables_overwrites() {
+        let temp_dir = create_temp_dir();        let mut ctx = Context::new(&temp_dir);
+
+        ctx.variables.insert(
+            "EXISTING".to_string(),
+            toml::Value::String("old_value".to_string()),
+        );
+
+        let mut new_vars = Table::new();
+        new_vars.insert(
+            "EXISTING".to_string(),
+            toml::Value::String("new_value".to_string()),
+        );
+
+        ctx.extend_variables(new_vars);
+
+        assert_eq!(
+            ctx.get_variable("EXISTING"),
+            Some(&toml::Value::String("new_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_context_with_complex_user_variables() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(
+            &uservars_path,
+            r#"
+string_var = "string"
+int_var = 42
+float_var = 3.14
+bool_var = true
+
+[nested]
+key1 = "value1"
+key2 = "value2"
+
+[[array]]
+name = "item1"
+value = 1
+
+[[array]]
+name = "item2"
+value = 2
+"#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let ctx = Context::new(&temp_dir);
+        let user_vars = ctx.get_user_variables();
+
+        assert_eq!(
+            user_vars.get("string_var"),
+            Some(&toml::Value::String("string".to_string()))
+        );
+        assert_eq!(user_vars.get("int_var"), Some(&toml::Value::Integer(42)));
+        assert_eq!(user_vars.get("float_var"), Some(&toml::Value::Float(3.14)));
+        assert_eq!(user_vars.get("bool_var"), Some(&toml::Value::Boolean(true)));
+        assert!(user_vars.contains_key("nested"));
+        assert!(user_vars.contains_key("array"));
+    }
+
+    #[test]
+    fn test_context_working_dir() {
+        let temp_dir = create_temp_dir();
+        let ctx = Context::new(&temp_dir);
+
+        assert_eq!(ctx.working_dir, temp_dir);
+    }
+
+    #[test]
+    fn test_context_debug_format() {
+        let temp_dir = create_temp_dir();
+        let ctx = Context::new(&temp_dir);
+
+        // Should have Debug implementation
+        let debug_str = format!("{:?}", ctx);
+        assert!(debug_str.contains("Context"));
+    }
+
+    #[test]
+    fn test_multiple_contexts_independent() {
+        let temp_dir1 = create_temp_dir();
+        let temp_dir2 = create_temp_dir();
+
+        fs::write(
+            temp_dir1.join(".uservariables.toml"),
+            r#"VAR = "dir1""#,
+        )
+        .expect("Failed to write");
+
+        fs::write(
+            temp_dir2.join(".uservariables.toml"),
+            r#"VAR = "dir2""#,
+        )
+        .expect("Failed to write");
+
+        let ctx1 = Context::new(&temp_dir1);
+        let ctx2 = Context::new(&temp_dir2);
+
+        assert_eq!(
+            ctx1.get_user_variable("VAR"),
+            Some(&toml::Value::String("dir1".to_string()))
+        );
+        assert_eq!(
+            ctx2.get_user_variable("VAR"),
+            Some(&toml::Value::String("dir2".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_user_variables_override_in_merged_context() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(
+            &uservars_path,
+            r#"
+VAR1 = "user_value1"
+VAR2 = "user_value2"
+"#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let mut ctx = Context::new(&temp_dir);
+
+        // Add some config variables
+        ctx.variables.insert(
+            "VAR1".to_string(),
+            toml::Value::String("config_value1".to_string()),
+        );
+        ctx.variables.insert(
+            "VAR3".to_string(),
+            toml::Value::String("config_value3".to_string()),
+        );
+
+        let merged = ctx.get_context_variables();
+
+        // VAR1 should be overridden by user variable
+        assert_eq!(
+            merged.get("VAR1"),
+            Some(&toml::Value::String("user_value1".to_string()))
+        );
+        // VAR2 should come from user variables
+        assert_eq!(
+            merged.get("VAR2"),
+            Some(&toml::Value::String("user_value2".to_string()))
+        );
+        // VAR3 should come from config variables
+        assert_eq!(
+            merged.get("VAR3"),
+            Some(&toml::Value::String("config_value3".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_empty_user_variables_file() {
+        let temp_dir = create_temp_dir();        let uservars_path = &temp_dir.join(".uservariables.toml");
+
+        fs::write(&uservars_path, "").expect("Failed to write .uservariables.toml");
+
+        let user_vars = Context::parse_uservariables(&temp_dir);
+        assert!(user_vars.is_empty());
+    }
+
+    #[test]
+    fn test_context_clone() {
+        let temp_dir = create_temp_dir();        let ctx = Context::new(&temp_dir);
+        let cloned = ctx.clone();
+
+        assert_eq!(ctx.working_dir, cloned.working_dir);
+        assert_eq!(ctx.variables.len(), cloned.variables.len());
+        assert_eq!(ctx.user_variables.len(), cloned.user_variables.len());
+    }
+}
