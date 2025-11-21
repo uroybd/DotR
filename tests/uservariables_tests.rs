@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf};
 use dotr::{
     cli::{DeployArgs, InitArgs, run_cli},
     config::Config,
+    context::Context,
 };
 
 mod common;
@@ -38,6 +39,17 @@ impl TestFixture {
     fn get_config(&self) -> Config {
         Config::from_path(&self.cwd)
     }
+
+    fn get_context(&self) -> Context {
+        let mut ctx = Context::new(&self.cwd);
+        let config = self.get_config();
+        ctx.extend_variables(config.variables.clone());
+        ctx
+    }
+
+    fn get_context_variables(&self) -> toml::Table {
+        self.get_context().get_context_variables()
+    }
 }
 
 impl Drop for TestFixture {
@@ -63,19 +75,19 @@ DATABASE_PASSWORD = "password123"
     )
     .expect("Failed to create .uservariables.toml");
 
-    // Load config - should include user variables
-    let config = fixture.get_config();
+    // Load context - should include user variables
+    let ctx_vars = fixture.get_context_variables();
 
     assert_eq!(
-        config.variables.get("SECRET_KEY"),
+        ctx_vars.get("SECRET_KEY"),
         Some(&toml::Value::String("my-secret-key".to_string()))
     );
     assert_eq!(
-        config.variables.get("API_TOKEN"),
+        ctx_vars.get("API_TOKEN"),
         Some(&toml::Value::String("token-12345".to_string()))
     );
     assert_eq!(
-        config.variables.get("DATABASE_PASSWORD"),
+        ctx_vars.get("DATABASE_PASSWORD"),
         Some(&toml::Value::String("password123".to_string()))
     );
 }
@@ -106,24 +118,24 @@ SECRET = "my-secret"
     )
     .expect("Failed to create .uservariables.toml");
 
-    // Reload config
-    let reloaded_config = fixture.get_config();
+    // Load context - user variables should override config variables
+    let ctx_vars = fixture.get_context_variables();
 
     // User variables should override config variables
     assert_eq!(
-        reloaded_config.variables.get("EDITOR"),
+        ctx_vars.get("EDITOR"),
         Some(&toml::Value::String("nvim".to_string())),
         "User variable should override config variable"
     );
     // Config variable that's not overridden should remain
     assert_eq!(
-        reloaded_config.variables.get("THEME"),
+        ctx_vars.get("THEME"),
         Some(&toml::Value::String("dark".to_string())),
         "Config variable should remain if not overridden"
     );
     // User-only variable should be present
     assert_eq!(
-        reloaded_config.variables.get("SECRET"),
+        ctx_vars.get("SECRET"),
         Some(&toml::Value::String("my-secret".to_string())),
         "User-only variable should be present"
     );
@@ -151,11 +163,11 @@ endpoint = "https://secret.api.com"
     )
     .expect("Failed to create .uservariables.toml");
 
-    // Load config
-    let config = fixture.get_config();
+    // Load context
+    let ctx_vars = fixture.get_context_variables();
 
     // Check nested database config
-    if let Some(toml::Value::Table(db_table)) = config.variables.get("database") {
+    if let Some(toml::Value::Table(db_table)) = ctx_vars.get("database") {
         assert_eq!(
             db_table.get("host"),
             Some(&toml::Value::String("secret-db.example.com".to_string()))
@@ -170,7 +182,7 @@ endpoint = "https://secret.api.com"
     }
 
     // Check nested api config
-    if let Some(toml::Value::Table(api_table)) = config.variables.get("api") {
+    if let Some(toml::Value::Table(api_table)) = ctx_vars.get("api") {
         assert_eq!(
             api_table.get("key"),
             Some(&toml::Value::String("secret-api-key".to_string()))
@@ -283,24 +295,25 @@ SECRET = "should-not-be-in-config"
     )
     .expect("Failed to create .uservariables.toml");
 
-    // Load config (user variables get merged in memory)
-    let config = fixture.get_config();
+    // Load context (user variables get merged from .uservariables.toml)
+    let ctx_vars = fixture.get_context_variables();
 
-    // User variable should be present in loaded config
+    // User variable should be present in context
     assert_eq!(
-        config.variables.get("SECRET"),
+        ctx_vars.get("SECRET"),
         Some(&toml::Value::String("should-not-be-in-config".to_string())),
-        "User variables should be present after loading"
+        "User variables should be present in context"
     );
 
-    // Save the config
+    // Load config and save it
+    let config = fixture.get_config();
     config.save(&fixture.cwd);
 
     // Read config.toml directly
     let config_content =
         fs::read_to_string(fixture.cwd.join("config.toml")).expect("Failed to read config.toml");
 
-    // User variables should NOT be in config.toml (preserved separately)
+    // User variables should NOT be in config.toml (preserved separately in .uservariables.toml)
     assert!(
         !config_content.contains("SECRET"),
         "User variables should not be saved to config.toml"
