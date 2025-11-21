@@ -22,7 +22,7 @@ pub struct Package {
     pub variables: Table,
     pub pre_actions: Vec<String>,
     pub post_actions: Vec<String>,
-    pub targets: HashMap<String, String>, // They key is profile name, the value is dest to override.
+    pub targets: HashMap<String, String>, // The key is profile name, the value is dest to override.
     pub skip: bool,
 }
 
