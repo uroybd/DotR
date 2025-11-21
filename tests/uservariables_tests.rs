@@ -33,7 +33,7 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages, profile: None }))));
     }
 
     fn get_config(&self) -> Config {
@@ -230,6 +230,8 @@ DATABASE_NAME = "production-db"
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+    targets: std::collections::HashMap::new(),
+    skip: false,
     };
     config
         .packages

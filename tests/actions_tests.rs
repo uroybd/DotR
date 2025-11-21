@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, collections::HashMap};
 
 use dotr::{
     cli::{DeployArgs, InitArgs, run_cli},
@@ -40,7 +40,7 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages, profile: None }))));
     }
 
     fn get_config(&self) -> Config {
@@ -80,6 +80,8 @@ fn test_pre_action_basic() {
         variables: toml::Table::new(),
         pre_actions: vec!["touch src/pre_action_marker.txt".to_string()],
         post_actions: Vec::new(),
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -125,6 +127,8 @@ fn test_post_action_basic() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: vec!["touch src/post_action_marker.txt".to_string()],
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -170,6 +174,8 @@ fn test_pre_and_post_actions_together() {
         variables: toml::Table::new(),
         pre_actions: vec!["echo 'pre' > src/both_pre_marker.txt".to_string()],
         post_actions: vec!["echo 'post' > src/both_post_marker.txt".to_string()],
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -232,6 +238,8 @@ fn test_multiple_pre_actions() {
             "echo 'action3' > src/pre_action3.txt".to_string(),
         ],
         post_actions: Vec::new(),
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -295,6 +303,8 @@ fn test_multiple_post_actions() {
             "echo 'action2' > src/post_action2.txt".to_string(),
             "echo 'action3' > src/post_action3.txt".to_string(),
         ],
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -360,6 +370,8 @@ fn test_actions_with_variables() {
         variables: pkg_vars,
         pre_actions: vec!["echo '{{ ACTION_VAR }}' > src/action_var_marker.txt".to_string()],
         post_actions: Vec::new(),
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -393,6 +405,8 @@ fn test_actions_persist_after_save() {
         variables: toml::Table::new(),
         pre_actions: vec!["echo 'pre1'".to_string(), "echo 'pre2'".to_string()],
         post_actions: vec!["echo 'post1'".to_string(), "echo 'post2'".to_string()],
+        targets: HashMap::new(),
+        skip: false,
     };
     config.packages.insert("test_persist".to_string(), package);
     config.save(&fixture.cwd);
@@ -441,6 +455,8 @@ fn test_actions_execution_order() {
             "echo 'post1' >> src/order_log.txt".to_string(),
             "echo 'post2' >> src/order_log.txt".to_string(),
         ],
+        targets: HashMap::new(),
+        skip: false,
     };
     config.packages.insert("f_order_test".to_string(), package);
     config.save(&fixture.cwd);
@@ -483,6 +499,8 @@ fn test_empty_actions_dont_fail() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -524,6 +542,8 @@ fn test_actions_with_complex_commands() {
         post_actions: vec![
             "test -f src/.complex_test && echo 'deployed' > src/deploy_check.txt".to_string(),
         ],
+        targets: HashMap::new(),
+        skip: false,
     };
     config
         .packages

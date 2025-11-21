@@ -46,15 +46,15 @@ impl TestFixture {
     fn import(&self, path: &str) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
             path: path.to_string(),
-        }))));
+            profile: None }))));
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages, profile: None }))));
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs { packages }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs { packages, profile: None }))));
     }
 
     fn get_config(&self) -> Config {
@@ -590,7 +590,7 @@ fn test_print_vars_empty() {
     fixture.init();
 
     // Print vars should show environment variables including HOME
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs { profile: None }))));
 
     // Verify that Context has HOME environment variable
     let ctx_vars = fixture.get_context_variables();
@@ -622,7 +622,7 @@ fn test_print_vars_with_custom_variables() {
     config.save(&fixture.cwd);
 
     // Print vars should show custom variables
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs { profile: None }))));
 
     // Verify config contains variables
     let config = fixture.get_config();
@@ -1055,7 +1055,7 @@ fn test_nested_variables_print() {
     config.save(&fixture.cwd);
 
     // Test that print-vars works with nested variables
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs { profile: None }))));
 
     // Verify the nested structure is preserved
     let reloaded_config = fixture.get_config();
