@@ -39,7 +39,7 @@ impl TestFixture {
     }
 
     fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd)
+        Config::from_path(&self.cwd).expect("Failed to load config")
     }
 }
 
@@ -84,7 +84,7 @@ fn test_package_variables_basic() {
     config
         .packages
         .insert("f_pkg_var_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_pkg_var_test".to_string()]));
@@ -115,7 +115,7 @@ fn test_package_variables_override_config_variables() {
         "MY_VAR".to_string(),
         toml::Value::String("config_value".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create a template file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
@@ -147,7 +147,7 @@ fn test_package_variables_override_config_variables() {
     config
         .packages
         .insert("f_override_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_override_test".to_string()]));
@@ -205,7 +205,7 @@ MY_VAR = "user_value"
     config
         .packages
         .insert("f_user_override_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_user_override_test".to_string()]));
@@ -255,7 +255,7 @@ fn test_package_variables_with_nested_structures() {
         skip: false,
     };
     config.packages.insert("f_nested_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_nested_test".to_string()]));
@@ -302,7 +302,7 @@ fn test_package_variables_persist_after_save() {
         skip: false,
     };
     config.packages.insert("test_package".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload config and verify variables persist
     let reloaded_config = fixture.get_config();
@@ -332,7 +332,7 @@ fn test_package_variables_priority_order() {
         "TEST_VAR".to_string(),
         toml::Value::String("config_value".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create .uservariables.toml
     fs::write(
@@ -373,7 +373,7 @@ TEST_VAR = "user_value"
     config
         .packages
         .insert("f_priority_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_priority_test".to_string()]));
@@ -446,7 +446,7 @@ fn test_multiple_packages_with_different_variables() {
 
     config.packages.insert("f_pkg1".to_string(), package1);
     config.packages.insert("f_pkg2".to_string(), package2);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy both
     fixture.deploy(Some(vec!["f_pkg1".to_string(), "f_pkg2".to_string()]));

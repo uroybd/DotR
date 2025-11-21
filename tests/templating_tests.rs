@@ -55,7 +55,7 @@ impl TestFixture {
     }
 
     fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd)
+        Config::from_path(&self.cwd).expect("Failed to load config")
     }
 
     fn get_package_name(&self, path: &str) -> String {
@@ -138,7 +138,7 @@ fn test_template_deployment_with_variables() {
     config
         .packages
         .insert("f_bashrc_template".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy the package
     fixture.deploy(Some(vec!["f_bashrc_template".to_string()]));
@@ -176,7 +176,7 @@ fn test_template_with_custom_variables() {
         "VERSION".to_string(),
         toml::Value::String("1.0.0".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create a templated file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
@@ -202,7 +202,7 @@ fn test_template_with_custom_variables() {
     config
         .packages
         .insert("f_config_template".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_config_template".to_string()]));
@@ -262,7 +262,7 @@ fn test_template_not_backed_up_on_update() {
     config
         .packages
         .insert("f_template_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Try to update - should skip backup
     fixture.update(Some(vec!["f_template_test".to_string()]));
@@ -308,7 +308,7 @@ fn test_template_directory_deployment() {
         "VERSION".to_string(),
         toml::Value::String("2.0.0".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Add package
     let mut config = fixture.get_config();
@@ -324,7 +324,7 @@ fn test_template_directory_deployment() {
         skip: false,
     };
     config.packages.insert("d_config_dir".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["d_config_dir".to_string()]));
@@ -384,7 +384,7 @@ fn test_mixed_template_and_regular_files() {
         skip: false,
     };
     config.packages.insert("f_templated".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy all
     fixture.deploy(None);
@@ -460,7 +460,7 @@ fn test_template_with_tera_statements() {
     config
         .packages
         .insert("f_advanced_template".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_advanced_template".to_string()]));

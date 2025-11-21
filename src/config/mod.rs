@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     fs,
-    io::{self, Error},
     path::Path,
 };
 
@@ -30,26 +29,23 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn from_path(cwd: &Path) -> Self {
+    pub fn from_path(cwd: &Path) -> Result<Self, anyhow::Error> {
         let config_path = cwd.join("config.toml");
         if !config_path.exists() {
-            eprintln!("Error: config.toml not found in the current directory.");
-            std::process::exit(1);
+            anyhow::bail!("config.toml not found in the current directory");
         }
-        let config_content =
-            std::fs::read_to_string(config_path).expect("Failed to read config.toml");
-        let conf_table = config_content
-            .parse::<Table>()
-            .expect("Failed to parse config.");
-        Self::from_table(&conf_table)
+        let config_content = std::fs::read_to_string(config_path)?;
+        let conf_table = config_content.parse::<Table>()?;
+        Ok(Self::from_table(&conf_table))
     }
-    pub fn save(&self, cwd: &Path) {
-        // Re-read only the config variables (not user variables) to save
+    
+    pub fn save(&self, cwd: &Path) -> Result<(), anyhow::Error> {
         let table = self.to_table();
         let config_content = table.to_string();
-        std::fs::write(cwd.join("config.toml"), config_content)
-            .expect("Failed to write config.toml");
+        std::fs::write(cwd.join("config.toml"), config_content)?;
+        Ok(())
     }
+    
     pub fn from_table(table: &Table) -> Self {
         let mut packages: HashMap<String, Package> = HashMap::new();
         // Iter on packages value as key value
@@ -120,11 +116,11 @@ impl Config {
         table
     }
 
-    pub fn import_package(&mut self, path: &str, ctx: &Context, profile_name: &Option<String>) {
+    pub fn import_package(&mut self, path: &str, ctx: &Context, profile_name: &Option<String>) -> Result<(), anyhow::Error> {
         println!("Importing dotfiles from path: {}", path);
         let mut package = Package::from_path(path, &ctx.working_dir);
         let pkg_name = package.name.clone();
-        package.backup(ctx).expect("Error backing up while import");
+        package.backup(ctx)?;
         if let Some(p_name) = profile_name {
             let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
                 eprintln!(
@@ -139,21 +135,23 @@ impl Config {
         }
         self.packages.insert(pkg_name.clone(), package);
         println!("Config: {:?}", self);
-        self.save(&ctx.working_dir);
+        self.save(&ctx.working_dir)?;
         println!("Package '{}' imported successfully.", pkg_name);
+        Ok(())
     }
 
-    pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) {
-        for (_, pkg) in self.filter_packages(ctx, &args.packages).iter() {
-            pkg.backup(ctx).expect("Error backing up");
+    pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
+        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
+            pkg.backup(ctx)?;
         }
+        Ok(())
     }
 
     fn filter_packages(
         &self,
         ctx: &Context,
         names: &Option<Vec<String>>,
-    ) -> HashMap<String, Package> {
+    ) -> Result<HashMap<String, Package>, anyhow::Error> {
         let mut packages: HashMap<String, Package> = HashMap::new();
         if let Some(pkg_names) = names {
             for name in pkg_names {
@@ -187,25 +185,24 @@ impl Config {
                     if let Some(dep_pkg) = self.packages.get(dep) {
                         dependencies.insert(dep.clone(), dep_pkg.clone());
                     } else {
-                        eprintln!(
-                            "Warning: Dependency package '{}' not found in configuration.",
+                        anyhow::bail!(
+                            "Dependency package '{}' not found in configuration",
                             dep
                         );
-                        // Exit program
-                        std::process::exit(1);
                     }
                 }
             }
         }
         packages.extend(dependencies);
-        packages
+        Ok(packages)
     }
 
-    pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) {
+    pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         println!("Copying dotfiles...");
-        for (_, pkg) in self.filter_packages(ctx, &args.packages).iter() {
+        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             pkg.deploy(ctx)
         }
+        Ok(())
     }
 
     pub fn get_profile_details(&self, pname: &Option<String>) -> (Option<String>, Option<Profile>) {
@@ -217,24 +214,23 @@ impl Config {
         (pname.clone(), profile)
     }
 
-    pub fn init(cwd: &Path) -> Result<Self, Error> {
+    pub fn init(cwd: &Path) -> Result<Self, anyhow::Error> {
         // If config.toml already exists, do nothing
         let config_path = cwd.join("config.toml");
         if config_path.exists() {
             println!("config.toml already exists. Initialization skipped.");
-            return Ok(Self::from_path(cwd));
+            return Self::from_path(cwd);
         }
         // Here you would add the logic to create a default config file
         let default_config = Config::new();
-        let toml_string =
-            toml::to_string(&default_config).expect("Failed to serialize default config");
-        std::fs::write(config_path, toml_string).expect("Failed to write default config.toml");
-        std::fs::create_dir_all(cwd.join("dotfiles")).expect("Failed to create dotfiles directory");
+        let toml_string = toml::to_string(&default_config)?;
+        std::fs::write(config_path, toml_string)?;
+        std::fs::create_dir_all(cwd.join("dotfiles"))?;
 
         // Create .gitignore to ignore .uservariables.toml
         let gitignore_path = cwd.join(".gitignore");
         let gitignore_content = ".uservariables.toml\n";
-        std::fs::write(gitignore_path, gitignore_content).expect("Failed to write .gitignore");
+        std::fs::write(gitignore_path, gitignore_content)?;
 
         println!("Default config.toml created.");
         Ok(default_config)

@@ -65,7 +65,7 @@ impl TestFixture {
     }
 
     fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd)
+        Config::from_path(&self.cwd).expect("Failed to load config")
     }
 
     fn get_package_name(&self, path: &str) -> String {
@@ -630,7 +630,7 @@ fn test_print_vars_with_custom_variables() {
         "USER_EMAIL".to_string(),
         toml::Value::String("test@example.com".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Print vars should show custom variables
     run_cli(
@@ -678,7 +678,7 @@ fn test_variables_persist_after_save() {
         "ANOTHER_VAR".to_string(),
         toml::Value::String("another_value".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload config and verify variables persist
     let reloaded_config = fixture.get_config();
@@ -733,7 +733,7 @@ fn test_variables_with_special_characters() {
         "COMPLEX_VAR".to_string(),
         toml::Value::String("value with spaces and $pecial ch@rs".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     let config = fixture.get_config();
     assert_eq!(
@@ -766,7 +766,7 @@ fn test_variables_do_not_interfere_with_packages() {
         "MY_VAR".to_string(),
         toml::Value::String("my_value".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Import packages
     fixture.import(BASHRC_PATH);
@@ -802,7 +802,7 @@ fn test_config_variables_override_environment_variables() {
         "HOME".to_string(),
         toml::Value::String(custom_home.to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload config and verify HOME is overridden
     let reloaded_config = fixture.get_config();
@@ -846,7 +846,7 @@ fn test_nested_variables_simple() {
     config
         .variables
         .insert("database".to_string(), toml::Value::Table(database_config));
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload and verify nested structure
     let reloaded_config = fixture.get_config();
@@ -896,7 +896,7 @@ fn test_nested_variables_deep() {
     config
         .variables
         .insert("app".to_string(), toml::Value::Table(app_config));
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload and verify deep nesting
     let reloaded_config = fixture.get_config();
@@ -955,7 +955,7 @@ fn test_nested_variables_with_arrays() {
     config
         .variables
         .insert("cluster".to_string(), toml::Value::Table(cluster_config));
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload and verify arrays in nested structures
     let reloaded_config = fixture.get_config();
@@ -1015,7 +1015,7 @@ fn test_nested_variables_mixed_types() {
     config
         .variables
         .insert("settings".to_string(), toml::Value::Table(settings));
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload and verify mixed types
     let reloaded_config = fixture.get_config();
@@ -1067,7 +1067,7 @@ fn test_nested_variables_print() {
         "version".to_string(),
         toml::Value::String("1.0.0".to_string()),
     );
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Test that print-vars works with nested variables
     run_cli(
@@ -1111,7 +1111,7 @@ fn test_nested_variables_do_not_interfere_with_flat_variables() {
         .variables
         .insert("database".to_string(), toml::Value::Table(db_config));
 
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload and verify both flat and nested coexist
     let reloaded_config = fixture.get_config();

@@ -36,7 +36,7 @@ impl TestFixture {
             "SHELL".to_string(),
             toml::Value::String("/bin/sh".to_string()),
         );
-        config.save(&self.cwd);
+        config.save(&self.cwd).expect("Failed to save config");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
@@ -47,7 +47,7 @@ impl TestFixture {
     }
 
     fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd)
+        Config::from_path(&self.cwd).expect("Failed to load config")
     }
 }
 
@@ -89,7 +89,7 @@ fn test_pre_action_basic() {
     config
         .packages
         .insert("f_pre_action_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_pre_action_test".to_string()]));
@@ -136,7 +136,7 @@ fn test_post_action_basic() {
     config
         .packages
         .insert("f_post_action_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_post_action_test".to_string()]));
@@ -183,7 +183,7 @@ fn test_pre_and_post_actions_together() {
     config
         .packages
         .insert("f_both_actions_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_both_actions_test".to_string()]));
@@ -247,7 +247,7 @@ fn test_multiple_pre_actions() {
     config
         .packages
         .insert("f_multi_pre_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_multi_pre_test".to_string()]));
@@ -312,7 +312,7 @@ fn test_multiple_post_actions() {
     config
         .packages
         .insert("f_multi_post_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_multi_post_test".to_string()]));
@@ -379,7 +379,7 @@ fn test_actions_with_variables() {
     config
         .packages
         .insert("f_action_var_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_action_var_test".to_string()]));
@@ -412,7 +412,7 @@ fn test_actions_persist_after_save() {
         skip: false,
     };
     config.packages.insert("test_persist".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Reload config and verify actions persist
     let reloaded_config = fixture.get_config();
@@ -462,7 +462,7 @@ fn test_actions_execution_order() {
         skip: false,
     };
     config.packages.insert("f_order_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_order_test".to_string()]));
@@ -508,7 +508,7 @@ fn test_empty_actions_dont_fail() {
     config
         .packages
         .insert("f_no_actions_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should succeed without actions
     fixture.deploy(Some(vec!["f_no_actions_test".to_string()]));
@@ -551,7 +551,7 @@ fn test_actions_with_complex_commands() {
     config
         .packages
         .insert("f_complex_test".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_complex_test".to_string()]));

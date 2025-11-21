@@ -106,6 +106,7 @@ pub fn run_cli(args: Cli) {
                 }
                 Err(e) => {
                     eprintln!("Failed to initialize configuration: {}", e);
+                    std::process::exit(1);
                 }
             }
         }
@@ -113,7 +114,13 @@ pub fn run_cli(args: Cli) {
             println!("No command provided. Use --help for more information.");
         }
         Some(_) => {
-            let mut conf = config::Config::from_path(&working_dir);
+            let mut conf = match config::Config::from_path(&working_dir) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Failed to load configuration: {}", e);
+                    std::process::exit(1);
+                }
+            };
             if conf.banner {
                 println!("{}", BANNER);
             }
@@ -126,19 +133,28 @@ pub fn run_cli(args: Cli) {
                 Some(Command::Import(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
                     ctx.set_profile(profile);
-                    conf.import_package(&args.path, &ctx, &profile_name);
+                    if let Err(e) = conf.import_package(&args.path, &ctx, &profile_name) {
+                        eprintln!("Failed to import package: {}", e);
+                        std::process::exit(1);
+                    }
                 }
                 Some(Command::Deploy(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
                     validate_profile_exists(&profile_name, &profile);
                     ctx.set_profile(profile);
-                    conf.deploy_packages(&ctx, &args);
+                    if let Err(e) = conf.deploy_packages(&ctx, &args) {
+                        eprintln!("Failed to deploy packages: {}", e);
+                        std::process::exit(1);
+                    }
                 }
                 Some(Command::Update(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
                     validate_profile_exists(&profile_name, &profile);
                     ctx.set_profile(profile);
-                    conf.backup_packages(&ctx, &args);
+                    if let Err(e) = conf.backup_packages(&ctx, &args) {
+                        eprintln!("Failed to backup packages: {}", e);
+                        std::process::exit(1);
+                    }
                 }
                 Some(Command::PrintVars(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);

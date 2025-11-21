@@ -40,7 +40,7 @@ impl TestFixture {
     }
 
     fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd)
+        Config::from_path(&self.cwd).expect("Failed to load config")
     }
 
     fn get_context(&self) -> Context {
@@ -108,7 +108,7 @@ fn test_uservariables_override_config_variables() {
     config
         .variables
         .insert("THEME".to_string(), toml::Value::String("dark".to_string()));
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create .uservariables.toml that overrides EDITOR but not THEME
     let uservars_path = fixture.cwd.join(".uservariables.toml");
@@ -239,7 +239,7 @@ DATABASE_NAME = "production-db"
     config
         .packages
         .insert("f_env_template".to_string(), package);
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
     fixture.deploy(Some(vec!["f_env_template".to_string()]));
@@ -315,7 +315,7 @@ SECRET = "should-not-be-in-config"
 
     // Load config and save it
     let config = fixture.get_config();
-    config.save(&fixture.cwd);
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Read config.toml directly
     let config_content =
