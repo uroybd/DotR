@@ -21,9 +21,10 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 ### 🔧 Variables
 - **Environment variables** automatically available in all templates
 - **Custom user variables** defined in `config.toml`
+- **Package-level variables** for package-specific configurations
 - **Nested variable structures** with TOML tables and arrays
 - **Print variables** command to view all available variables
-- Config variables **override environment variables**
+- **Variable priority**: User variables > Package variables > Config variables > Environment variables
 - Secret `uservariables.toml` file to save secrets you don't want to share in VCS
 
 ### 📝 Templating (Tera)
@@ -34,6 +35,13 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - **Automatic template detection** - no configuration needed
 - Templates are **compiled during deployment** with live variables
 - Templated files are **never backed up** (source of truth stays in templates)
+
+### ⚡ Actions (Pre/Post Hooks)
+- **Pre-deployment actions** run before package deployment
+- **Post-deployment actions** run after package deployment
+- Execute **shell commands** with full variable interpolation
+- Multiple actions per package, executed in order
+- Perfect for: installing dependencies, reloading services, setting permissions, etc.
 
 ### 🎯 Smart Workflows
 - Templated and regular files can coexist in the same repository
@@ -101,6 +109,31 @@ data = "{{ HOME }}/Data"
 
 When deployed, variables are automatically substituted. Template files are never backed up during `update` - they remain as templates in your repository.
 
+## Actions Example
+
+Define pre and post-deployment actions in your `config.toml`:
+```toml
+[packages.nvim]
+src = "dotfiles/nvim"
+dest = "~/.config/nvim/"
+
+[packages.nvim.variables]
+PLUGIN_MANAGER = "lazy.nvim"
+
+# Actions support variable interpolation
+pre_actions = [
+    "echo 'Installing {{ PLUGIN_MANAGER }}...'",
+    "mkdir -p ~/.local/share/nvim/site/pack"
+]
+
+post_actions = [
+    "nvim --headless +PluginInstall +qall",
+    "echo 'Neovim configuration deployed!'"
+]
+```
+
+Actions are executed in order and can use all available variables (environment, config, package, and user variables).
+
 ## WARNING!
 
 This is still pre-alpha. The schema is evolving, performance is sub-par. Use it with caution.
@@ -156,5 +189,5 @@ Options:
 - [x] Update configs
 - [x] Variables (with nested structures)
 - [x] Templating (Tera engine)
-- [ ] Actions (pre/post hooks)
+- [x] Actions (pre/post hooks)
 - [ ] Symlinking config
