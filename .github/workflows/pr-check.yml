@@ -109,11 +109,20 @@ jobs:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Generate coverage
-        uses: actions-rs/tarpaulin@v0.1
+      - name: Cache tarpaulin
+        uses: actions/cache@v3
+        id: cache-tarpaulin
         with:
-          version: 'latest'
-          args: '--verbose --all-features --workspace --timeout 300 --out Xml --out Html --engine llvm'
+          path: ~/.cargo/bin/cargo-tarpaulin
+          key: ${{ runner.os }}-tarpaulin-0.34.1
+
+      - name: Install cargo-tarpaulin
+        if: steps.cache-tarpaulin.outputs.cache-hit != 'true'
+        run: cargo install cargo-tarpaulin --version 0.34.1
+
+      - name: Generate coverage
+        run: |
+          cargo tarpaulin --verbose --all-features --workspace --timeout 300 --out Xml --out Html --engine llvm
         env:
           RUST_TEST_THREADS: 1
 
