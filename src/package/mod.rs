@@ -158,7 +158,9 @@ impl Package {
             .current_dir(working_dir)
             .status()?;
         if !status.success() {
-            eprintln!("Action '{}' failed to execute.", action);
+            let msg = format!("Action '{}' failed to execute with exit code: {:?}", action, status.code());
+            eprintln!("{}", msg);
+            return Err(anyhow::anyhow!(msg));
         }
         Ok(())
     }
