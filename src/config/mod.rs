@@ -200,13 +200,25 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_profile_details(&self, pname: &Option<String>) -> (Option<String>, Option<Profile>) {
-        let profile = if let Some(p_name) = pname {
-            self.profiles.get(p_name).cloned()
-        } else {
-            None
+    pub fn get_profile_details(
+        &self,
+        pname: &Option<String>,
+        vars: &Table,
+    ) -> (Option<String>, Option<Profile>) {
+        let mut profile_name = pname.clone();
+        if profile_name.is_none()
+            && let Ok(env_p_name) = vars
+                .get("DOTR_PROFILE")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
+        {
+            profile_name = Some(env_p_name.to_string());
+        }
+        let profile = match &profile_name {
+            Some(name) => self.profiles.get(name).cloned(),
+            None => None,
         };
-        (pname.clone(), profile)
+        (profile_name, profile)
     }
 
     pub fn init(cwd: &Path) -> Result<Self, anyhow::Error> {

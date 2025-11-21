@@ -894,3 +894,242 @@ fn test_import_converts_absolute_home_path_to_tilde() {
         "Path should be correctly normalized"
     );
 }
+
+#[test]
+fn test_dotr_profile_env_var_deploy() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a test file
+    fixture.write_file("dotfiles/f_profile_test/profile.conf", "profile content");
+
+    // Create package and profile
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_profile_test".to_string(),
+        src: "dotfiles/f_profile_test".to_string(),
+        dest: "src/.profile_test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: true,
+    };
+
+    let profile = dotr::profile::Profile {
+        name: "testenv".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec!["f_profile_test".to_string()],
+    };
+
+    config
+        .packages
+        .insert("f_profile_test".to_string(), package);
+    config.profiles.insert("testenv".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Set DOTR_PROFILE env var
+    fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"testenv\"\n");
+
+    // Deploy without specifying profile (should use env var)
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: None,
+    }))));
+
+    assert!(
+        result.is_ok(),
+        "Deploy should succeed with DOTR_PROFILE env var"
+    );
+    fixture.assert_file_exists(
+        "src/.profile_test",
+        "File should be deployed using DOTR_PROFILE env var",
+    );
+}
+
+#[test]
+fn test_dotr_profile_env_var_update() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dest directory
+    fs::create_dir_all(fixture.cwd.join("dest")).expect("Failed to create dest dir");
+
+    // Create profile and package with a single file
+    fixture.write_file("dotfiles/f_env_update", "original");
+
+    let mut config = fixture.get_config();
+    let dest_path = fixture.cwd.join("dest/.env_update");
+    let package = dotr::package::Package {
+        name: "f_env_update".to_string(),
+        src: "dotfiles/f_env_update".to_string(),
+        dest: dest_path.to_str().unwrap().to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+    };
+
+    let profile = dotr::profile::Profile {
+        name: "updateenv".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec!["f_env_update".to_string()],
+    };
+
+    config.packages.insert("f_env_update".to_string(), package);
+    config.profiles.insert("updateenv".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Deploy first
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: Some(vec!["f_env_update".to_string()]),
+        profile: None,
+    }))))
+    .expect("Deploy failed");
+
+    // Modify deployed file
+    fixture.write_file("dest/.env_update", "modified");
+
+    // Set profile via env var
+    fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"updateenv\"\n");
+
+    // Update without specifying profile - should succeed with profile from env var
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+        packages: Some(vec!["f_env_update".to_string()]),
+        profile: None,
+    }))));
+
+    assert!(
+        result.is_ok(),
+        "Update should succeed with DOTR_PROFILE env var"
+    );
+}
+
+#[test]
+fn test_dotr_profile_env_var_print_vars() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create profile with variables
+    let mut config = fixture.get_config();
+    let mut profile_vars = toml::Table::new();
+    profile_vars.insert(
+        "PROFILE_VAR".to_string(),
+        toml::Value::String("from_env_profile".to_string()),
+    );
+
+    let profile = dotr::profile::Profile {
+        name: "printenv".to_string(),
+        variables: profile_vars,
+        dependencies: vec![],
+    };
+
+    config.profiles.insert("printenv".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Set profile via env var
+    fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"printenv\"\n");
+
+    // Should work without specifying profile
+    let result =
+        run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs { profile: None }))));
+
+    assert!(
+        result.is_ok(),
+        "PrintVars should succeed with DOTR_PROFILE env var"
+    );
+}
+
+#[test]
+fn test_cli_profile_overrides_env_var() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fixture.write_file("dotfiles/f_override/override.txt", "content");
+
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_override".to_string(),
+        src: "dotfiles/f_override".to_string(),
+        dest: "src/.override".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: true,
+    };
+
+    let profile1 = dotr::profile::Profile {
+        name: "envprofile".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec!["f_override".to_string()],
+    };
+
+    let profile2 = dotr::profile::Profile {
+        name: "cliprofile".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec!["f_override".to_string()],
+    };
+
+    config.packages.insert("f_override".to_string(), package);
+    config.profiles.insert("envprofile".to_string(), profile1);
+    config.profiles.insert("cliprofile".to_string(), profile2);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Set env var to one profile
+    fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"envprofile\"\n");
+
+    // But explicitly pass different profile via CLI
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: Some("cliprofile".to_string()),
+    }))));
+
+    assert!(result.is_ok(), "Deploy should use CLI profile over env var");
+    fixture.assert_file_exists(
+        "src/.override",
+        "File should be deployed with CLI-specified profile",
+    );
+}
+
+#[test]
+fn test_invalid_dotr_profile_env_var_ignored() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fixture.write_file("dotfiles/f_invalid_env/test.txt", "content");
+
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_invalid_env".to_string(),
+        src: "dotfiles/f_invalid_env".to_string(),
+        dest: "src/.invalid_env".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+    };
+
+    config.packages.insert("f_invalid_env".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Set env var to non-existent profile
+    fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"nonexistent\"\n");
+
+    // Deploy without profile should fail (env var points to invalid profile)
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: None,
+    }))));
+
+    assert!(
+        result.is_err(),
+        "Deploy should fail with invalid DOTR_PROFILE env var"
+    );
+}

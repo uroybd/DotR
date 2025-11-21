@@ -114,28 +114,33 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir)?;
             ctx.extend_variables(conf.variables.clone());
+            let context_vars = ctx.get_context_variables();
 
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    let (profile_name, profile) =
+                        conf.get_profile_details(&args.profile, &context_vars);
                     ctx.set_profile(profile);
                     conf.import_package(&args.path, &ctx, &profile_name)?;
                 }
                 Some(Command::Deploy(args)) => {
-                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    let (profile_name, profile) =
+                        conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
                     conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
-                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    let (profile_name, profile) =
+                        conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
                     conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {
-                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    let (profile_name, profile) =
+                        conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
                     ctx.print_variables();
