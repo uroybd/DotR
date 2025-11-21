@@ -60,7 +60,7 @@ impl Context {
             Ok(Table::new())
         }
     }
-    
+
     pub fn new(working_dir: &Path) -> Result<Self, anyhow::Error> {
         let mut variables = Table::new();
         for (key, value) in std::env::vars() {
@@ -212,7 +212,8 @@ mod tests {
     #[test]
     fn test_parse_uservariables_no_file() {
         let temp_dir = create_temp_dir();
-        let user_vars = Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
+        let user_vars =
+            Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
 
         assert!(
             user_vars.is_empty(),
@@ -234,7 +235,8 @@ ANOTHER_VAR = "another_value"
         )
         .expect("Failed to write .uservariables.toml");
 
-        let user_vars = Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
+        let user_vars =
+            Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
 
         assert_eq!(user_vars.len(), 2);
         assert_eq!(
@@ -265,7 +267,8 @@ key = "secret-key"
         )
         .expect("Failed to write .uservariables.toml");
 
-        let user_vars = Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
+        let user_vars =
+            Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
 
         assert!(user_vars.contains_key("database"));
         assert!(user_vars.contains_key("api"));
@@ -290,10 +293,7 @@ key = "secret-key"
 
         // Should return an error for invalid TOML
         let result = Context::parse_uservariables(&temp_dir);
-        assert!(
-            result.is_err(),
-            "Should return error on invalid TOML"
-        );
+        assert!(result.is_err(), "Should return error on invalid TOML");
     }
 
     #[test]
@@ -612,7 +612,8 @@ VAR2 = "user_value2"
 
         fs::write(uservars_path, "").expect("Failed to write .uservariables.toml");
 
-        let user_vars = Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
+        let user_vars =
+            Context::parse_uservariables(&temp_dir).expect("Failed to parse uservariables");
         assert!(user_vars.is_empty());
     }
 

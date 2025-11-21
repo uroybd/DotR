@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::Path,
-};
+use std::{collections::HashMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
@@ -38,14 +34,14 @@ impl Config {
         let conf_table = config_content.parse::<Table>()?;
         Ok(Self::from_table(&conf_table))
     }
-    
+
     pub fn save(&self, cwd: &Path) -> Result<(), anyhow::Error> {
         let table = self.to_table();
         let config_content = table.to_string();
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
-    
+
     pub fn from_table(table: &Table) -> Self {
         let mut packages: HashMap<String, Package> = HashMap::new();
         // Iter on packages value as key value
@@ -116,7 +112,12 @@ impl Config {
         table
     }
 
-    pub fn import_package(&mut self, path: &str, ctx: &Context, profile_name: &Option<String>) -> Result<(), anyhow::Error> {
+    pub fn import_package(
+        &mut self,
+        path: &str,
+        ctx: &Context,
+        profile_name: &Option<String>,
+    ) -> Result<(), anyhow::Error> {
         println!("Importing dotfiles from path: {}", path);
         let mut package = Package::from_path(path, &ctx.working_dir);
         let pkg_name = package.name.clone();
@@ -185,10 +186,7 @@ impl Config {
                     if let Some(dep_pkg) = self.packages.get(dep) {
                         dependencies.insert(dep.clone(), dep_pkg.clone());
                     } else {
-                        anyhow::bail!(
-                            "Dependency package '{}' not found in configuration",
-                            dep
-                        );
+                        anyhow::bail!("Dependency package '{}' not found in configuration", dep);
                     }
                 }
             }
