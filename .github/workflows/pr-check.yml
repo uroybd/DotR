@@ -97,9 +97,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-
       - name: Cache cargo registry
         uses: actions/cache@v3
         with:
@@ -113,8 +110,10 @@ jobs:
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Generate coverage
-        run: |
-          cargo tarpaulin --verbose --all-features --workspace --timeout 300 --out Xml --out Html --engine llvm
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: 'latest'
+          args: '--verbose --all-features --workspace --timeout 300 --out Xml --out Html --engine llvm'
         env:
           RUST_TEST_THREADS: 1
 
@@ -126,14 +125,12 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
-      - name: Generate coverage summary
+      - name: Extract coverage percentage
         id: coverage
         run: |
-          COVERAGE=$(cargo tarpaulin --verbose --all-features --workspace --timeout 300 --engine llvm 2>&1 | grep -oP '\d+\.\d+(?=% coverage)' | tail -1)
+          COVERAGE=$(grep -oP 'line-rate="\K[0-9.]+' cobertura.xml | head -1 | awk '{printf "%.2f", $1 * 100}')
           echo "coverage=${COVERAGE}" >> $GITHUB_OUTPUT
           echo "Coverage: ${COVERAGE}%"
-        env:
-          RUST_TEST_THREADS: 1
 
       - name: Comment PR with coverage
         if: github.event_name == 'pull_request'
