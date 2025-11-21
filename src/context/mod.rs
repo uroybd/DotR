@@ -44,7 +44,7 @@ impl Context {
             variables,
         }
     }
-    pub fn extend_variables(&mut self, new_vars: Table) {
+    pub fn apply_variables_with_user_overrides(&mut self, new_vars: Table) {
         self.variables.extend(new_vars);
         self.variables
             .extend(Self::parse_uservariables(&self.working_dir));
