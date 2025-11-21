@@ -9,12 +9,22 @@ use toml::Table;
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
-    pub variables: Table,
+    variables: Table,
+    user_variables: Table,
 }
 
 impl Context {
     pub fn get_variable(&self, key: &str) -> Option<&toml::Value> {
         self.variables.get(key)
+    }
+
+    pub fn get_user_variable(&self, key: &str) -> Option<&toml::Value> {
+        self.user_variables.get(key)
+    }
+
+    pub fn get_context_variable(&self, key: &str) -> Option<&toml::Value> {
+        self.get_user_variable(key)
+            .or_else(|| self.get_variable(key))
     }
 
     pub fn parse_uservariables(cwd: &Path) -> Table {
@@ -38,16 +48,31 @@ impl Context {
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
         }
+        let user_variables = Self::parse_uservariables(working_dir);
 
         Self {
             working_dir: working_dir.to_path_buf(),
             variables,
+            user_variables,
         }
     }
-    pub fn apply_variables_with_user_overrides(&mut self, new_vars: Table) {
+
+    pub fn get_variables(&self) -> &Table {
+        &self.variables
+    }
+
+    pub fn get_user_variables(&self) -> &Table {
+        &self.user_variables
+    }
+
+    pub fn get_context_variables(&self) -> Table {
+        let mut context_vars = self.variables.clone();
+        context_vars.extend(self.user_variables.clone());
+        context_vars
+    }
+
+    pub fn extend_variables(&mut self, new_vars: Table) {
         self.variables.extend(new_vars);
-        self.variables
-            .extend(Self::parse_uservariables(&self.working_dir));
     }
 
     pub fn print_variables(&self) {

@@ -148,8 +148,9 @@ impl Package {
                     std::fs::create_dir_all(dest_path.parent().unwrap())
                         .expect("Failed to create parent directory");
                     if is_templated {
-                        let compiled_content = compile_template(entry.path(), &ctx.variables)
-                            .expect("Failed to compile template");
+                        let compiled_content =
+                            compile_template(entry.path(), &ctx.get_context_variables())
+                                .expect("Failed to compile template");
                         std::fs::write(&dest_path, compiled_content)
                             .expect("Failed to write compiled file");
                     } else {
@@ -159,8 +160,8 @@ impl Package {
                 }
             }
         } else if is_templated {
-            let compiled_content =
-                compile_template(&copy_from, &ctx.variables).expect("Failed to compile template");
+            let compiled_content = compile_template(&copy_from, &ctx.get_context_variables())
+                .expect("Failed to compile template");
             std::fs::write(&copy_to, compiled_content).expect("Failed to write compiled file");
         } else {
             std::fs::copy(&copy_from, &copy_to).expect("Failed to copy file");

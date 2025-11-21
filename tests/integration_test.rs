@@ -84,6 +84,13 @@ impl TestFixture {
         let file_path = self.cwd.join(path);
         fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {}", path));
     }
+
+    fn get_context_variables(&self) -> toml::Table {
+        let mut ctx = Context::new(&self.cwd);
+        let config = self.get_config();
+        ctx.extend_variables(config.variables.clone());
+        ctx.get_context_variables()
+    }
 }
 
 impl Drop for TestFixture {
@@ -586,9 +593,9 @@ fn test_print_vars_empty() {
     run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
 
     // Verify that Context has HOME environment variable
-    let ctx = Context::new(&fixture.cwd);
+    let ctx_vars = fixture.get_context_variables();
     assert!(
-        ctx.variables.contains_key("HOME"),
+        ctx_vars.contains_key("HOME"),
         "HOME environment variable should be present"
     );
 }
@@ -633,9 +640,9 @@ fn test_print_vars_with_custom_variables() {
     );
 
     // Verify that environment variables like HOME are still present in Context
-    let ctx = Context::new(&fixture.cwd);
+    let ctx_vars = fixture.get_context_variables();
     assert!(
-        ctx.variables.contains_key("HOME"),
+        ctx_vars.contains_key("HOME"),
         "HOME environment variable should be present in Context"
     );
 }
@@ -677,13 +684,13 @@ fn test_home_variable_always_present() {
     fixture.init();
 
     // Context should have environment variables including HOME
-    let ctx = Context::new(&fixture.cwd);
+    let ctx_vars = fixture.get_context_variables();
 
     // HOME should always be present in context
-    assert!(ctx.variables.contains_key("HOME"));
+    assert!(ctx_vars.contains_key("HOME"));
 
     // HOME should be a valid path
-    let home = ctx.variables.get("HOME").expect("HOME variable not found");
+    let home = ctx_vars.get("HOME").expect("HOME variable not found");
     if let toml::Value::String(s) = home {
         assert!(!s.is_empty());
     } else {
@@ -796,12 +803,10 @@ fn test_config_variables_override_environment_variables() {
     );
 
     // Create context and verify that config variables take precedence
-    let mut ctx = Context::new(&fixture.cwd);
-    // When config is loaded, it should override the environment variable
-    ctx.extend_variables(reloaded_config.variables.clone());
+    let ctx_vars = fixture.get_context_variables();
 
     assert_eq!(
-        ctx.variables.get("HOME"),
+        ctx_vars.get("HOME"),
         Some(&toml::Value::String(custom_home.to_string())),
         "Context should use config HOME over environment HOME"
     );
