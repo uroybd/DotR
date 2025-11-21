@@ -30,13 +30,19 @@ pub struct InitArgs {}
 
 #[derive(Debug, Args)]
 #[command(name = "print-vars", about = "Print all user variables.")]
-pub struct PrintVarsArgs {}
+pub struct PrintVarsArgs {
+    #[arg(short, long)]
+    pub profile: Option<String>,
+}
 
 #[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
 pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -44,6 +50,9 @@ pub struct ImportArgs {
 pub struct DeployArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -51,6 +60,9 @@ pub struct DeployArgs {
 pub struct UpdateArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 const BANNER: &str = r#"
@@ -96,19 +108,63 @@ pub fn run_cli(args: Cli) {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir);
             ctx.extend_variables(conf.variables.clone());
+
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    conf.import_package(&args.path, &ctx);
+                    let profile_name = args.profile.clone();
+                    if let Some(p_name) = profile_name.clone()
+                        && let Some(profile) = conf.profiles.get(&p_name) {
+                            ctx.set_profile(Some(profile.clone()));
+                        }
+                    conf.import_package(&args.path, &ctx, &profile_name);
                 }
                 Some(Command::Deploy(args)) => {
+                    let profile_name = args.profile.clone();
+                    if let Some(p_name) = profile_name.clone()
+                        && let Some(profile) = conf.profiles.get(&p_name) {
+                            ctx.set_profile(Some(profile.clone()));
+                        }
+                    if profile_name.is_some() && ctx.profile.is_none() {
+                        eprintln!(
+                            "Warning: Profile '{}' not found in configuration.",
+                            profile_name.unwrap()
+                        );
+                        // Exit program
+                        std::process::exit(1);
+                    }
                     conf.deploy_packages(&ctx, &args);
                 }
                 Some(Command::Update(args)) => {
+                    let profile_name = args.profile.clone();
+                    if let Some(p_name) = profile_name.clone()
+                        && let Some(profile) = conf.profiles.get(&p_name) {
+                            ctx.set_profile(Some(profile.clone()));
+                        }
+                    if profile_name.is_some() && ctx.profile.is_none() {
+                        eprintln!(
+                            "Warning: Profile '{}' not found in configuration.",
+                            profile_name.unwrap()
+                        );
+                        // Exit program
+                        std::process::exit(1);
+                    }
                     conf.backup_packages(&ctx, &args);
                 }
-                Some(Command::PrintVars(_)) => {
-                    println!("User Variables:");
+                Some(Command::PrintVars(args)) => {
+                    let profile_name = args.profile.clone();
+                    if let Some(p_name) = profile_name.clone()
+                        && let Some(profile) = conf.profiles.get(&p_name) {
+                            ctx.set_profile(Some(profile.clone()));
+                        }
+                    if profile_name.is_some() && ctx.profile.is_none() {
+                        eprintln!(
+                            "Warning: Profile '{}' not found in configuration.",
+                            profile_name.unwrap()
+                        );
+                        // Exit program
+                        std::process::exit(1);
+                    }
                     ctx.print_variables();
                 }
                 _ => {

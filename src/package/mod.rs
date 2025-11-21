@@ -1,4 +1,8 @@
-use std::{collections::HashMap, ffi::OsStr, path::Path};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 use toml::Table;
@@ -19,6 +23,7 @@ pub struct Package {
     pub pre_actions: Vec<String>,
     pub post_actions: Vec<String>,
     pub targets: HashMap<String, String>, // They key is profile name, the value is dest to override.
+    pub skip: bool,
 }
 
 impl Package {
@@ -46,6 +51,7 @@ impl Package {
             pre_actions: Vec::new(),
             post_actions: Vec::new(),
             targets: HashMap::new(),
+            skip: false,
         }
     }
 
@@ -113,6 +119,10 @@ impl Package {
                 .as_str()
                 .unwrap()
                 .to_string(),
+            skip: pkg_val
+                .get("skip")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             dependencies,
             variables,
             pre_actions,
@@ -167,6 +177,9 @@ impl Package {
             }
             pkg_table.insert("targets".to_string(), toml::Value::Table(targets_table));
         }
+        if self.skip {
+            pkg_table.insert("skip".to_string(), toml::Value::Boolean(true));
+        }
         pkg_table
     }
 
@@ -215,6 +228,9 @@ impl Package {
     pub fn get_context_variables(&self, ctx: &Context) -> Table {
         let mut vars = ctx.get_variables().clone();
         vars.extend(self.variables.clone());
+        if let Some(profile) = &ctx.profile {
+            vars.extend(profile.variables.clone());
+        }
         vars.extend(ctx.get_user_variables().clone());
         vars
     }
@@ -228,7 +244,7 @@ impl Package {
             );
             return Ok(());
         }
-        let copy_from = resolve_path(&self.dest, &ctx.working_dir);
+        let copy_from = self.resolve_dest(ctx);
         let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
             // Recursively copy directory contents, avoiding files ending with BACKUP_EXT
@@ -254,6 +270,14 @@ impl Package {
         Ok(())
     }
 
+    pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
+        if let Some(profile) = &ctx.profile
+            && let Some(target_dest) = self.targets.get(profile.name.as_str()) {
+                return resolve_path(target_dest, &ctx.working_dir);
+            }
+        resolve_path(&self.dest, &ctx.working_dir)
+    }
+
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) {
         let pkg_vars = self.get_context_variables(ctx);
@@ -261,7 +285,7 @@ impl Package {
             .expect("Failed to execute pre-actions");
         let is_templated = self.is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
-        let copy_to = resolve_path(&self.dest, &ctx.working_dir);
+        let copy_to = self.resolve_dest(ctx);
         let backup_path = copy_to.with_extension(BACKUP_EXT);
         // First, create a backup of the existing file/directory at dest
         if copy_to.exists() {
