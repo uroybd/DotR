@@ -12,12 +12,14 @@ use crate::{
     cli::{DeployArgs, UpdateArgs},
     context::Context,
     package::Package,
+    profile::Profile,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
     pub banner: bool,
     pub packages: HashMap<String, Package>,
+    pub profiles: HashMap<String, Profile>,
     pub variables: Table,
 }
 
@@ -61,6 +63,13 @@ impl Config {
             });
             table.insert("packages".to_string(), packages_table.into());
         }
+        if !self.profiles.is_empty() {
+            let mut profiles_table: Map<String, Value> = Map::new();
+            self.profiles.iter().for_each(|(name, profile)| {
+                profiles_table.insert(name.clone(), Value::Table(profile.to_table()));
+            });
+            table.insert("profiles".to_string(), profiles_table.into());
+        }
 
         let config_content = table.to_string();
         std::fs::write(cwd.join("config.toml"), config_content)
@@ -80,6 +89,19 @@ impl Config {
                 })
                 .collect();
         }
+
+        let mut profiles: HashMap<String, Profile> = HashMap::new();
+        let profile_confs = table.get("profiles").and_then(|v| v.as_table());
+        if let Some(prof_confs) = profile_confs {
+            profiles = prof_confs
+                .iter()
+                .map(|(key, val)| {
+                    let prof_val = val.as_table().expect("Failed to parse profile");
+                    let profile = Profile::from_table(key, prof_val);
+                    (profile.name.clone(), profile)
+                })
+                .collect();
+        }
         let mut variables: Table = Table::new();
         // Add HOME as a default variable
         if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
@@ -93,6 +115,7 @@ impl Config {
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
             packages,
+            profiles,
             variables,
         }
     }
@@ -190,6 +213,7 @@ impl Config {
             banner: true,
             packages: HashMap::new(),
             variables: Table::new(),
+            profiles: HashMap::new(),
         }
     }
 }
