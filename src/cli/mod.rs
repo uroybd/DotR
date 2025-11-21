@@ -78,11 +78,22 @@ pub fn run_cli(args: Cli) {
     let mut working_dir = std::env::current_dir().expect("Failed to get current directory");
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
-        working_dir = working_dir.canonicalize().unwrap();
+        // Only canonicalize if the path exists
+        if working_dir.exists() {
+            working_dir = working_dir.canonicalize().unwrap();
+        }
     }
-    if !working_dir.exists() {
+    
+    // For Init command, we allow non-existent directories
+    if !working_dir.exists() && !matches!(args.command, Some(Command::Init(_))) {
         panic!("The specified working directory does not exist");
     }
+    
+    // Create working directory for Init if it doesn't exist
+    if matches!(args.command, Some(Command::Init(_))) && !working_dir.exists() {
+        std::fs::create_dir_all(&working_dir).expect("Failed to create working directory");
+    }
+    
     // Print working directory
     // Print full working directory path
     match args.command {

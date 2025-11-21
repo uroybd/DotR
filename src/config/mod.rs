@@ -182,8 +182,6 @@ impl Config {
                     packages.insert(name.clone(), pkg.clone());
                 } else {
                     eprintln!("Warning: Package '{}' not found in configuration.", name);
-                    // Exit program
-                    std::process::exit(1);
                 }
             }
         } else if let Some(profile) = &ctx.profile {
@@ -192,8 +190,6 @@ impl Config {
                     packages.insert(dep.clone(), pkg.clone());
                 } else {
                     eprintln!("Warning: Package '{}' not found in configuration.", dep);
-                    // Exit program
-                    std::process::exit(1);
                 }
             }
         } else {
