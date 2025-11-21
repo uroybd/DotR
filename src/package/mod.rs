@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use toml::Table;
 
 use crate::{
-    cli::Context,
+    context::Context,
     utils::{BACKUP_EXT, resolve_path},
 };
 

@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf};
 use dotr::{
     cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
+    context::Context,
     package::get_package_name,
     utils,
 };
@@ -585,7 +586,7 @@ fn test_print_vars_empty() {
     run_cli(fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {}))));
 
     // Verify that Context has HOME environment variable
-    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    let ctx = Context::new(&fixture.cwd);
     assert!(
         ctx.variables.contains_key("HOME"),
         "HOME environment variable should be present"
@@ -632,7 +633,7 @@ fn test_print_vars_with_custom_variables() {
     );
 
     // Verify that environment variables like HOME are still present in Context
-    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    let ctx = Context::new(&fixture.cwd);
     assert!(
         ctx.variables.contains_key("HOME"),
         "HOME environment variable should be present in Context"
@@ -676,7 +677,7 @@ fn test_home_variable_always_present() {
     fixture.init();
 
     // Context should have environment variables including HOME
-    let ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    let ctx = Context::new(&fixture.cwd);
 
     // HOME should always be present in context
     assert!(ctx.variables.contains_key("HOME"));
@@ -795,9 +796,9 @@ fn test_config_variables_override_environment_variables() {
     );
 
     // Create context and verify that config variables take precedence
-    let mut ctx = dotr::cli::Context::new(fixture.cwd.clone());
+    let mut ctx = Context::new(&fixture.cwd);
     // When config is loaded, it should override the environment variable
-    ctx.variables.extend(reloaded_config.variables.clone());
+    ctx.extend_variables(reloaded_config.variables.clone());
 
     assert_eq!(
         ctx.variables.get("HOME"),
