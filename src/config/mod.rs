@@ -32,7 +32,7 @@ impl Config {
         }
         let config_content = std::fs::read_to_string(config_path)?;
         let conf_table = config_content.parse::<Table>()?;
-        Ok(Self::from_table(&conf_table))
+        Self::from_table(&conf_table)
     }
 
     pub fn save(&self, cwd: &Path) -> Result<(), anyhow::Error> {
@@ -42,19 +42,18 @@ impl Config {
         Ok(())
     }
 
-    pub fn from_table(table: &Table) -> Self {
+    pub fn from_table(table: &Table) -> Result<Self, anyhow::Error> {
         let mut packages: HashMap<String, Package> = HashMap::new();
         // Iter on packages value as key value
-        let package_confs = table.get("packages").and_then(|v| v.as_table()); // parse p as table
+        let package_confs = table.get("packages").and_then(|v| v.as_table());
         if let Some(pkg_confs) = package_confs {
-            packages = pkg_confs
-                .iter()
-                .map(|(key, val)| {
-                    let pkg_val = val.as_table().expect("Failed to parse package");
-                    let pkg = Package::from_table(key, pkg_val);
-                    (pkg.name.clone(), pkg)
-                })
-                .collect();
+            for (key, val) in pkg_confs.iter() {
+                let pkg_val = val
+                    .as_table()
+                    .ok_or_else(|| anyhow::anyhow!("Package '{}' must be a table", key))?;
+                let pkg = Package::from_table(key, pkg_val)?;
+                packages.insert(pkg.name.clone(), pkg);
+            }
         }
 
         let mut profiles: HashMap<String, Profile> = HashMap::new();
@@ -76,7 +75,7 @@ impl Config {
                 variables.insert(k.clone(), v.clone());
             }
         }
-        Self {
+        Ok(Self {
             banner: table
                 .get("banner")
                 .and_then(|v| v.as_bool())
@@ -84,7 +83,7 @@ impl Config {
             packages,
             profiles,
             variables,
-        }
+        })
     }
     pub fn to_table(&self) -> Table {
         let mut table = Table::new();
@@ -119,7 +118,7 @@ impl Config {
         profile_name: &Option<String>,
     ) -> Result<(), anyhow::Error> {
         println!("Importing dotfiles from path: {}", path);
-        let mut package = Package::from_path(path, &ctx.working_dir);
+        let mut package = Package::from_path(path, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
         package.backup(ctx)?;
         if let Some(p_name) = profile_name {
@@ -198,7 +197,7 @@ impl Config {
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         println!("Copying dotfiles...");
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            pkg.deploy(ctx)
+            pkg.deploy(ctx)?;
         }
         Ok(())
     }

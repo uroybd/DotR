@@ -30,21 +30,24 @@ impl Package {
     // Create a new Package from a given path, used to import dotfiles.
     // The path can be absolute or relative to the current working directory.
     // That path must exist and it will be set to the dest field.
-    pub fn from_path(path: &str, cwd: &Path) -> Self {
+    pub fn from_path(path: &str, cwd: &Path) -> Result<Self, anyhow::Error> {
         let resolved_path = resolve_path(path, cwd);
-        if !resolved_path.clone().exists() {
-            eprintln!("Error: Path '{}' does not exist.", resolved_path.display());
-            std::process::exit(1);
+        if !resolved_path.exists() {
+            anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
         let package_name = get_package_name(path, cwd);
         let dest_path_str = format!("dotfiles/{}", package_name);
-        let mut path = path;
-        if !path.starts_with('~') {
-            path = resolved_path.to_str().unwrap();
-        }
-        Self {
+        let path_str = if path.starts_with('~') {
+            path.to_string()
+        } else {
+            resolved_path
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?
+                .to_string()
+        };
+        Ok(Self {
             name: package_name.clone(),
-            dest: path.to_string(),
+            dest: path_str,
             src: dest_path_str.clone(),
             dependencies: None,
             variables: Table::new(),
@@ -52,83 +55,109 @@ impl Package {
             post_actions: Vec::new(),
             targets: HashMap::new(),
             skip: false,
-        }
+        })
     }
 
-    pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Self {
+    pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
         let dependencies: Option<Vec<String>> = match pkg_val.get("dependencies") {
             Some(deps) => {
-                let d = deps
+                let array = deps
                     .as_array()
-                    .expect("Dependencies should be an array")
+                    .ok_or_else(|| anyhow::anyhow!("Dependencies should be an array"))?;
+                let d = array
                     .iter()
-                    .map(|d| d.as_str().unwrap().to_string())
-                    .collect();
+                    .map(|d| {
+                        d.as_str()
+                            .ok_or_else(|| anyhow::anyhow!("Dependency must be a string"))
+                            .map(|s| s.to_string())
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
                 Some(d)
             }
             None => None,
         };
+
         let mut variables = Table::new();
         if let Some(var_block) = pkg_val.get("variables") {
             variables = var_block
                 .as_table()
-                .expect("The 'variables' field must be a table")
+                .ok_or_else(|| anyhow::anyhow!("The 'variables' field must be a table"))?
                 .clone();
         }
+
         let mut pre_actions = Vec::new();
         if let Some(pre_block) = pkg_val.get("pre_actions") {
-            pre_actions = pre_block
+            let array = pre_block
                 .as_array()
-                .expect("The 'pre_actions' field must be an array")
+                .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?;
+            pre_actions = array
                 .iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect();
+                .map(|v| {
+                    v.as_str()
+                        .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
+                        .map(|s| s.to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
         }
+
         let mut post_actions = Vec::new();
         if let Some(post_block) = pkg_val.get("post_actions") {
-            post_actions = post_block
+            let array = post_block
                 .as_array()
-                .expect("The 'post_actions' field must be an array")
+                .ok_or_else(|| anyhow::anyhow!("The 'post_actions' field must be an array"))?;
+            post_actions = array
                 .iter()
-                .map(|v| v.as_str().unwrap().to_string())
-                .collect();
+                .map(|v| {
+                    v.as_str()
+                        .ok_or_else(|| anyhow::anyhow!("Post-action must be a string"))
+                        .map(|s| s.to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
         }
 
         let mut targets = HashMap::new();
-
         if let Some(targets_block) = pkg_val.get("targets") {
             let targets_table = targets_block
                 .as_table()
-                .expect("The 'targets' field must be a table");
+                .ok_or_else(|| anyhow::anyhow!("The 'targets' field must be a table"))?;
             for (key, value) in targets_table {
-                let dest_str = value.as_str().expect("Target dest must be a string");
+                let dest_str = value
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Target dest must be a string"))?;
                 targets.insert(key.clone(), dest_str.to_string());
             }
         }
-        Self {
+
+        let src = pkg_val
+            .get("src")
+            .ok_or_else(|| anyhow::anyhow!("Package src is required"))?
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
+            .to_string();
+
+        let dest = pkg_val
+            .get("dest")
+            .ok_or_else(|| anyhow::anyhow!("Package dest is required"))?
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("Package dest must be a string"))?
+            .to_string();
+
+        let skip = pkg_val
+            .get("skip")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        Ok(Self {
             name: pkg_name.to_string(),
-            src: pkg_val
-                .get("src")
-                .expect("Package src is required")
-                .as_str()
-                .unwrap()
-                .to_string(),
-            dest: pkg_val
-                .get("dest")
-                .expect("Package dest is required")
-                .as_str()
-                .unwrap()
-                .to_string(),
-            skip: pkg_val
-                .get("skip")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
+            src,
+            dest,
+            skip,
             dependencies,
             variables,
             pre_actions,
             post_actions,
             targets,
-        }
+        })
     }
 
     pub fn to_table(&self) -> Table {
@@ -255,7 +284,9 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
-                    std::fs::create_dir_all(dest_path.parent().unwrap())?;
+                    if let Some(parent) = dest_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
                     std::fs::copy(entry.path(), &dest_path)?;
                 }
             }
@@ -280,59 +311,59 @@ impl Package {
     }
 
     /// Deploy the package by copying files from src to dest.
-    pub fn deploy(&self, ctx: &Context) {
+    pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
         let pkg_vars = self.get_context_variables(ctx);
-        self.execute_pre_actions(ctx)
-            .expect("Failed to execute pre-actions");
+        self.execute_pre_actions(ctx)?;
         let is_templated = self.is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
         let backup_path = copy_to.with_extension(BACKUP_EXT);
+
         // First, create a backup of the existing file/directory at dest
         if copy_to.exists() {
             if copy_to.is_dir() {
                 std::fs::remove_dir_all(&backup_path).ok(); // Remove existing backup if any
-                std::fs::rename(&copy_to, &backup_path).expect("Failed to create backup directory");
+                std::fs::rename(&copy_to, &backup_path)?;
             } else {
-                std::fs::rename(&copy_to, &backup_path).expect("Failed to create backup file");
+                std::fs::rename(&copy_to, &backup_path)?;
             }
         }
+
         if copy_from.is_dir() {
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
-                let entry = entry.expect("Failed to read directory entry");
-                let relative_path = entry.path().strip_prefix(&copy_from).unwrap();
+                let entry = entry?;
+                let relative_path = entry.path().strip_prefix(&copy_from)?;
                 let dest_path = copy_to.join(relative_path);
                 if entry.path().is_dir() {
-                    std::fs::create_dir_all(&dest_path).expect("Failed to create directory");
+                    std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    std::fs::create_dir_all(dest_path.parent().unwrap())
-                        .expect("Failed to create parent directory");
+                    if let Some(parent) = dest_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
                     if is_templated {
-                        let compiled_content = compile_template(entry.path(), &pkg_vars)
-                            .expect("Failed to compile template");
-                        std::fs::write(&dest_path, compiled_content)
-                            .expect("Failed to write compiled file");
+                        let compiled_content = compile_template(entry.path(), &pkg_vars)?;
+                        std::fs::write(&dest_path, compiled_content)?;
                     } else {
                         // Copy directly:
-                        std::fs::copy(entry.path(), &dest_path).expect("Failed to copy file");
+                        std::fs::copy(entry.path(), &dest_path)?;
                     }
                 }
             }
         } else if is_templated {
-            let compiled_content = compile_template(&copy_from, &self.get_context_variables(ctx))
-                .expect("Failed to compile template");
-            std::fs::write(&copy_to, compiled_content).expect("Failed to write compiled file");
+            let compiled_content = compile_template(&copy_from, &self.get_context_variables(ctx))?;
+            std::fs::write(&copy_to, compiled_content)?;
         } else {
-            std::fs::copy(&copy_from, &copy_to).expect("Failed to copy file");
+            std::fs::copy(&copy_from, &copy_to)?;
         }
+
         println!(
             "[INFO] Deployed file '{}' to '{}'",
             copy_from.display(),
             copy_to.display()
         );
-        self.execute_post_actions(ctx)
-            .expect("Failed to execute post-actions");
+        self.execute_post_actions(ctx)?;
+        Ok(())
     }
 
     pub fn is_dir(&self) -> bool {
