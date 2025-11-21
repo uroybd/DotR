@@ -794,3 +794,103 @@ fn test_deploy_missing_source_fails() {
         );
     }
 }
+
+#[test]
+fn test_import_normalizes_home_path() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a test file in a subdirectory
+    let test_dir = fixture.cwd.join("test_import");
+    fs::create_dir_all(&test_dir).expect("Failed to create test dir");
+    fs::write(test_dir.join("test.txt"), "content").expect("Failed to write test file");
+
+    // Import the file
+    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        path: test_dir.to_str().unwrap().to_string(),
+        profile: None,
+    }))));
+
+    let config = fixture.get_config();
+    let package = config
+        .packages
+        .values()
+        .next()
+        .expect("Should have package");
+
+    // Path should not have ~ since it's not in home directory
+    assert!(
+        !package.dest.starts_with('~'),
+        "Non-home path should not use ~"
+    );
+}
+
+#[test]
+fn test_import_preserves_tilde_path() {
+    // This test verifies that the normalize_home_path function preserves tilde notation
+    // We test this at the utility level rather than end-to-end to avoid creating files in real home
+
+    let path_with_tilde = "~/.config/nvim";
+    let normalized = dotr::utils::normalize_home_path(path_with_tilde);
+
+    assert_eq!(
+        normalized, path_with_tilde,
+        "Tilde paths should be preserved as-is"
+    );
+
+    // Test with different tilde paths
+    let paths = vec![
+        "~/.bashrc",
+        "~/.config/alacritty/alacritty.yml",
+        "~/Documents/notes.txt",
+    ];
+
+    for path in paths {
+        let normalized = dotr::utils::normalize_home_path(path);
+        assert_eq!(normalized, path, "Tilde path {} should be preserved", path);
+    }
+}
+
+#[test]
+fn test_import_converts_absolute_home_path_to_tilde() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Test 1: Path outside home should remain absolute
+    let test_file = fixture.cwd.join("test_file.txt");
+    fs::write(&test_file, "content").expect("Failed to write test file");
+
+    let abs_path = test_file.to_str().unwrap().to_string();
+    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        path: abs_path.clone(),
+        profile: None,
+    }))));
+
+    let config = fixture.get_config();
+    let package = config
+        .packages
+        .values()
+        .next()
+        .expect("Should have package");
+
+    // Since the path is NOT in home directory, it should remain absolute
+    assert!(
+        !package.dest.starts_with('~'),
+        "Path outside home should not use ~ notation, got: {}",
+        package.dest
+    );
+
+    // Test 2: Verify utility function correctly normalizes home paths
+    let home = std::env::home_dir().expect("Should have home dir");
+    let mock_home_path = format!("{}/test/path", home.to_string_lossy());
+    let normalized = dotr::utils::normalize_home_path(&mock_home_path);
+    assert!(
+        normalized.starts_with('~'),
+        "Path in home directory should be normalized to ~, got: {}",
+        normalized
+    );
+    assert_eq!(
+        normalized, "~/test/path",
+        "Path should be correctly normalized"
+    );
+}
