@@ -143,16 +143,13 @@ impl Config {
         let mut package = Package::from_path(path, &ctx.working_dir);
         let pkg_name = package.name.clone();
         package.backup(ctx).expect("Error backing up while import");
-        let mut prev_profiles = self.profiles.clone();
         if let Some(p_name) = profile_name {
-            let profile = prev_profiles.get_mut(p_name).unwrap_or_else(|| {
+            let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
                 eprintln!(
                     "Warning: Profile '{}' not found in configuration. Creating new profile.",
                     p_name
                 );
-                let new_profile = Profile::new(p_name);
-                self.profiles.insert(p_name.clone(), new_profile);
-                self.profiles.get_mut(p_name).unwrap()
+                Profile::new(p_name)
             });
             profile.dependencies.push(pkg_name.clone());
             package.skip = true;
