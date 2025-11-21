@@ -75,24 +75,24 @@ const BANNER: &str = r#"
 ╚═════╝  ╚═════╝    ╚═╝   ╚═╝  ╚═╝
 "#;
 
-pub fn run_cli(args: Cli) {
-    let mut working_dir = std::env::current_dir().expect("Failed to get current directory");
+pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
+    let mut working_dir = std::env::current_dir()?;
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
         // Only canonicalize if the path exists
         if working_dir.exists() {
-            working_dir = working_dir.canonicalize().unwrap();
+            working_dir = working_dir.canonicalize()?;
         }
     }
 
     // For Init command, we allow non-existent directories
     if !working_dir.exists() && !matches!(args.command, Some(Command::Init(_))) {
-        panic!("The specified working directory does not exist");
+        anyhow::bail!("The specified working directory does not exist");
     }
 
     // Create working directory for Init if it doesn't exist
     if matches!(args.command, Some(Command::Init(_))) && !working_dir.exists() {
-        std::fs::create_dir_all(&working_dir).expect("Failed to create working directory");
+        std::fs::create_dir_all(&working_dir)?;
     }
 
     // Print working directory
@@ -100,38 +100,19 @@ pub fn run_cli(args: Cli) {
     match args.command {
         Some(Command::Init(_)) => {
             println!("Initializing configuration...");
-            match Config::init(&working_dir) {
-                Ok(_) => {
-                    println!("Configuration initialized successfully.");
-                }
-                Err(e) => {
-                    eprintln!("Failed to initialize configuration: {}", e);
-                    std::process::exit(1);
-                }
-            }
+            Config::init(&working_dir)?;
+            println!("Configuration initialized successfully.");
         }
         None => {
             println!("No command provided. Use --help for more information.");
         }
         Some(_) => {
-            let mut conf = match config::Config::from_path(&working_dir) {
-                Ok(c) => c,
-                Err(e) => {
-                    eprintln!("Failed to load configuration: {}", e);
-                    std::process::exit(1);
-                }
-            };
+            let mut conf = config::Config::from_path(&working_dir)?;
             if conf.banner {
                 println!("{}", BANNER);
             }
             // Start with environment variables from Context::new()
-            let mut ctx = match Context::new(&working_dir) {
-                Ok(c) => c,
-                Err(e) => {
-                    eprintln!("Failed to initialize context: {}", e);
-                    std::process::exit(1);
-                }
-            };
+            let mut ctx = Context::new(&working_dir)?;
             ctx.extend_variables(conf.variables.clone());
 
             // Merge config variables, which override environment variables
@@ -139,32 +120,23 @@ pub fn run_cli(args: Cli) {
                 Some(Command::Import(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
                     ctx.set_profile(profile);
-                    if let Err(e) = conf.import_package(&args.path, &ctx, &profile_name) {
-                        eprintln!("Failed to import package: {}", e);
-                        std::process::exit(1);
-                    }
+                    conf.import_package(&args.path, &ctx, &profile_name)?;
                 }
                 Some(Command::Deploy(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
-                    validate_profile_exists(&profile_name, &profile);
+                    validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
-                    if let Err(e) = conf.deploy_packages(&ctx, &args) {
-                        eprintln!("Failed to deploy packages: {}", e);
-                        std::process::exit(1);
-                    }
+                    conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
-                    validate_profile_exists(&profile_name, &profile);
+                    validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
-                    if let Err(e) = conf.backup_packages(&ctx, &args) {
-                        eprintln!("Failed to backup packages: {}", e);
-                        std::process::exit(1);
-                    }
+                    conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {
                     let (profile_name, profile) = conf.get_profile_details(&args.profile);
-                    validate_profile_exists(&profile_name, &profile);
+                    validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
                     ctx.print_variables();
                 }
@@ -174,15 +146,18 @@ pub fn run_cli(args: Cli) {
             }
         }
     }
+    Ok(())
 }
 
-fn validate_profile_exists(profile_name: &Option<String>, profile: &Option<Profile>) {
+fn validate_profile_exists(
+    profile_name: &Option<String>,
+    profile: &Option<Profile>,
+) -> Result<(), anyhow::Error> {
     if profile_name.is_some() && profile.is_none() {
-        eprintln!(
-            "Warning: Profile '{}' not found in configuration.",
+        anyhow::bail!(
+            "Profile '{}' not found in configuration",
             profile_name.as_ref().unwrap()
         );
-        // Exit program
-        std::process::exit(1);
     }
+    Ok(())
 }

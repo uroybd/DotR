@@ -66,8 +66,8 @@ impl Context {
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
         }
-        // User variables can be missing, so we handle the error accordingly
-        let user_variables = Self::parse_uservariables(working_dir).unwrap_or_default();
+        // User variables file must parse correctly if it exists
+        let user_variables = Self::parse_uservariables(working_dir)?;
         Ok(Self {
             working_dir: working_dir.to_path_buf(),
             variables,

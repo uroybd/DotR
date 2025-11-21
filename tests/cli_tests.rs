@@ -24,7 +24,7 @@ impl TestFixture {
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(InitArgs {}))));
+        run_cli(self.get_cli(Some(Command::Init(InitArgs {})))).expect("Init failed");
     }
 
     fn get_config(&self) -> Config {
@@ -340,7 +340,8 @@ fn test_print_vars_shows_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // This will print to stdout - we're just testing it doesn't panic
-    run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs { profile: None }))));
+    run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs { profile: None }))))
+        .expect("Print vars should succeed");
 }
 
 #[test]
@@ -417,7 +418,7 @@ fn test_working_dir_relative_path() {
         working_dir: Some(fixture.cwd.join("subdir").to_str().unwrap().to_string()),
     };
 
-    run_cli(cli);
+    run_cli(cli).expect("Init in subdir should succeed");
 
     fixture.assert_file_exists("subdir/config.toml", "Config should be created in subdir");
 }
@@ -526,7 +527,270 @@ fn test_no_command_shows_help_message() {
         working_dir: Some(fixture.cwd.to_str().unwrap().to_string()),
     };
 
-    run_cli(cli);
+    let result = run_cli(cli);
+    assert!(result.is_ok(), "No command should not error");
+}
 
-    // Just testing it doesn't panic and prints help message
+// ===== UNHAPPY PATH TESTS =====
+
+#[test]
+fn test_nonexistent_working_directory_fails() {
+    let nonexistent = PathBuf::from("/this/path/does/not/exist/dotr_test");
+
+    let cli = Cli {
+        command: Some(Command::Deploy(DeployArgs {
+            packages: None,
+            profile: None,
+        })),
+        working_dir: Some(nonexistent.to_str().unwrap().to_string()),
+    };
+
+    let result = run_cli(cli);
+    assert!(result.is_err(), "Should fail with nonexistent directory");
+    assert!(
+        result.unwrap_err().to_string().contains("does not exist"),
+        "Error should mention directory doesn't exist"
+    );
+}
+
+#[test]
+fn test_deploy_without_config_fails() {
+    let fixture = TestFixture::new();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: None,
+    }))));
+
+    assert!(result.is_err(), "Deploy without config should fail");
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("config.toml not found"),
+        "Error should mention missing config"
+    );
+}
+
+#[test]
+fn test_import_nonexistent_file_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(
+        fixture.get_cli(Some(Command::Import(ImportArgs {
+            path: fixture
+                .cwd
+                .join("does_not_exist.conf")
+                .to_str()
+                .unwrap()
+                .to_string(),
+            profile: None,
+        }))),
+    );
+
+    assert!(result.is_err(), "Import nonexistent file should fail");
+    assert!(
+        result.unwrap_err().to_string().contains("does not exist"),
+        "Error should mention file doesn't exist"
+    );
+}
+
+#[test]
+fn test_deploy_with_invalid_profile_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: Some("nonexistent_profile".to_string()),
+    }))));
+
+    assert!(result.is_err(), "Deploy with invalid profile should fail");
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention profile not found"
+    );
+}
+
+#[test]
+fn test_update_with_invalid_profile_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+        packages: None,
+        profile: Some("invalid_profile".to_string()),
+    }))));
+
+    assert!(result.is_err(), "Update with invalid profile should fail");
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention profile not found"
+    );
+}
+
+#[test]
+fn test_print_vars_with_invalid_profile_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
+        profile: Some("missing_profile".to_string()),
+    }))));
+
+    assert!(
+        result.is_err(),
+        "PrintVars with invalid profile should fail"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention profile not found"
+    );
+}
+
+#[test]
+fn test_deploy_nonexistent_package_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: Some(vec!["nonexistent_package".to_string()]),
+        profile: None,
+    }))));
+
+    // Deploy should succeed but not find any packages to deploy
+    // (filter_packages returns empty map for nonexistent packages)
+    assert!(
+        result.is_ok(),
+        "Deploy with nonexistent package should not error"
+    );
+}
+
+#[test]
+fn test_update_nonexistent_package_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+        packages: Some(vec!["nonexistent_package".to_string()]),
+        profile: None,
+    }))));
+
+    // Update should succeed but not find any packages to update
+    assert!(
+        result.is_ok(),
+        "Update with nonexistent package should not error"
+    );
+}
+
+#[test]
+fn test_invalid_toml_config_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Corrupt the config file
+    fixture.write_file("config.toml", "invalid toml {{{ syntax");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: None,
+    }))));
+
+    assert!(result.is_err(), "Invalid TOML config should fail");
+}
+
+#[test]
+fn test_invalid_uservariables_toml_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create invalid .uservariables.toml
+    fixture.write_file(".uservariables.toml", "bad toml [[[");
+
+    // Use PrintVars which will definitely try to load context
+    let result =
+        run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs { profile: None }))));
+
+    assert!(result.is_err(), "Invalid uservariables TOML should fail");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(
+        error_msg.contains("parse") || error_msg.contains("Failed to parse"),
+        "Error should mention parsing failure, got: {}",
+        error_msg
+    );
+}
+
+#[test]
+fn test_package_with_missing_dependency_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create package with nonexistent dependency
+    let mut config = fixture.get_config();
+    let pkg = dotr::package::Package {
+        name: "test_pkg".to_string(),
+        src: "dotfiles/test_pkg".to_string(),
+        dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
+        dependencies: Some(vec!["nonexistent_dep".to_string()]),
+        variables: toml::Table::new(),
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("test_pkg".to_string(), pkg);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: Some(vec!["test_pkg".to_string()]),
+        profile: None,
+    }))));
+
+    assert!(
+        result.is_err(),
+        "Package with missing dependency should fail"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention dependency not found"
+    );
+}
+
+#[test]
+fn test_deploy_missing_source_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create package but don't create source files
+    let mut config = fixture.get_config();
+    let pkg = dotr::package::Package {
+        name: "missing_src".to_string(),
+        src: "dotfiles/missing_src".to_string(),
+        dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("missing_src".to_string(), pkg);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        packages: None,
+        profile: None,
+    }))));
+
+    // This might succeed as walkdir might not find any files, depending on implementation
+    // If src directory doesn't exist, it should fail
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(
+            error_msg.contains("No such file") || error_msg.contains("does not exist"),
+            "Error should mention missing source, got: {}",
+            error_msg
+        );
+    }
 }

@@ -3,5 +3,8 @@ use dotr::cli::{Cli, run_cli};
 
 fn main() {
     let args = Cli::parse();
-    run_cli(args);
+    if let Err(e) = run_cli(args) {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
 }
