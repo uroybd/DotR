@@ -23,6 +23,12 @@ pub struct Config {
     pub variables: Table,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Config {
     pub fn from_path(cwd: &Path) -> Self {
         let config_path = cwd.join("config.toml");
