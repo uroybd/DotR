@@ -228,8 +228,8 @@ DATABASE_NAME = "production-db"
         dest: "src/.env".to_string(),
         dependencies: None,
         variables: toml::Table::new(),
-    pre_actions: Vec::new(),
-    post_actions: Vec::new(),
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config
         .packages

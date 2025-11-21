@@ -148,7 +148,12 @@ impl Package {
         pkg_table
     }
 
-    pub fn execute_action(&self, action: &str, variables: &Table, working_dir: &Path) -> anyhow::Result<()> {
+    pub fn execute_action(
+        &self,
+        action: &str,
+        variables: &Table,
+        working_dir: &Path,
+    ) -> anyhow::Result<()> {
         let compiled_action = compile_string(action, variables)?;
         // Get SHELL environment variable or default to /bin/sh
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
@@ -158,7 +163,11 @@ impl Package {
             .current_dir(working_dir)
             .status()?;
         if !status.success() {
-            let msg = format!("Action '{}' failed to execute with exit code: {:?}", action, status.code());
+            let msg = format!(
+                "Action '{}' failed to execute with exit code: {:?}",
+                action,
+                status.code()
+            );
             eprintln!("{}", msg);
             return Err(anyhow::anyhow!(msg));
         }

@@ -29,7 +29,7 @@ impl TestFixture {
 
     fn init(&self) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {}))));
-        
+
         // Set SHELL to /bin/sh in config for consistent test execution
         let mut config = self.get_config();
         config.variables.insert(
@@ -195,7 +195,10 @@ fn test_pre_and_post_actions_together() {
     let post_content =
         fs::read_to_string(fixture.cwd.join("src/both_post_marker.txt")).expect("Failed to read");
 
-    assert!(pre_content.contains("pre"), "Pre-action content should be correct");
+    assert!(
+        pre_content.contains("pre"),
+        "Pre-action content should be correct"
+    );
     assert!(
         post_content.contains("post"),
         "Post-action content should be correct"
@@ -388,14 +391,8 @@ fn test_actions_persist_after_save() {
         dest: "src/.test".to_string(),
         dependencies: None,
         variables: toml::Table::new(),
-        pre_actions: vec![
-            "echo 'pre1'".to_string(),
-            "echo 'pre2'".to_string(),
-        ],
-        post_actions: vec![
-            "echo 'post1'".to_string(),
-            "echo 'post2'".to_string(),
-        ],
+        pre_actions: vec!["echo 'pre1'".to_string(), "echo 'pre2'".to_string()],
+        post_actions: vec!["echo 'post1'".to_string(), "echo 'post2'".to_string()],
     };
     config.packages.insert("test_persist".to_string(), package);
     config.save(&fixture.cwd);
@@ -425,11 +422,8 @@ fn test_actions_execution_order() {
 
     // Create a simple template file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(
-        fixture.cwd.join("dotfiles/f_order_test"),
-        "Test content\n",
-    )
-    .expect("Failed to create file");
+    fs::write(fixture.cwd.join("dotfiles/f_order_test"), "Test content\n")
+        .expect("Failed to create file");
 
     // Create package with actions that write to a log file
     let mut config = fixture.get_config();
@@ -526,9 +520,7 @@ fn test_actions_with_complex_commands() {
         dest: "src/.complex_test".to_string(),
         dependencies: None,
         variables: toml::Table::new(),
-        pre_actions: vec![
-            "mkdir -p src/nested/dir && touch src/nested/dir/file.txt".to_string(),
-        ],
+        pre_actions: vec!["mkdir -p src/nested/dir && touch src/nested/dir/file.txt".to_string()],
         post_actions: vec![
             "test -f src/.complex_test && echo 'deployed' > src/deploy_check.txt".to_string(),
         ],
