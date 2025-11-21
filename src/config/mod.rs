@@ -59,14 +59,13 @@ impl Config {
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         let profile_confs = table.get("profiles").and_then(|v| v.as_table());
         if let Some(prof_confs) = profile_confs {
-            profiles = prof_confs
-                .iter()
-                .map(|(key, val)| {
-                    let prof_val = val.as_table().expect("Failed to parse profile");
-                    let profile = Profile::from_table(key, prof_val);
-                    (profile.name.clone(), profile)
-                })
-                .collect();
+            for (key, val) in prof_confs.iter() {
+                let prof_val = val
+                    .as_table()
+                    .ok_or_else(|| anyhow::anyhow!("Profile '{}' must be a table", key))?;
+                let profile = Profile::from_table(key, prof_val)?;
+                profiles.insert(profile.name.clone(), profile);
+            }
         }
         let mut variables: Table = Table::new();
         // Add HOME as a default variable

@@ -17,24 +17,33 @@ impl Profile {
         }
     }
 
-    pub fn from_table(name: &str, table: &Table) -> Self {
+    pub fn from_table(name: &str, table: &Table) -> Result<Self, anyhow::Error> {
         let mut variables = Table::new();
-        if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
-            variables = vars.clone();
+        if let Some(vars) = table.get("variables") {
+            variables = vars
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("Profile '{}' variables must be a table", name))?
+                .clone();
         }
+
         let mut dependencies = Vec::new();
-        if let Some(deps) = table.get("dependencies").and_then(|d| d.as_array()) {
-            for dep in deps {
-                if let Some(dep_str) = dep.as_str() {
-                    dependencies.push(dep_str.to_string());
-                }
+        if let Some(deps) = table.get("dependencies") {
+            let deps_array = deps.as_array().ok_or_else(|| {
+                anyhow::anyhow!("Profile '{}' dependencies must be an array", name)
+            })?;
+            for dep in deps_array {
+                let dep_str = dep.as_str().ok_or_else(|| {
+                    anyhow::anyhow!("Profile '{}' dependency must be a string", name)
+                })?;
+                dependencies.push(dep_str.to_string());
             }
         }
-        Self {
+
+        Ok(Self {
             name: name.to_string(),
             variables,
             dependencies,
-        }
+        })
     }
 
     pub fn to_table(&self) -> Table {
