@@ -23,12 +23,6 @@ pub struct Config {
     pub variables: Table,
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Config {
     pub fn from_path(cwd: &Path) -> Self {
         let config_path = cwd.join("config.toml");
@@ -45,32 +39,7 @@ impl Config {
     }
     pub fn save(&self, cwd: &Path) {
         // Re-read only the config variables (not user variables) to save
-        let mut table = Table::new();
-        table.insert("banner".to_string(), toml::Value::Boolean(self.banner));
-
-        if !self.variables.is_empty() {
-            table.insert(
-                "variables".to_string(),
-                Value::Table(self.variables.clone()),
-            );
-        }
-
-        // Save packages
-        if !self.packages.is_empty() {
-            let mut packages_table: Map<String, Value> = Map::new();
-            self.packages.iter().for_each(|(name, pkg)| {
-                packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
-            });
-            table.insert("packages".to_string(), packages_table.into());
-        }
-        if !self.profiles.is_empty() {
-            let mut profiles_table: Map<String, Value> = Map::new();
-            self.profiles.iter().for_each(|(name, profile)| {
-                profiles_table.insert(name.clone(), Value::Table(profile.to_table()));
-            });
-            table.insert("profiles".to_string(), profiles_table.into());
-        }
-
+        let table = self.to_table();
         let config_content = table.to_string();
         std::fs::write(cwd.join("config.toml"), config_content)
             .expect("Failed to write config.toml");
@@ -134,6 +103,13 @@ impl Config {
                 packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
             });
             table.insert("packages".to_string(), packages_table.into());
+        }
+        if !self.profiles.is_empty() {
+            let mut profiles_table: Map<String, Value> = Map::new();
+            self.profiles.iter().for_each(|(name, profile)| {
+                profiles_table.insert(name.clone(), Value::Table(profile.to_table()));
+            });
+            table.insert("profiles".to_string(), profiles_table.into());
         }
         table
     }
