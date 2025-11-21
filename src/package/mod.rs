@@ -272,9 +272,10 @@ impl Package {
 
     pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
         if let Some(profile) = &ctx.profile
-            && let Some(target_dest) = self.targets.get(profile.name.as_str()) {
-                return resolve_path(target_dest, &ctx.working_dir);
-            }
+            && let Some(target_dest) = self.targets.get(profile.name.as_str())
+        {
+            return resolve_path(target_dest, &ctx.working_dir);
+        }
         resolve_path(&self.dest, &ctx.working_dir)
     }
 

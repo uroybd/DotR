@@ -41,11 +41,17 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages, profile: None }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+        }))));
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs { packages, profile: None }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
+            packages,
+            profile: None,
+        }))));
     }
 
     fn get_config(&self) -> Config {
@@ -126,8 +132,8 @@ fn test_template_deployment_with_variables() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -190,8 +196,8 @@ fn test_template_with_custom_variables() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -250,8 +256,8 @@ fn test_template_not_backed_up_on_update() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -314,8 +320,8 @@ fn test_template_directory_deployment() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config.packages.insert("d_config_dir".to_string(), package);
     config.save(&fixture.cwd);
@@ -374,8 +380,8 @@ fn test_mixed_template_and_regular_files() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config.packages.insert("f_templated".to_string(), package);
     config.save(&fixture.cwd);
@@ -448,8 +454,8 @@ fn test_template_with_tera_statements() {
         variables: toml::Table::new(),
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
-    targets: std::collections::HashMap::new(),
-    skip: false,
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages

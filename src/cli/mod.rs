@@ -83,17 +83,17 @@ pub fn run_cli(args: Cli) {
             working_dir = working_dir.canonicalize().unwrap();
         }
     }
-    
+
     // For Init command, we allow non-existent directories
     if !working_dir.exists() && !matches!(args.command, Some(Command::Init(_))) {
         panic!("The specified working directory does not exist");
     }
-    
+
     // Create working directory for Init if it doesn't exist
     if matches!(args.command, Some(Command::Init(_))) && !working_dir.exists() {
         std::fs::create_dir_all(&working_dir).expect("Failed to create working directory");
     }
-    
+
     // Print working directory
     // Print full working directory path
     match args.command {
@@ -125,17 +125,19 @@ pub fn run_cli(args: Cli) {
                 Some(Command::Import(args)) => {
                     let profile_name = args.profile.clone();
                     if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name) {
-                            ctx.set_profile(Some(profile.clone()));
-                        }
+                        && let Some(profile) = conf.profiles.get(&p_name)
+                    {
+                        ctx.set_profile(Some(profile.clone()));
+                    }
                     conf.import_package(&args.path, &ctx, &profile_name);
                 }
                 Some(Command::Deploy(args)) => {
                     let profile_name = args.profile.clone();
                     if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name) {
-                            ctx.set_profile(Some(profile.clone()));
-                        }
+                        && let Some(profile) = conf.profiles.get(&p_name)
+                    {
+                        ctx.set_profile(Some(profile.clone()));
+                    }
                     if profile_name.is_some() && ctx.profile.is_none() {
                         eprintln!(
                             "Warning: Profile '{}' not found in configuration.",
@@ -149,9 +151,10 @@ pub fn run_cli(args: Cli) {
                 Some(Command::Update(args)) => {
                     let profile_name = args.profile.clone();
                     if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name) {
-                            ctx.set_profile(Some(profile.clone()));
-                        }
+                        && let Some(profile) = conf.profiles.get(&p_name)
+                    {
+                        ctx.set_profile(Some(profile.clone()));
+                    }
                     if profile_name.is_some() && ctx.profile.is_none() {
                         eprintln!(
                             "Warning: Profile '{}' not found in configuration.",
@@ -165,9 +168,10 @@ pub fn run_cli(args: Cli) {
                 Some(Command::PrintVars(args)) => {
                     let profile_name = args.profile.clone();
                     if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name) {
-                            ctx.set_profile(Some(profile.clone()));
-                        }
+                        && let Some(profile) = conf.profiles.get(&p_name)
+                    {
+                        ctx.set_profile(Some(profile.clone()));
+                    }
                     if profile_name.is_some() && ctx.profile.is_none() {
                         eprintln!(
                             "Warning: Profile '{}' not found in configuration.",

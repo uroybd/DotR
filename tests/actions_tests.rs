@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, collections::HashMap};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
     cli::{DeployArgs, InitArgs, run_cli},
@@ -40,7 +40,10 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages, profile: None }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+        }))));
     }
 
     fn get_config(&self) -> Config {
