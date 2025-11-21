@@ -125,7 +125,13 @@ pub fn run_cli(args: Cli) {
                 println!("{}", BANNER);
             }
             // Start with environment variables from Context::new()
-            let mut ctx = Context::new(&working_dir);
+            let mut ctx = match Context::new(&working_dir) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("Failed to initialize context: {}", e);
+                    std::process::exit(1);
+                }
+            };
             ctx.extend_variables(conf.variables.clone());
 
             // Merge config variables, which override environment variables

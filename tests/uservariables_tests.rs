@@ -44,7 +44,7 @@ impl TestFixture {
     }
 
     fn get_context(&self) -> Context {
-        let mut ctx = Context::new(&self.cwd);
+        let mut ctx = Context::new(&self.cwd).expect("Failed to create context");
         let config = self.get_config();
         ctx.extend_variables(config.variables.clone());
         ctx
