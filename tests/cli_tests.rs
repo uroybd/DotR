@@ -100,7 +100,7 @@ fn test_import_creates_package() {
     fixture.init();
     fixture.write_file("test.conf", "test content");
 
-    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         path: fixture.cwd.join("test.conf").to_str().unwrap().to_string(),
         profile: None,
     }))));
@@ -121,7 +121,7 @@ fn test_import_with_profile() {
     fixture.init();
     fixture.write_file("work.conf", "work content");
 
-    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         path: fixture.cwd.join("work.conf").to_str().unwrap().to_string(),
         profile: Some("work".to_string()),
     }))));
@@ -175,7 +175,7 @@ fn test_deploy_creates_files() {
     config.packages.insert("f_test".to_string(), test_package);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
     }))));
@@ -225,7 +225,7 @@ fn test_deploy_with_profile() {
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("work".to_string()),
     }))));
@@ -276,7 +276,7 @@ fn test_deploy_specific_packages() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy only pkg1
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
     }))));
@@ -315,7 +315,7 @@ fn test_update_backs_up_files() {
     // Create file at dest
     fixture.write_file("update_dest", "updated content");
 
-    run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -361,7 +361,7 @@ fn test_print_vars_with_profile() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // This will print to stdout - we're just testing it doesn't panic
-    run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
         profile: Some("dev".to_string()),
     }))));
 }
@@ -378,7 +378,7 @@ fn test_banner_display() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should show banner
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
     }))));
@@ -398,7 +398,7 @@ fn test_banner_disabled() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should not show banner
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
     }))));
@@ -447,7 +447,7 @@ fn test_skip_flag_prevents_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy without profile (skip packages should not be deployed)
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
     }))));
@@ -503,7 +503,7 @@ fn test_profile_dependencies_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with profile
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("minimal".to_string()),
     }))));

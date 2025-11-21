@@ -40,28 +40,31 @@ impl TestFixture {
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {}))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
     }
 
     fn import(&self, path: &str) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
             path: path.to_string(),
             profile: None,
-        }))));
+        }))))
+        .expect("Import failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages,
             profile: None,
-        }))));
+        }))))
+        .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
             packages,
             profile: None,
-        }))));
+        }))))
+        .expect("Update failed");
     }
 
     fn get_config(&self) -> Config {
@@ -110,7 +113,7 @@ impl Drop for TestFixture {
 fn test_no_command() {
     let fixture = TestFixture::new();
 
-    run_cli(fixture.get_cli(None));
+    let _ = run_cli(fixture.get_cli(None));
 
     fixture.assert_file_not_exists("config.toml", "config.toml should not be created");
     fixture.assert_file_not_exists("dotfiles", "dotfiles directory should not be created");
@@ -597,7 +600,7 @@ fn test_print_vars_empty() {
     fixture.init();
 
     // Print vars should show environment variables including HOME
-    run_cli(
+    let _ = run_cli(
         fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
@@ -633,7 +636,7 @@ fn test_print_vars_with_custom_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Print vars should show custom variables
-    run_cli(
+    let _ = run_cli(
         fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
@@ -1070,7 +1073,7 @@ fn test_nested_variables_print() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Test that print-vars works with nested variables
-    run_cli(
+    let _ = run_cli(
         fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),

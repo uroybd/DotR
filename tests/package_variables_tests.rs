@@ -28,14 +28,15 @@ impl TestFixture {
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {}))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages,
             profile: None,
-        }))));
+        }))))
+        .expect("Deploy failed");
     }
 
     fn get_config(&self) -> Config {
