@@ -394,17 +394,19 @@ impl Package {
                 if entry.path().is_file() {
                     // Skip files that cannot be read as UTF-8 (likely binary files)
                     if let Ok(content) = std::fs::read_to_string(entry.path())
-                        && templating_regex.is_match(&content) {
-                            return true;
-                        }
+                        && templating_regex.is_match(&content)
+                    {
+                        return true;
+                    }
                 }
             }
         } else if src_path.is_file() {
             // Skip files that cannot be read as UTF-8 (likely binary files)
             if let Ok(content) = std::fs::read_to_string(&src_path)
-                && templating_regex.is_match(&content) {
-                    return true;
-                }
+                && templating_regex.is_match(&content)
+            {
+                return true;
+            }
         }
         false
     }
