@@ -227,6 +227,7 @@ DATABASE_NAME = "production-db"
         src: "dotfiles/f_env_template".to_string(),
         dest: "src/.env".to_string(),
         dependencies: None,
+        variables: toml::Table::new(),
     };
     config
         .packages
