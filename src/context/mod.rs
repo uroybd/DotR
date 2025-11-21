@@ -603,4 +603,154 @@ VAR2 = "user_value2"
         assert_eq!(ctx.variables.len(), cloned.variables.len());
         assert_eq!(ctx.user_variables.len(), cloned.user_variables.len());
     }
+
+    #[test]
+    fn test_print_variable_float() {
+        // Test float value printing (covers line 99-100)
+        let value = toml::Value::Float(2.5);
+        print_variable("float_var", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_boolean() {
+        // Test boolean value printing (covers line 102-103)
+        let value_true = toml::Value::Boolean(true);
+        let value_false = toml::Value::Boolean(false);
+        print_variable("bool_var_true", &value_true, 1);
+        print_variable("bool_var_false", &value_false, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_strings() {
+        // Test array with string values (covers line 111-118)
+        let arr = vec![
+            toml::Value::String("item1".to_string()),
+            toml::Value::String("item2".to_string()),
+        ];
+        let value = toml::Value::Array(arr);
+        print_variable("string_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_integers() {
+        // Test array with integer values (covers line 119-121)
+        let arr = vec![
+            toml::Value::Integer(1),
+            toml::Value::Integer(2),
+            toml::Value::Integer(3),
+        ];
+        let value = toml::Value::Array(arr);
+        print_variable("int_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_floats() {
+        // Test array with float values (covers line 122-124)
+        let arr = vec![
+            toml::Value::Float(1.1),
+            toml::Value::Float(2.2),
+            toml::Value::Float(3.3),
+        ];
+        let value = toml::Value::Array(arr);
+        print_variable("float_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_booleans() {
+        // Test array with boolean values (covers line 125-127)
+        let arr = vec![
+            toml::Value::Boolean(true),
+            toml::Value::Boolean(false),
+            toml::Value::Boolean(true),
+        ];
+        let value = toml::Value::Array(arr);
+        print_variable("bool_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_nested_table() {
+        // Test array with nested table (covers line 128-131)
+        let mut table = toml::map::Map::new();
+        table.insert("key".to_string(), toml::Value::String("value".to_string()));
+
+        let arr = vec![toml::Value::Table(table)];
+        let value = toml::Value::Array(arr);
+        print_variable("table_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_nested_array() {
+        // Test array with nested array (covers line 128-131)
+        let inner_arr = vec![
+            toml::Value::String("nested1".to_string()),
+            toml::Value::String("nested2".to_string()),
+        ];
+        let arr = vec![toml::Value::Array(inner_arr)];
+        let value = toml::Value::Array(arr);
+        print_variable("nested_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_array_with_datetime() {
+        // Test array with datetime value (covers line 132-134)
+        use toml::value::Datetime;
+        let datetime_str = "1979-05-27T07:32:00Z";
+        let datetime = datetime_str.parse::<Datetime>().unwrap();
+        let arr = vec![toml::Value::Datetime(datetime)];
+        let value = toml::Value::Array(arr);
+        print_variable("datetime_array", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variable_datetime() {
+        // Test datetime value directly (covers line 139-141)
+        use toml::value::Datetime;
+        let datetime_str = "1979-05-27T07:32:00Z";
+        let datetime = datetime_str.parse::<Datetime>().unwrap();
+        let value = toml::Value::Datetime(datetime);
+        print_variable("datetime_var", &value, 1);
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variables_empty() {
+        // Test print_variables with empty variables (covers line 80-81)
+        let temp_dir = create_temp_dir();
+        let mut ctx = Context::new(&temp_dir);
+        ctx.variables.clear(); // Clear all variables including env vars
+        ctx.print_variables();
+        // No assertion - just testing that it doesn't panic
+    }
+
+    #[test]
+    fn test_print_variables_with_complex_types() {
+        // Test print_variables with various types
+        let temp_dir = create_temp_dir();
+        let mut ctx = Context::new(&temp_dir);
+
+        ctx.variables
+            .insert("float_var".to_string(), toml::Value::Float(2.5));
+        ctx.variables
+            .insert("bool_var".to_string(), toml::Value::Boolean(true));
+
+        let arr = vec![
+            toml::Value::Integer(1),
+            toml::Value::Float(2.5),
+            toml::Value::Boolean(false),
+        ];
+        ctx.variables
+            .insert("mixed_array".to_string(), toml::Value::Array(arr));
+
+        ctx.print_variables();
+        // No assertion - just testing that it doesn't panic
+    }
 }
