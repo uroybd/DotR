@@ -5,6 +5,7 @@ use clap::{Args, Parser, Subcommand};
 use crate::{
     config::{self, Config},
     context::Context,
+    profile::Profile,
 };
 
 #[derive(Debug, Parser)]
@@ -123,63 +124,26 @@ pub fn run_cli(args: Cli) {
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    let profile_name = args.profile.clone();
-                    if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name)
-                    {
-                        ctx.set_profile(Some(profile.clone()));
-                    }
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    ctx.set_profile(profile);
                     conf.import_package(&args.path, &ctx, &profile_name);
                 }
                 Some(Command::Deploy(args)) => {
-                    let profile_name = args.profile.clone();
-                    if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name)
-                    {
-                        ctx.set_profile(Some(profile.clone()));
-                    }
-                    if profile_name.is_some() && ctx.profile.is_none() {
-                        eprintln!(
-                            "Warning: Profile '{}' not found in configuration.",
-                            profile_name.unwrap()
-                        );
-                        // Exit program
-                        std::process::exit(1);
-                    }
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     conf.deploy_packages(&ctx, &args);
                 }
                 Some(Command::Update(args)) => {
-                    let profile_name = args.profile.clone();
-                    if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name)
-                    {
-                        ctx.set_profile(Some(profile.clone()));
-                    }
-                    if profile_name.is_some() && ctx.profile.is_none() {
-                        eprintln!(
-                            "Warning: Profile '{}' not found in configuration.",
-                            profile_name.unwrap()
-                        );
-                        // Exit program
-                        std::process::exit(1);
-                    }
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     conf.backup_packages(&ctx, &args);
                 }
                 Some(Command::PrintVars(args)) => {
-                    let profile_name = args.profile.clone();
-                    if let Some(p_name) = profile_name.clone()
-                        && let Some(profile) = conf.profiles.get(&p_name)
-                    {
-                        ctx.set_profile(Some(profile.clone()));
-                    }
-                    if profile_name.is_some() && ctx.profile.is_none() {
-                        eprintln!(
-                            "Warning: Profile '{}' not found in configuration.",
-                            profile_name.unwrap()
-                        );
-                        // Exit program
-                        std::process::exit(1);
-                    }
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     ctx.print_variables();
                 }
                 _ => {
@@ -187,5 +151,16 @@ pub fn run_cli(args: Cli) {
                 }
             }
         }
+    }
+}
+
+fn validate_profile_exists(profile_name: &Option<String>, profile: &Option<Profile>) {
+    if profile_name.is_some() && profile.is_none() {
+        eprintln!(
+            "Warning: Profile '{}' not found in configuration.",
+            profile_name.as_ref().unwrap()
+        );
+        // Exit program
+        std::process::exit(1);
     }
 }

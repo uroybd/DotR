@@ -226,6 +226,15 @@ impl Config {
         }
     }
 
+    pub fn get_profile_details(&self, pname: &Option<String>) -> (Option<String>, Option<Profile>) {
+        let profile = if let Some(p_name) = pname {
+            self.profiles.get(p_name).cloned()
+        } else {
+            None
+        };
+        (pname.clone(), profile)
+    }
+
     pub fn init(cwd: &Path) -> Result<Self, Error> {
         // If config.toml already exists, do nothing
         let config_path = cwd.join("config.toml");
