@@ -73,6 +73,8 @@ fn test_package_variables_basic() {
         dest: "src/.pkg_var_test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config
         .packages
@@ -132,6 +134,8 @@ fn test_package_variables_override_config_variables() {
         dest: "src/.override_test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config
         .packages
@@ -186,6 +190,8 @@ MY_VAR = "user_value"
         dest: "src/.user_override_test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config
         .packages
@@ -234,6 +240,8 @@ fn test_package_variables_with_nested_structures() {
         dest: "src/.nested_test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd);
@@ -277,6 +285,8 @@ fn test_package_variables_persist_after_save() {
         dest: "src/.test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd);
@@ -342,6 +352,8 @@ TEST_VAR = "user_value"
         dest: "src/.priority_test".to_string(),
         dependencies: None,
         variables: pkg_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
     config
         .packages
@@ -392,6 +404,8 @@ fn test_multiple_packages_with_different_variables() {
         dest: "src/.pkg1".to_string(),
         dependencies: None,
         variables: pkg1_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
 
     // Create second package with its variables
@@ -407,6 +421,8 @@ fn test_multiple_packages_with_different_variables() {
         dest: "src/.pkg2".to_string(),
         dependencies: None,
         variables: pkg2_vars,
+        pre_actions: Vec::new(),
+        post_actions: Vec::new(),
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);

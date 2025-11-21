@@ -16,6 +16,8 @@ pub struct Package {
     pub dest: String,
     pub dependencies: Option<Vec<String>>,
     pub variables: Table,
+    pub pre_actions: Vec<String>,
+    pub post_actions: Vec<String>,
 }
 
 impl Package {
@@ -40,6 +42,8 @@ impl Package {
             src: dest_path_str.clone(),
             dependencies: None,
             variables: Table::new(),
+            pre_actions: Vec::new(),
+            post_actions: Vec::new(),
         }
     }
 
@@ -63,6 +67,24 @@ impl Package {
                 .expect("The 'variables' field must be a table")
                 .clone();
         }
+        let mut pre_actions = Vec::new();
+        if let Some(pre_block) = pkg_val.get("pre_actions") {
+            pre_actions = pre_block
+                .as_array()
+                .expect("The 'pre_actions' field must be an array")
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect();
+        }
+        let mut post_actions = Vec::new();
+        if let Some(post_block) = pkg_val.get("post_actions") {
+            post_actions = post_block
+                .as_array()
+                .expect("The 'post_actions' field must be an array")
+                .iter()
+                .map(|v| v.as_str().unwrap().to_string())
+                .collect();
+        }
         Self {
             name: pkg_name.to_string(),
             src: pkg_val
@@ -79,6 +101,8 @@ impl Package {
                 .to_string(),
             dependencies,
             variables,
+            pre_actions,
+            post_actions,
         }
     }
 
@@ -99,7 +123,71 @@ impl Package {
                 toml::Value::Table(self.variables.clone()),
             );
         }
+        if !self.pre_actions.is_empty() {
+            let pre_actions_val: Vec<toml::Value> = self
+                .pre_actions
+                .iter()
+                .map(|a| toml::Value::String(a.clone()))
+                .collect();
+            pkg_table.insert(
+                "pre_actions".to_string(),
+                toml::Value::Array(pre_actions_val),
+            );
+        }
+        if !self.post_actions.is_empty() {
+            let post_actions_val: Vec<toml::Value> = self
+                .post_actions
+                .iter()
+                .map(|a| toml::Value::String(a.clone()))
+                .collect();
+            pkg_table.insert(
+                "post_actions".to_string(),
+                toml::Value::Array(post_actions_val),
+            );
+        }
         pkg_table
+    }
+
+    pub fn execute_action(
+        &self,
+        action: &str,
+        variables: &Table,
+        working_dir: &Path,
+    ) -> anyhow::Result<()> {
+        let compiled_action = compile_string(action, variables)?;
+        // Get SHELL environment variable or default to /bin/sh
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        let status = std::process::Command::new(shell)
+            .arg("-c")
+            .arg(compiled_action)
+            .current_dir(working_dir)
+            .status()?;
+        if !status.success() {
+            let msg = format!(
+                "Action '{}' failed to execute with exit code: {:?}",
+                action,
+                status.code()
+            );
+            eprintln!("{}", msg);
+            return Err(anyhow::anyhow!(msg));
+        }
+        Ok(())
+    }
+
+    pub fn execute_pre_actions(&self, ctx: &Context) -> anyhow::Result<()> {
+        let vars = self.get_context_variables(ctx);
+        for action in &self.pre_actions {
+            self.execute_action(action, &vars, &ctx.working_dir)?;
+        }
+        Ok(())
+    }
+
+    pub fn execute_post_actions(&self, ctx: &Context) -> anyhow::Result<()> {
+        let vars = self.get_context_variables(ctx);
+        for action in &self.post_actions {
+            self.execute_action(action, &vars, &ctx.working_dir)?;
+        }
+        Ok(())
     }
 
     pub fn get_context_variables(&self, ctx: &Context) -> Table {
@@ -146,6 +234,9 @@ impl Package {
 
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) {
+        let pkg_vars = self.get_context_variables(ctx);
+        self.execute_pre_actions(ctx)
+            .expect("Failed to execute pre-actions");
         let is_templated = self.is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = resolve_path(&self.dest, &ctx.working_dir);
@@ -171,9 +262,8 @@ impl Package {
                     std::fs::create_dir_all(dest_path.parent().unwrap())
                         .expect("Failed to create parent directory");
                     if is_templated {
-                        let compiled_content =
-                            compile_template(entry.path(), &self.get_context_variables(ctx))
-                                .expect("Failed to compile template");
+                        let compiled_content = compile_template(entry.path(), &pkg_vars)
+                            .expect("Failed to compile template");
                         std::fs::write(&dest_path, compiled_content)
                             .expect("Failed to write compiled file");
                     } else {
@@ -194,6 +284,8 @@ impl Package {
             copy_from.display(),
             copy_to.display()
         );
+        self.execute_post_actions(ctx)
+            .expect("Failed to execute post-actions");
     }
 
     pub fn is_dir(&self) -> bool {
@@ -266,4 +358,9 @@ pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> 
     let ctx = tera::Context::from_serialize(context)?;
     let template_content = std::fs::read_to_string(path)?;
     Ok(tera::Tera::one_off(&template_content, &ctx, true)?)
+}
+
+pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
+    let ctx = tera::Context::from_serialize(context)?;
+    Ok(tera::Tera::one_off(template_str, &ctx, true)?)
 }
