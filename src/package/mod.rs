@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, path::Path};
+use std::{collections::HashMap, ffi::OsStr, path::Path};
 
 use serde::{Deserialize, Serialize};
 use toml::Table;
@@ -18,6 +18,7 @@ pub struct Package {
     pub variables: Table,
     pub pre_actions: Vec<String>,
     pub post_actions: Vec<String>,
+    pub targets: HashMap<String, String>, // They key is profile name, the value is dest to override.
 }
 
 impl Package {
@@ -44,6 +45,7 @@ impl Package {
             variables: Table::new(),
             pre_actions: Vec::new(),
             post_actions: Vec::new(),
+            targets: HashMap::new(),
         }
     }
 
@@ -85,6 +87,18 @@ impl Package {
                 .map(|v| v.as_str().unwrap().to_string())
                 .collect();
         }
+
+        let mut targets = HashMap::new();
+
+        if let Some(targets_block) = pkg_val.get("targets") {
+            let targets_table = targets_block
+                .as_table()
+                .expect("The 'targets' field must be a table");
+            for (key, value) in targets_table {
+                let dest_str = value.as_str().expect("Target dest must be a string");
+                targets.insert(key.clone(), dest_str.to_string());
+            }
+        }
         Self {
             name: pkg_name.to_string(),
             src: pkg_val
@@ -103,6 +117,7 @@ impl Package {
             variables,
             pre_actions,
             post_actions,
+            targets,
         }
     }
 
@@ -144,6 +159,13 @@ impl Package {
                 "post_actions".to_string(),
                 toml::Value::Array(post_actions_val),
             );
+        }
+        if !self.targets.is_empty() {
+            let mut targets_table = Table::new();
+            for (key, value) in &self.targets {
+                targets_table.insert(key.clone(), toml::Value::String(value.clone()));
+            }
+            pkg_table.insert("targets".to_string(), toml::Value::Table(targets_table));
         }
         pkg_table
     }
