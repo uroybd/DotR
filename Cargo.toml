@@ -3,7 +3,7 @@ name = "dotr"
 description = "A dotfile manager written in Rust."
 authors = ["Utsob Roy <connect@utsob.me>"]
 license = "MIT"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2024"
 repository = "https://github.com/uroybd/dotr"
 
