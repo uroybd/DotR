@@ -9,7 +9,7 @@ use toml::Table;
 
 use crate::{
     context::Context,
-    utils::{BACKUP_EXT, resolve_path},
+    utils::{BACKUP_EXT, normalize_home_path, resolve_path},
 };
 
 // A package represents a dotfile package with its source, destination, and dependencies.
@@ -37,14 +37,17 @@ impl Package {
         }
         let package_name = get_package_name(path, cwd);
         let dest_path_str = format!("dotfiles/{}", package_name);
+
+        // Normalize the path: if it already starts with ~, keep it; otherwise convert if in home dir
         let path_str = if path.starts_with('~') {
             path.to_string()
         } else {
-            resolved_path
+            let resolved_str = resolved_path
                 .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?
-                .to_string()
+                .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?;
+            normalize_home_path(resolved_str)
         };
+
         Ok(Self {
             name: package_name.clone(),
             dest: path_str,
