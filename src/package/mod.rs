@@ -58,7 +58,10 @@ impl Package {
         };
         let mut variables = Table::new();
         if let Some(var_block) = pkg_val.get("variables") {
-            variables = var_block.as_table().unwrap().clone();
+            variables = var_block
+                .as_table()
+                .expect("The 'variables' field must be a table")
+                .clone();
         }
         Self {
             name: pkg_name.to_string(),
