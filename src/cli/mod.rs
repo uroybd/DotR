@@ -5,6 +5,7 @@ use clap::{Args, Parser, Subcommand};
 use crate::{
     config::{self, Config},
     context::Context,
+    profile::Profile,
 };
 
 #[derive(Debug, Parser)]
@@ -30,13 +31,19 @@ pub struct InitArgs {}
 
 #[derive(Debug, Args)]
 #[command(name = "print-vars", about = "Print all user variables.")]
-pub struct PrintVarsArgs {}
+pub struct PrintVarsArgs {
+    #[arg(short, long)]
+    pub profile: Option<String>,
+}
 
 #[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
 pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -44,6 +51,9 @@ pub struct ImportArgs {
 pub struct DeployArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -51,6 +61,9 @@ pub struct DeployArgs {
 pub struct UpdateArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
+
+    #[arg(short, long)]
+    pub profile: Option<String>,
 }
 
 const BANNER: &str = r#"
@@ -66,11 +79,22 @@ pub fn run_cli(args: Cli) {
     let mut working_dir = std::env::current_dir().expect("Failed to get current directory");
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
-        working_dir = working_dir.canonicalize().unwrap();
+        // Only canonicalize if the path exists
+        if working_dir.exists() {
+            working_dir = working_dir.canonicalize().unwrap();
+        }
     }
-    if !working_dir.exists() {
+
+    // For Init command, we allow non-existent directories
+    if !working_dir.exists() && !matches!(args.command, Some(Command::Init(_))) {
         panic!("The specified working directory does not exist");
     }
+
+    // Create working directory for Init if it doesn't exist
+    if matches!(args.command, Some(Command::Init(_))) && !working_dir.exists() {
+        std::fs::create_dir_all(&working_dir).expect("Failed to create working directory");
+    }
+
     // Print working directory
     // Print full working directory path
     match args.command {
@@ -96,19 +120,30 @@ pub fn run_cli(args: Cli) {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir);
             ctx.extend_variables(conf.variables.clone());
+
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    conf.import_package(&args.path, &ctx);
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    ctx.set_profile(profile);
+                    conf.import_package(&args.path, &ctx, &profile_name);
                 }
                 Some(Command::Deploy(args)) => {
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     conf.deploy_packages(&ctx, &args);
                 }
                 Some(Command::Update(args)) => {
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     conf.backup_packages(&ctx, &args);
                 }
-                Some(Command::PrintVars(_)) => {
-                    println!("User Variables:");
+                Some(Command::PrintVars(args)) => {
+                    let (profile_name, profile) = conf.get_profile_details(&args.profile);
+                    validate_profile_exists(&profile_name, &profile);
+                    ctx.set_profile(profile);
                     ctx.print_variables();
                 }
                 _ => {
@@ -116,5 +151,16 @@ pub fn run_cli(args: Cli) {
                 }
             }
         }
+    }
+}
+
+fn validate_profile_exists(profile_name: &Option<String>, profile: &Option<Profile>) {
+    if profile_name.is_some() && profile.is_none() {
+        eprintln!(
+            "Warning: Profile '{}' not found in configuration.",
+            profile_name.as_ref().unwrap()
+        );
+        // Exit program
+        std::process::exit(1);
     }
 }

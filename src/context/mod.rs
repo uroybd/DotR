@@ -6,11 +6,14 @@ use std::{
 use serde::Serialize;
 use toml::Table;
 
+use crate::profile::Profile;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
     variables: Table,
     user_variables: Table,
+    pub profile: Option<Profile>,
 }
 
 impl Context {
@@ -22,9 +25,23 @@ impl Context {
         self.user_variables.get(key)
     }
 
+    pub fn get_profile_variable(&self, key: &str) -> Option<&toml::Value> {
+        if let Some(profile) = &self.profile {
+            profile.variables.get(key)
+        } else {
+            None
+        }
+    }
+
     pub fn get_context_variable(&self, key: &str) -> Option<&toml::Value> {
-        self.get_user_variable(key)
-            .or_else(|| self.get_variable(key))
+        self.get_user_variable(key).or_else(|| {
+            self.get_profile_variable(key)
+                .or_else(|| self.get_variable(key))
+        })
+    }
+
+    pub fn set_profile(&mut self, profile: Option<Profile>) {
+        self.profile = profile;
     }
 
     pub fn parse_uservariables(cwd: &Path) -> Table {
@@ -54,6 +71,7 @@ impl Context {
             working_dir: working_dir.to_path_buf(),
             variables,
             user_variables,
+            profile: None,
         }
     }
 
@@ -67,6 +85,9 @@ impl Context {
 
     pub fn get_context_variables(&self) -> Table {
         let mut context_vars = self.variables.clone();
+        if let Some(profile) = &self.profile {
+            context_vars.extend(profile.variables.clone());
+        }
         context_vars.extend(self.user_variables.clone());
         context_vars
     }
@@ -76,11 +97,12 @@ impl Context {
     }
 
     pub fn print_variables(&self) {
+        let variables = &self.get_context_variables();
         println!("User Variables:");
-        if self.variables.is_empty() {
+        if variables.is_empty() {
             println!("  (none)");
         } else {
-            for (key, value) in self.variables.iter() {
+            for (key, value) in variables.iter() {
                 print_variable(key, value, 1);
             }
         }

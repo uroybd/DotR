@@ -17,14 +17,25 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - **Deploy dotfiles** to their target locations
 - **Update changes** back to your repository
 - Support for both **files and directories**
+- **Profile-based deployment** for different environments (work, home, server)
+- **Profile dependencies** to automatically deploy required packages
+- **Package targets** to override destinations per profile
+
+### 🎭 Profiles
+- **Environment-specific configurations** (work, home, server, laptop, etc.)
+- **Profile variables** that override package and config variables
+- **Package dependencies** per profile for automatic deployment
+- **Target overrides** to deploy same package to different locations per profile
+- Switch profiles with `--profile` flag on deploy, import, and update commands
 
 ### 🔧 Variables
 - **Environment variables** automatically available in all templates
 - **Custom user variables** defined in `config.toml`
 - **Package-level variables** for package-specific configurations
+- **Profile variables** that override other variables when a profile is active
 - **Nested variable structures** with TOML tables and arrays
 - **Print variables** command to view all available variables
-- **Variable priority**: User variables > Package variables > Config variables > Environment variables
+- **Variable priority**: User variables > Profile variables > Package variables > Config variables > Environment variables
 - Secret `uservariables.toml` file to save secrets you don't want to share in VCS
 
 ### 📝 Templating (Tera)
@@ -46,6 +57,7 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 ### 🎯 Smart Workflows
 - Templated and regular files can coexist in the same repository
 - Selective package deployment and updates
+- Profile-based deployments for different machines/environments
 - Automatic backup before deployment
 - Directory structure preservation
 
@@ -60,16 +72,29 @@ dotr init
 ```bash
 dotr import ~/.bashrc
 dotr import ~/.config/nvim/
+
+# Import for a specific profile
+dotr import ~/.ssh/config --profile work
 ```
 
 3. **Deploy** dotfiles to a new machine:
 ```bash
+# Deploy all packages
 dotr deploy
+
+# Deploy with a specific profile
+dotr deploy --profile work
+
+# Deploy specific packages
+dotr deploy --packages nvim,tmux
 ```
 
 4. **Update** after making changes:
 ```bash
 dotr update
+
+# Update with a profile
+dotr update --profile work
 ```
 
 ## Variables Example
@@ -132,7 +157,62 @@ post_actions = [
 ]
 ```
 
-Actions are executed in order and can use all available variables (environment, config, package, and user variables).
+Actions are executed in order and can use all available variables (environment, config, package, profile, and user variables).
+
+## Profiles Example
+
+Define profiles for different environments in your `config.toml`:
+
+```toml
+[profiles.work]
+dependencies = ["nvim", "git", "ssh"]
+
+[profiles.work.variables]
+GIT_EMAIL = "work@company.com"
+SSH_KEY = "~/.ssh/id_rsa_work"
+NVIM_THEME = "gruvbox"
+
+[profiles.home]
+dependencies = ["nvim", "git", "gaming"]
+
+[profiles.home.variables]
+GIT_EMAIL = "personal@email.com"
+SSH_KEY = "~/.ssh/id_rsa_personal"
+NVIM_THEME = "dracula"
+
+# Override package destination for different profiles
+[packages.ssh]
+src = "dotfiles/ssh"
+dest = "~/.ssh/config"
+
+[packages.ssh.targets]
+work = "~/.ssh/config.work"
+home = "~/.ssh/config.home"
+
+# Skip package unless explicitly deployed or in profile dependencies
+[packages.gaming]
+src = "dotfiles/gaming"
+dest = "~/.config/gaming"
+skip = true
+```
+
+Deploy with a profile:
+```bash
+# Deploy work profile - only deploys nvim, git, and ssh
+dotr deploy --profile work
+
+# Deploy home profile - deploys nvim, git, and gaming
+dotr deploy --profile home
+
+# Print variables for a specific profile
+dotr print-vars --profile work
+```
+
+Profile features:
+- **Dependencies**: Automatically deploy specific packages when using a profile
+- **Variables**: Profile-specific variables that override other variable sources
+- **Targets**: Deploy the same package to different locations per profile
+- **Skip flag**: Mark packages to only deploy when explicitly requested or via profile dependencies
 
 ## WARNING!
 
@@ -171,7 +251,7 @@ sudo mv dotr /usr/local/bin/
 Usage: dotr [OPTIONS] [COMMAND]
 
 Commands:
-  init        Intialize dotfiles repository.
+  init        Initialize dotfiles repository.
   import      Import dotfile and update configuration.
   deploy      Deploy dotfiles from repository.
   update      Update dotfiles to repository.
@@ -179,8 +259,16 @@ Commands:
   help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -w, --working-dir <WORKING_DIR>
+  -w, --working-dir <WORKING_DIR>  Specify working directory
   -h, --help                       Print help
+
+Profile Support:
+  Most commands support the --profile flag to use profile-specific settings:
+  
+  dotr deploy --profile work       Deploy with work profile
+  dotr import ~/.bashrc --profile home
+  dotr update --profile server
+  dotr print-vars --profile work   Show variables with profile applied
 ```
 
 ## TODO
@@ -190,4 +278,5 @@ Options:
 - [x] Variables (with nested structures)
 - [x] Templating (Tera engine)
 - [x] Actions (pre/post hooks)
+- [x] Profiles (environment-specific configs)
 - [ ] Symlinking config

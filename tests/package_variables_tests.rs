@@ -32,7 +32,10 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs { packages }))));
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+        }))));
     }
 
     fn get_config(&self) -> Config {
@@ -75,6 +78,8 @@ fn test_package_variables_basic() {
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -136,6 +141,8 @@ fn test_package_variables_override_config_variables() {
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -192,6 +199,8 @@ MY_VAR = "user_value"
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -242,6 +251,8 @@ fn test_package_variables_with_nested_structures() {
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd);
@@ -287,6 +298,8 @@ fn test_package_variables_persist_after_save() {
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd);
@@ -354,6 +367,8 @@ TEST_VAR = "user_value"
         variables: pkg_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
     config
         .packages
@@ -406,6 +421,8 @@ fn test_multiple_packages_with_different_variables() {
         variables: pkg1_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
 
     // Create second package with its variables
@@ -423,6 +440,8 @@ fn test_multiple_packages_with_different_variables() {
         variables: pkg2_vars,
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
+        targets: std::collections::HashMap::new(),
+        skip: false,
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);
