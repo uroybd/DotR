@@ -15,6 +15,7 @@ pub struct Package {
     pub src: String,
     pub dest: String,
     pub dependencies: Option<Vec<String>>,
+    pub variables: Table,
 }
 
 impl Package {
@@ -38,6 +39,7 @@ impl Package {
             dest: path.to_string(),
             src: dest_path_str.clone(),
             dependencies: None,
+            variables: Table::new(),
         }
     }
 
@@ -54,6 +56,13 @@ impl Package {
             }
             None => None,
         };
+        let mut variables = Table::new();
+        if let Some(var_block) = pkg_val.get("variables") {
+            variables = var_block
+                .as_table()
+                .expect("The 'variables' field must be a table")
+                .clone();
+        }
         Self {
             name: pkg_name.to_string(),
             src: pkg_val
@@ -69,6 +78,7 @@ impl Package {
                 .unwrap()
                 .to_string(),
             dependencies,
+            variables,
         }
     }
 
@@ -83,7 +93,20 @@ impl Package {
                 .collect();
             pkg_table.insert("dependencies".to_string(), toml::Value::Array(deps_val));
         }
+        if !self.variables.is_empty() {
+            pkg_table.insert(
+                "variables".to_string(),
+                toml::Value::Table(self.variables.clone()),
+            );
+        }
         pkg_table
+    }
+
+    pub fn get_context_variables(&self, ctx: &Context) -> Table {
+        let mut vars = ctx.get_variables().clone();
+        vars.extend(self.variables.clone());
+        vars.extend(ctx.get_user_variables().clone());
+        vars
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
@@ -149,7 +172,7 @@ impl Package {
                         .expect("Failed to create parent directory");
                     if is_templated {
                         let compiled_content =
-                            compile_template(entry.path(), &ctx.get_context_variables())
+                            compile_template(entry.path(), &self.get_context_variables(ctx))
                                 .expect("Failed to compile template");
                         std::fs::write(&dest_path, compiled_content)
                             .expect("Failed to write compiled file");
@@ -160,7 +183,7 @@ impl Package {
                 }
             }
         } else if is_templated {
-            let compiled_content = compile_template(&copy_from, &ctx.get_context_variables())
+            let compiled_content = compile_template(&copy_from, &self.get_context_variables(ctx))
                 .expect("Failed to compile template");
             std::fs::write(&copy_to, compiled_content).expect("Failed to write compiled file");
         } else {
