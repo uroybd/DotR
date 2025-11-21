@@ -463,7 +463,7 @@ OVERRIDE_VAR = "user_override"
             r#"
 string_var = "string"
 int_var = 42
-float_var = 3.14
+float_var = 9.14
 bool_var = true
 
 [nested]
@@ -489,7 +489,7 @@ value = 2
             Some(&toml::Value::String("string".to_string()))
         );
         assert_eq!(user_vars.get("int_var"), Some(&toml::Value::Integer(42)));
-        assert_eq!(user_vars.get("float_var"), Some(&toml::Value::Float(3.14)));
+        assert_eq!(user_vars.get("float_var"), Some(&toml::Value::Float(9.14)));
         assert_eq!(user_vars.get("bool_var"), Some(&toml::Value::Boolean(true)));
         assert!(user_vars.contains_key("nested"));
         assert!(user_vars.contains_key("array"));
