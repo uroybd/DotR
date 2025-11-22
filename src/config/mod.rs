@@ -8,6 +8,7 @@ use crate::{
     context::Context,
     package::Package,
     profile::Profile,
+    utils::{LogLevel, cprintln},
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -133,15 +134,15 @@ impl Config {
         ctx: &Context,
         profile_name: &Option<String>,
     ) -> Result<(), anyhow::Error> {
-        println!("Importing dotfiles from path: {}", args.path);
+        cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
         package.backup(ctx)?;
         if let Some(p_name) = profile_name {
             let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
-                eprintln!(
-                    "Warning: Profile '{}' not found in configuration. Creating new profile.",
-                    p_name
+                cprintln(
+                    &format!("Profile '{}' not found, creating new", p_name),
+                    &LogLevel::WARNING,
                 );
                 Profile::new(p_name)
             });
@@ -151,7 +152,7 @@ impl Config {
         }
         self.packages.insert(pkg_name.clone(), package);
         self.save(&ctx.working_dir)?;
-        println!("Package '{}' imported successfully.", pkg_name);
+        cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::INFO);
         Ok(())
     }
 
@@ -177,7 +178,7 @@ impl Config {
                 if let Some(pkg) = self.packages.get(name) {
                     packages.insert(name.clone(), pkg.clone());
                 } else {
-                    eprintln!("Warning: Package '{}' not found in configuration.", name);
+                    return Err(anyhow::anyhow!("Package '{}' not found", name));
                 }
             }
         } else if let Some(profile) = &ctx.profile {
@@ -185,7 +186,11 @@ impl Config {
                 if let Some(pkg) = self.packages.get(dep) {
                     packages.insert(dep.clone(), pkg.clone());
                 } else {
-                    eprintln!("Warning: Package '{}' not found in configuration.", dep);
+                    return Err(anyhow::anyhow!(
+                        "Package '{}' not found for profile '{}'",
+                        dep,
+                        profile.name
+                    ));
                 }
             }
         } else {
@@ -218,7 +223,7 @@ impl Config {
         ctx: &Context,
         args: &DeployUpdateArgs,
     ) -> Result<(), anyhow::Error> {
-        println!("Copying dotfiles...");
+        cprintln("Deploying packages...", &LogLevel::INFO);
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             pkg.deploy(ctx)?;
         }
@@ -230,9 +235,9 @@ impl Config {
         ctx: &Context,
         args: &DeployUpdateArgs,
     ) -> Result<(), anyhow::Error> {
-        println!("Diffing dotfiles...");
+        cprintln("Checking differences...", &LogLevel::INFO);
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            println!("[INFO] Diff for package '{}':", pkg.name);
+            cprintln(&format!("Package: {}", pkg.name), &LogLevel::INFO);
             pkg.diff(ctx)?;
         }
         Ok(())
@@ -263,7 +268,7 @@ impl Config {
         // If config.toml already exists, do nothing
         let config_path = cwd.join("config.toml");
         if config_path.exists() {
-            println!("config.toml already exists. Initialization skipped.");
+            cprintln("config.toml exists, skipping", &LogLevel::WARNING);
             return Self::from_path(cwd);
         }
         // Here you would add the logic to create a default config file
@@ -277,7 +282,7 @@ impl Config {
         let gitignore_content = ".uservariables.toml\n";
         std::fs::write(gitignore_path, gitignore_content)?;
 
-        println!("Default config.toml created.");
+        cprintln("Repository initialized", &LogLevel::INFO);
         Ok(default_config)
     }
 

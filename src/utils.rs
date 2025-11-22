@@ -50,6 +50,51 @@ pub fn normalize_home_path(path: &str) -> String {
     path.to_string()
 }
 
+// Define terminal colors for WARNING, ERROR, INFO, FATAL
+pub const COLOR_WARNING: &str = "\x1b[33m"; // Yellow
+pub const COLOR_ERROR: &str = "\x1b[31m"; // Red
+pub const COLOR_INFO: &str = "\x1b[34m"; // Blue
+pub const COLOR_FATAL: &str = "\x1b[35m"; // Magenta
+pub const RESET_COLOR: &str = "\x1b[0m"; // Reset
+
+pub enum LogLevel {
+    WARNING,
+    ERROR,
+    INFO,
+    FATAL,
+}
+
+impl LogLevel {
+    pub fn as_str(&self) -> &str {
+        match self {
+            LogLevel::WARNING => "WARNING",
+            LogLevel::ERROR => "ERROR",
+            LogLevel::INFO => "INFO",
+            LogLevel::FATAL => "FATAL",
+        }
+    }
+
+    pub fn to_colorful_str(&self) -> String {
+        match self {
+            LogLevel::WARNING => format!("{}[{}]{}", COLOR_WARNING, self.as_str(), RESET_COLOR),
+            LogLevel::ERROR => format!("{}[{}]{}", COLOR_ERROR, self.as_str(), RESET_COLOR),
+            LogLevel::INFO => format!("{}[{}]{}", COLOR_INFO, self.as_str(), RESET_COLOR),
+            LogLevel::FATAL => format!("{}[{}]{}", COLOR_FATAL, self.as_str(), RESET_COLOR),
+        }
+    }
+}
+
+pub fn cprintln(message: &str, level: &LogLevel) {
+    match level {
+        LogLevel::ERROR | LogLevel::FATAL => {
+            eprintln!("{} {}", level.to_colorful_str(), message);
+        }
+        LogLevel::WARNING | LogLevel::INFO => {
+            println!("{} {}", level.to_colorful_str(), message);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
