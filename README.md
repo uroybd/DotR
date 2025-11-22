@@ -56,9 +56,11 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 
 ### 🎯 Smart Workflows
 - Templated and regular files can coexist in the same repository
+- **Granular file deployment** - only deploys files when content has changed
+- **Granular backups** - creates per-file backups (`.dotrbak`) instead of directory backups
+- **Diff command** to preview changes before deployment
 - Selective package deployment and updates
 - Profile-based deployments for different machines/environments
-- Automatic backup before deployment
 - Directory structure preservation
 
 ## Quick Start
@@ -89,7 +91,19 @@ dotr deploy --profile work
 dotr deploy --packages nvim,tmux
 ```
 
-4. **Update** after making changes:
+4. **Check differences** before deploying:
+```bash
+# See what would change if you deployed
+dotr diff
+
+# Diff specific packages
+dotr diff --packages nvim,bashrc
+
+# Diff with a profile
+dotr diff --profile work
+```
+
+5. **Update** after making changes:
 ```bash
 dotr update
 
@@ -214,6 +228,57 @@ Profile features:
 - **Targets**: Deploy the same package to different locations per profile
 - **Skip flag**: Mark packages to only deploy when explicitly requested or via profile dependencies
 
+## Diff Command
+
+The `diff` command shows you what changes would be made if you deployed your dotfiles, without actually modifying any files. This is useful for:
+- **Previewing changes** before deploying to a new machine
+- **Checking what you've modified** locally before updating back to your repository
+- **Debugging templating** issues by seeing the compiled output
+- **Verifying profile-specific** configurations
+
+### Usage Examples
+
+```bash
+# Show differences for all packages
+dotr diff
+
+# Show differences for specific packages
+dotr diff --packages bashrc,nvim
+
+# Show differences with profile variables applied
+dotr diff --profile work
+```
+
+### Output Format
+
+The diff command shows a **line-by-line comparison** with color coding:
+- **Lines starting with `-`** (in red): Lines that exist in the deployed file but not in the repository
+- **Lines starting with `+`** (in green): Lines that exist in the repository but not in the deployed file
+- **Lines starting with a space**: Unchanged lines (for context)
+
+Example output:
+```diff
+[INFO] Diff for package 'f_bashrc':
+[INFO] Differences for 'dotfiles/f_bashrc' at '/home/user/.bashrc':
+ # Bashrc configuration
+-export EDITOR=vim
++export EDITOR=nvim
+ export PATH="$HOME/.local/bin:$PATH"
++alias ll='ls -la'
+```
+
+### Granular Changes
+
+DotR now uses **granular copying and backups**:
+- **Only changed files are deployed** - if a file's content hasn't changed, it won't be copied
+- **Per-file backups** - backups are created with `.dotrbak` extension (e.g., `init.lua.dotrbak`, `.bashrc.dotrbak`)
+- **Efficient updates** - reduces unnecessary file operations and backup clutter
+
+This means:
+1. Running `diff` before `deploy` shows exactly what will be changed
+2. Only files that actually differ will be deployed and backed up
+3. Unchanged files are skipped entirely, making deployments faster
+
 ## WARNING!
 
 This is still pre-alpha. The schema is evolving, performance is sub-par. Use it with caution.
@@ -255,6 +320,7 @@ Commands:
   import      Import dotfile and update configuration.
   deploy      Deploy dotfiles from repository.
   update      Update dotfiles to repository.
+  diff        Show differences between deployed and repository files.
   print-vars  Print all user variables.
   help        Print this message or the help of the given subcommand(s)
 
@@ -268,6 +334,7 @@ Profile Support:
   dotr deploy --profile work       Deploy with work profile
   dotr import ~/.bashrc --profile home
   dotr update --profile server
+  dotr diff --profile work         Show differences with profile variables
   dotr print-vars --profile work   Show variables with profile applied
 ```
 
@@ -279,4 +346,6 @@ Profile Support:
 - [x] Templating (Tera engine)
 - [x] Actions (pre/post hooks)
 - [x] Profiles (environment-specific configs)
+- [x] Diff command (preview changes)
+- [x] Granular copying and backups
 - [ ] Symlinking config

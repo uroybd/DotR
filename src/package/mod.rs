@@ -349,7 +349,7 @@ impl Package {
                         src.display(),
                         dest.display()
                     );
-                    // Print line-by-line diff, with - for removed lines, + for added lines, and space for unchanged lines. add colors if possible.
+                    // Print line-by-line diff, with - for removed lines, + for added lines, and space for unchanged lines. Add colors if possible.
                     for diff in diff::lines(&existing_content, &compiled_content) {
                         match diff {
                             diff::Result::Left(l) => {
@@ -378,7 +378,7 @@ impl Package {
         let src = resolve_path(&self.src, &ctx.working_dir);
         let dest = self.resolve_dest(ctx);
         if src.is_dir() {
-            // Recursively copy directory contents
+            // Recursively diff directory contents
             for entry in walkdir::WalkDir::new(&src) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&src)?;
