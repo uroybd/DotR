@@ -29,6 +29,8 @@ pub struct Package {
     pub post_actions: Vec<String>,
     pub targets: HashMap<String, String>, // The key is profile name, the value is dest to override.
     pub skip: bool,
+    #[serde(default)]
+    pub prompts: HashMap<String, String>, // Package-level prompts
 }
 
 impl Package {
@@ -63,6 +65,7 @@ impl Package {
             post_actions: Vec::new(),
             targets: HashMap::new(),
             skip: false,
+            prompts: HashMap::new(),
         })
     }
 
@@ -155,6 +158,19 @@ impl Package {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
+        let mut prompts = HashMap::new();
+        if let Some(prompts_block) = pkg_val.get("prompts") {
+            let prompts_table = prompts_block
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?;
+            for (key, value) in prompts_table {
+                let prompt_str = value
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
+                prompts.insert(key.clone(), prompt_str.to_string());
+            }
+        }
+
         Ok(Self {
             name: pkg_name.to_string(),
             src,
@@ -165,6 +181,7 @@ impl Package {
             pre_actions,
             post_actions,
             targets,
+            prompts,
         })
     }
 
@@ -216,6 +233,13 @@ impl Package {
         }
         if self.skip {
             pkg_table.insert("skip".to_string(), toml::Value::Boolean(true));
+        }
+        if !self.prompts.is_empty() {
+            let mut prompts_table = Table::new();
+            for (key, value) in &self.prompts {
+                prompts_table.insert(key.clone(), toml::Value::String(value.clone()));
+            }
+            pkg_table.insert("prompts".to_string(), toml::Value::Table(prompts_table));
         }
         pkg_table
     }

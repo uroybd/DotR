@@ -161,7 +161,7 @@ impl Config {
         Ok(())
     }
 
-    fn filter_packages(
+    pub fn filter_packages(
         &self,
         ctx: &Context,
         names: &Option<Vec<String>>,

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use toml::{Table, Value};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -6,6 +7,8 @@ pub struct Profile {
     pub name: String,
     pub variables: Table,
     pub dependencies: Vec<String>,
+    #[serde(default)]
+    pub prompts: HashMap<String, String>, // Profile-level prompts
 }
 
 impl Profile {
@@ -14,6 +17,7 @@ impl Profile {
             name: name.to_string(),
             variables: Table::new(),
             dependencies: Vec::new(),
+            prompts: HashMap::new(),
         }
     }
 
@@ -39,10 +43,24 @@ impl Profile {
             }
         }
 
+        let mut prompts = HashMap::new();
+        if let Some(prompts_block) = table.get("prompts") {
+            let prompts_table = prompts_block
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("Profile '{}' prompts must be a table", name))?;
+            for (key, value) in prompts_table {
+                let prompt_str = value.as_str().ok_or_else(|| {
+                    anyhow::anyhow!("Profile '{}' prompt message must be a string", name)
+                })?;
+                prompts.insert(key.clone(), prompt_str.to_string());
+            }
+        }
+
         Ok(Self {
             name: name.to_string(),
             variables,
             dependencies,
+            prompts,
         })
     }
 
@@ -58,6 +76,15 @@ impl Profile {
             .map(|d| Value::String(d.clone()))
             .collect();
         table.insert("dependencies".to_string(), Value::Array(deps));
+
+        if !self.prompts.is_empty() {
+            let mut prompts_table = Table::new();
+            for (key, value) in &self.prompts {
+                prompts_table.insert(key.clone(), Value::String(value.clone()));
+            }
+            table.insert("prompts".to_string(), Value::Table(prompts_table));
+        }
+
         table
     }
 }

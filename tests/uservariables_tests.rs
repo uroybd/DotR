@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
     cli::{DeployUpdateArgs, InitArgs, run_cli},
@@ -238,6 +238,7 @@ DATABASE_NAME = "production-db"
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config
         .packages

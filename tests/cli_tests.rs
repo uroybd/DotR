@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
     cli::{Cli, Command, DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
@@ -170,6 +170,7 @@ fn test_deploy_creates_files() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_test".to_string(), test_package);
@@ -208,6 +209,7 @@ fn test_deploy_with_profile() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     package.targets.insert(
@@ -221,6 +223,7 @@ fn test_deploy_with_profile() {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_app".to_string()],
+        prompts: HashMap::new(),
     };
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -257,6 +260,7 @@ fn test_deploy_specific_packages() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     let pkg2 = dotr::package::Package {
@@ -269,6 +273,7 @@ fn test_deploy_specific_packages() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_pkg1".to_string(), pkg1);
@@ -308,6 +313,7 @@ fn test_update_backs_up_files() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config.packages.insert("f_update".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -442,6 +448,7 @@ fn test_skip_flag_prevents_deployment() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: true,
+        prompts: HashMap::new(),
     };
     config.packages.insert("f_skip".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -476,6 +483,7 @@ fn test_profile_dependencies_deployment() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: true,
+        prompts: HashMap::new(),
     };
 
     let pkg2 = dotr::package::Package {
@@ -488,6 +496,7 @@ fn test_profile_dependencies_deployment() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: true,
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_dep1".to_string(), pkg1);
@@ -498,6 +507,7 @@ fn test_profile_dependencies_deployment() {
         name: "minimal".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_dep1".to_string()],
+        prompts: HashMap::new(),
     };
     config.profiles.insert("minimal".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -738,6 +748,7 @@ fn test_package_with_missing_dependency_fails() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config.packages.insert("test_pkg".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -774,6 +785,7 @@ fn test_deploy_missing_source_fails() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config.packages.insert("missing_src".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -915,12 +927,14 @@ fn test_dotr_profile_env_var_deploy() {
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
         skip: true,
+        prompts: HashMap::new(),
     };
 
     let profile = dotr::profile::Profile {
         name: "testenv".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_profile_test".to_string()],
+        prompts: HashMap::new(),
     };
 
     config
@@ -971,12 +985,14 @@ fn test_dotr_profile_env_var_update() {
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     let profile = dotr::profile::Profile {
         name: "updateenv".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_env_update".to_string()],
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_env_update".to_string(), package);
@@ -1025,6 +1041,7 @@ fn test_dotr_profile_env_var_print_vars() {
         name: "printenv".to_string(),
         variables: profile_vars,
         dependencies: vec![],
+        prompts: HashMap::new(),
     };
 
     config.profiles.insert("printenv".to_string(), profile);
@@ -1061,18 +1078,21 @@ fn test_cli_profile_overrides_env_var() {
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
         skip: true,
+        prompts: HashMap::new(),
     };
 
     let profile1 = dotr::profile::Profile {
         name: "envprofile".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
+        prompts: HashMap::new(),
     };
 
     let profile2 = dotr::profile::Profile {
         name: "cliprofile".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_override".to_string(), package);
@@ -1114,6 +1134,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_invalid_env".to_string(), package);

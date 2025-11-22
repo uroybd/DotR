@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -8,7 +7,7 @@ use std::{
 use serde::Serialize;
 use toml::Table;
 
-use crate::profile::Profile;
+use crate::{config::Config, profile::Profile};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
@@ -48,10 +47,27 @@ impl Context {
 
     pub fn get_prompted_variables(
         &mut self,
-        prompts: &HashMap<String, String>,
+        conf: &Config,
+        packages: &Option<Vec<String>>,
     ) -> Result<Table, anyhow::Error> {
         // First, get the user variables
         let mut prompted_vars = self.user_variables.clone();
+        // Now, get the prompts from config
+        let mut prompts = conf.prompts.clone();
+        // If profile exists, merge its prompts too
+        if let Some(profile) = &self.profile {
+            for (key, prompt) in profile.prompts.iter() {
+                prompts.insert(key.clone(), prompt.clone());
+            }
+        }
+        if let Ok(filtered_packages) = conf.filter_packages(self, packages) {
+            // For each package, merge its prompts too
+            for (_, package) in filtered_packages.iter() {
+                for (key, prompt) in package.prompts.iter() {
+                    prompts.insert(key.clone(), prompt.clone());
+                }
+            }
+        }
         // Then check for prompted variables and add them if they don't exist in user variables
         // prompt for their values
         for (key, prompt) in prompts.iter() {

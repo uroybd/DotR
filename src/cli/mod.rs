@@ -106,7 +106,6 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir)?;
             ctx.extend_variables(conf.variables.clone());
-            ctx.get_prompted_variables(&conf.prompts)?;
             let context_vars = ctx.get_context_variables();
 
             // Merge config variables, which override environment variables
@@ -122,6 +121,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
@@ -129,6 +130,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::Diff(args)) => {
@@ -136,6 +139,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.diff_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {

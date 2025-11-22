@@ -404,3 +404,395 @@ fn test_prompts_are_case_sensitive() {
         reloaded_config.prompts.get("API_KEY")
     );
 }
+
+#[test]
+fn test_package_level_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add package with prompts
+    let mut config = fixture.get_config();
+    let mut package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    package.prompts.insert(
+        "PACKAGE_VAR".to_string(),
+        "Enter package variable".to_string(),
+    );
+    config.packages.insert("f_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    assert_eq!(package.prompts.len(), 1);
+    assert_eq!(
+        package.prompts.get("PACKAGE_VAR"),
+        Some(&"Enter package variable".to_string())
+    );
+}
+
+#[test]
+fn test_package_multiple_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add package with multiple prompts
+    let mut config = fixture.get_config();
+    let mut package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    package.prompts.insert(
+        "PKG_VAR1".to_string(),
+        "Enter first package variable".to_string(),
+    );
+    package.prompts.insert(
+        "PKG_VAR2".to_string(),
+        "Enter second package variable".to_string(),
+    );
+    package.prompts.insert(
+        "PKG_VAR3".to_string(),
+        "Enter third package variable".to_string(),
+    );
+    config.packages.insert("f_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    assert_eq!(package.prompts.len(), 3);
+}
+
+#[test]
+fn test_profile_level_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Add profile with prompts
+    let mut config = fixture.get_config();
+    let mut profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    profile.prompts.insert(
+        "WORK_EMAIL".to_string(),
+        "Enter your work email".to_string(),
+    );
+    config.profiles.insert("work".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let profile = reloaded_config.profiles.get("work").unwrap();
+    assert_eq!(profile.prompts.len(), 1);
+    assert_eq!(
+        profile.prompts.get("WORK_EMAIL"),
+        Some(&"Enter your work email".to_string())
+    );
+}
+
+#[test]
+fn test_profile_multiple_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Add profile with multiple prompts
+    let mut config = fixture.get_config();
+    let mut profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    profile.prompts.insert(
+        "WORK_EMAIL".to_string(),
+        "Enter your work email".to_string(),
+    );
+    profile
+        .prompts
+        .insert("SLACK_TOKEN".to_string(), "Enter Slack token".to_string());
+    profile
+        .prompts
+        .insert("VPN_PASSWORD".to_string(), "Enter VPN password".to_string());
+    config.profiles.insert("work".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let profile = reloaded_config.profiles.get("work").unwrap();
+    assert_eq!(profile.prompts.len(), 3);
+}
+
+#[test]
+fn test_package_and_profile_prompts_together() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add package with prompts
+    let mut config = fixture.get_config();
+    let mut package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    package.prompts.insert(
+        "PACKAGE_VAR".to_string(),
+        "Enter package variable".to_string(),
+    );
+    config.packages.insert("f_test".to_string(), package);
+
+    // Add profile with prompts
+    let mut profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    profile.prompts.insert(
+        "PROFILE_VAR".to_string(),
+        "Enter profile variable".to_string(),
+    );
+    config.profiles.insert("work".to_string(), profile);
+
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify both exist
+    let reloaded_config = fixture.get_config();
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    let profile = reloaded_config.profiles.get("work").unwrap();
+
+    assert_eq!(package.prompts.len(), 1);
+    assert_eq!(profile.prompts.len(), 1);
+}
+
+#[test]
+fn test_package_prompts_do_not_interfere_with_variables() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add package with both prompts and variables
+    let mut config = fixture.get_config();
+    let mut package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    package.variables.insert(
+        "STATIC_VAR".to_string(),
+        toml::Value::String("static_value".to_string()),
+    );
+    package.prompts.insert(
+        "PROMPT_VAR".to_string(),
+        "Enter prompt variable".to_string(),
+    );
+    config.packages.insert("f_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    assert_eq!(package.variables.len(), 1);
+    assert_eq!(package.prompts.len(), 1);
+}
+
+#[test]
+fn test_profile_prompts_do_not_interfere_with_variables() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Add profile with both prompts and variables
+    let mut config = fixture.get_config();
+    let mut profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    profile.variables.insert(
+        "STATIC_VAR".to_string(),
+        toml::Value::String("static_value".to_string()),
+    );
+    profile.prompts.insert(
+        "PROMPT_VAR".to_string(),
+        "Enter prompt variable".to_string(),
+    );
+    config.profiles.insert("work".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify
+    let reloaded_config = fixture.get_config();
+    let profile = reloaded_config.profiles.get("work").unwrap();
+    assert_eq!(profile.variables.len(), 1);
+    assert_eq!(profile.prompts.len(), 1);
+}
+
+#[test]
+fn test_empty_package_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add package without prompts
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    config.packages.insert("f_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify no prompts
+    let reloaded_config = fixture.get_config();
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    assert_eq!(package.prompts.len(), 0);
+}
+
+#[test]
+fn test_empty_profile_prompts() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Add profile without prompts
+    let mut config = fixture.get_config();
+    let profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    config.profiles.insert("work".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify no prompts
+    let reloaded_config = fixture.get_config();
+    let profile = reloaded_config.profiles.get("work").unwrap();
+    assert_eq!(profile.prompts.len(), 0);
+}
+
+#[test]
+fn test_three_level_prompts_hierarchy() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create dotfile
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_test"), "Test content\n")
+        .expect("Failed to create file");
+
+    // Add config-level prompt
+    let mut config = fixture.get_config();
+    config.prompts.insert(
+        "CONFIG_VAR".to_string(),
+        "Enter config variable".to_string(),
+    );
+
+    // Add package with prompt
+    let mut package = dotr::package::Package {
+        name: "f_test".to_string(),
+        src: "dotfiles/f_test".to_string(),
+        dest: "src/.test".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+    };
+    package.prompts.insert(
+        "PACKAGE_VAR".to_string(),
+        "Enter package variable".to_string(),
+    );
+    config.packages.insert("f_test".to_string(), package);
+
+    // Add profile with prompt
+    let mut profile = dotr::profile::Profile {
+        name: "work".to_string(),
+        variables: toml::Table::new(),
+        dependencies: vec![],
+        prompts: HashMap::new(),
+    };
+    profile.prompts.insert(
+        "PROFILE_VAR".to_string(),
+        "Enter profile variable".to_string(),
+    );
+    config.profiles.insert("work".to_string(), profile);
+
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Reload and verify all three levels
+    let reloaded_config = fixture.get_config();
+    assert_eq!(reloaded_config.prompts.len(), 1);
+
+    let package = reloaded_config.packages.get("f_test").unwrap();
+    assert_eq!(package.prompts.len(), 1);
+
+    let profile = reloaded_config.profiles.get("work").unwrap();
+    assert_eq!(profile.prompts.len(), 1);
+}
