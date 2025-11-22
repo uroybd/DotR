@@ -579,11 +579,8 @@ fn test_pre_action_failure() {
 
     // Create a simple file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(
-        fixture.cwd.join("dotfiles/f_pre_fail"),
-        "Test content\n",
-    )
-    .expect("Failed to create file");
+    fs::write(fixture.cwd.join("dotfiles/f_pre_fail"), "Test content\n")
+        .expect("Failed to create file");
 
     // Create package with a failing pre-action
     let mut config = fixture.get_config();
@@ -619,11 +616,8 @@ fn test_post_action_failure() {
 
     // Create a simple file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(
-        fixture.cwd.join("dotfiles/f_post_fail"),
-        "Test content\n",
-    )
-    .expect("Failed to create file");
+    fs::write(fixture.cwd.join("dotfiles/f_post_fail"), "Test content\n")
+        .expect("Failed to create file");
 
     // Create package with a failing post-action
     let mut config = fixture.get_config();
@@ -663,11 +657,8 @@ fn test_action_with_nonexistent_command() {
 
     // Create a simple file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(
-        fixture.cwd.join("dotfiles/f_bad_cmd"),
-        "Test content\n",
-    )
-    .expect("Failed to create file");
+    fs::write(fixture.cwd.join("dotfiles/f_bad_cmd"), "Test content\n")
+        .expect("Failed to create file");
 
     // Create package with a non-existent command
     let mut config = fixture.get_config();
@@ -706,11 +697,8 @@ fn test_action_failure_with_error_message() {
 
     // Create a simple file
     fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(
-        fixture.cwd.join("dotfiles/f_err_msg"),
-        "Test content\n",
-    )
-    .expect("Failed to create file");
+    fs::write(fixture.cwd.join("dotfiles/f_err_msg"), "Test content\n")
+        .expect("Failed to create file");
 
     // Create package with an action that fails with error message
     let mut config = fixture.get_config();
