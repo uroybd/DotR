@@ -23,6 +23,7 @@ pub enum Command {
     Import(ImportArgs),
     Deploy(DeployUpdateArgs),
     Update(DeployUpdateArgs),
+    Diff(DeployUpdateArgs),
     PrintVars(PrintVarsArgs),
 }
 
@@ -128,6 +129,13 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
                     conf.backup_packages(&ctx, &args)?;
+                }
+                Some(Command::Diff(args)) => {
+                    let (profile_name, profile) =
+                        conf.get_profile_details(&args.profile, &context_vars);
+                    validate_profile_exists(&profile_name, &profile)?;
+                    ctx.set_profile(profile);
+                    conf.diff_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {
                     let (profile_name, profile) =
