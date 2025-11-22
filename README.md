@@ -38,6 +38,14 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - **Variable priority**: User variables > Profile variables > Package variables > Config variables > Environment variables
 - Secret `uservariables.toml` file to save secrets you don't want to share in VCS
 
+### 💬 Interactive Prompts
+- **Config-level prompts** - Global prompts for values used across all packages
+- **Package-level prompts** - Package-specific prompts for sensitive configuration
+- **Profile-level prompts** - Environment-specific prompts (work credentials, personal tokens, etc.)
+- **Smart prompting** - Only prompts once, saves answers to `.uservariables.toml`
+- **Skip existing values** - Won't prompt for variables already defined
+- Prompts are displayed during deploy, update, and diff commands
+
 ### 📝 Templating (Tera)
 - **Full Tera template engine** support
 - Use `{{ variable }}` for variable substitution
@@ -172,6 +180,86 @@ post_actions = [
 ```
 
 Actions are executed in order and can use all available variables (environment, config, package, profile, and user variables).
+
+## Prompts Example
+
+Define interactive prompts at config, package, or profile level to collect sensitive information on first run:
+
+### Config-Level Prompts
+
+Global prompts for values used across multiple packages:
+
+```toml
+# config.toml
+[prompts]
+GIT_EMAIL = "Enter your git email address"
+GIT_NAME = "Enter your full name"
+EDITOR = "Enter your preferred editor (vim/nvim/emacs)"
+```
+
+### Package-Level Prompts
+
+Package-specific prompts for sensitive configuration:
+
+```toml
+[packages.aws-cli]
+src = "dotfiles/aws"
+dest = "~/.aws/"
+
+[packages.aws-cli.prompts]
+AWS_ACCESS_KEY_ID = "Enter your AWS Access Key ID"
+AWS_SECRET_ACCESS_KEY = "Enter your AWS Secret Access Key"
+AWS_REGION = "Enter your default AWS region (e.g., us-east-1)"
+
+[packages.slack]
+src = "dotfiles/slack"
+dest = "~/.config/slack/"
+
+[packages.slack.prompts]
+SLACK_API_TOKEN = "Enter your Slack API token"
+SLACK_WORKSPACE = "Enter your Slack workspace URL"
+```
+
+### Profile-Level Prompts
+
+Environment-specific prompts for work, home, etc.:
+
+```toml
+[profiles.work]
+dependencies = ["aws-cli", "slack", "vpn"]
+
+[profiles.work.prompts]
+WORK_EMAIL = "Enter your work email"
+VPN_PASSWORD = "Enter your VPN password"
+JIRA_TOKEN = "Enter your Jira API token"
+
+[profiles.home]
+dependencies = ["personal-git"]
+
+[profiles.home.prompts]
+PERSONAL_EMAIL = "Enter your personal email"
+GITHUB_TOKEN = "Enter your GitHub personal access token"
+```
+
+### How Prompts Work
+
+1. **First Run**: When you deploy, update, or diff, DotR checks all relevant prompts
+2. **Interactive Input**: For any variable not in `.uservariables.toml`, you'll see:
+   ```
+   Enter your AWS Access Key ID
+   >>> 
+   ```
+3. **Saved Automatically**: Your input is saved to `.uservariables.toml` (gitignored by default)
+4. **Reuse Values**: On subsequent runs, saved values are reused - no re-prompting!
+5. **Hierarchy**: Profile prompts override config prompts, package prompts are merged for deployed packages
+
+### Use Cases
+
+- **API Keys & Tokens**: Keep secrets out of your dotfiles repo
+- **Email Addresses**: Different emails for work vs personal profiles
+- **Machine-Specific Paths**: Prompt for custom installation directories
+- **Credentials**: VPN passwords, database connections, etc.
+- **Personal Preferences**: Editor choice, themes, font sizes
 
 ## Profiles Example
 
@@ -348,4 +436,5 @@ Profile Support:
 - [x] Profiles (environment-specific configs)
 - [x] Diff command (preview changes)
 - [x] Granular copying and backups
+- [x] Interactive prompts (config/package/profile level)
 - [ ] Symlinking config
