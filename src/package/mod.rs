@@ -320,43 +320,49 @@ impl Package {
 
     pub fn deploy_file(
         &self,
-        src: &Path,
-        dest: &Path,
+        src: &PathBuf,
+        dest: &PathBuf,
         ctx: &Context,
         backup: bool,
     ) -> Result<(), anyhow::Error> {
-        let content = if self.is_templated(src) {
-            compile_template(src, &self.get_context_variables(ctx))?
-        } else {
-            std::fs::read_to_string(src)?
-        };
-        let mut should_copy = false;
-        if !dest.exists() {
-            should_copy = true;
-        } else {
-            let existing_content = std::fs::read_to_string(dest)?;
-            if existing_content != content {
+        if let Some(src_content) = std::fs::read_to_string(src) {
+            let compiled_content = if self.is_templated(src) {
+                compile_string(src, &self.get_context_variables(ctx))?
+            } else {
+                src_content
+            };
+
+            let mut should_copy = false;
+            if !dest.exists() {
                 should_copy = true;
+            } else {
+                let existing_content = std::fs::read_to_string(dest)?;
+                if existing_content != compiled_content {
+                    should_copy = true;
+                }
             }
-        }
-        if !should_copy {
-            println!(
-                "[INFO] Skipping deployment for '{}' as it is unchanged at '{}'",
-                src.display(),
-                dest.display()
-            );
+            if !should_copy {
+                println!(
+                    "[INFO] Skipping deployment for '{}' as it is unchanged at '{}'",
+                    src.display(),
+                    dest.display()
+                );
+                return Ok(());
+            }
+            if backup && dest.exists() {
+                let backup_path = dest.with_extension(BACKUP_EXT);
+                std::fs::copy(dest, &backup_path)?;
+            }
+            std::fs::write(dest, compiled_content)?;
+        } else {
+            // It can be a binary file, copy as-is and return Ok
+            if backup && dest.exists() {
+                let backup_path = dest.with_extension(BACKUP_EXT);
+                std::fs::copy(dest, &backup_path)?;
+            }
+            std::fs::copy(src, dest)?;
             return Ok(());
         }
-        if backup && dest.exists() {
-            let backup_path = dest.with_extension(BACKUP_EXT);
-            std::fs::copy(dest, &backup_path)?;
-            println!(
-                "[INFO] Backed up file '{}' to '{}'",
-                dest.display(),
-                backup_path.display()
-            );
-        }
-        std::fs::write(dest, content)?;
         println!(
             "[INFO] Deployed file '{}' to '{}'",
             src.display(),
@@ -367,13 +373,9 @@ impl Package {
 
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
-        let pkg_vars = self.get_context_variables(ctx);
         self.execute_pre_actions(ctx)?;
-        let is_templated = self.package_is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
-        let backup_path = copy_to.with_extension(BACKUP_EXT);
-
         if copy_from.is_dir() {
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
@@ -383,7 +385,7 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    self.deploy_file(entry.path(), &dest_path, ctx, true)?;
+                    self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
                 }
             }
         } else {
@@ -409,9 +411,9 @@ impl Package {
         }
         let content = std::fs::read_to_string(p);
         if let Ok(text) = content {
-            return TEMPLATE_REGEX.is_match(&text);
+            TEMPLATE_REGEX.is_match(&text)
         } else {
-            return false;
+            false
         }
     }
 
