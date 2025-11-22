@@ -74,7 +74,7 @@ impl Context {
             if !prompted_vars.contains_key(key) {
                 // Prompt the user for input
                 print!("{}\n>>> ", prompt);
-                _ = std::io::stdout().flush();
+                _ = std::io::stdout().flush()?;
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input)?;
                 let input = input.trim().to_string();
