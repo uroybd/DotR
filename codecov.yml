@@ -28,3 +28,4 @@ comment:
 ignore:
   - "tests/**"
   - "**/*_test.rs"
+  - "src/main.rs"

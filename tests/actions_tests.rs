@@ -571,3 +571,173 @@ fn test_actions_with_complex_commands() {
         "Complex post-action should run conditional"
     );
 }
+
+#[test]
+fn test_pre_action_failure() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a simple file
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_pre_fail"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    // Create package with a failing pre-action
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_pre_fail".to_string(),
+        src: "dotfiles/f_pre_fail".to_string(),
+        dest: "src/.pre_fail".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec!["false".to_string()], // This command always fails
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("f_pre_fail".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Deploy should fail due to pre-action failure
+    let result = run_cli(
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            packages: Some(vec!["f_pre_fail".to_string()]),
+            profile: None,
+        }))),
+    );
+
+    assert!(result.is_err(), "Deploy should fail when pre-action fails");
+}
+
+#[test]
+fn test_post_action_failure() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a simple file
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_post_fail"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    // Create package with a failing post-action
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_post_fail".to_string(),
+        src: "dotfiles/f_post_fail".to_string(),
+        dest: "src/.post_fail".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec!["exit 1".to_string()], // This command exits with error
+        targets: HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("f_post_fail".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Modify file to trigger deployment
+    fs::write(fixture.cwd.join("src/.post_fail"), "Different content\n")
+        .expect("Failed to create file");
+
+    // Deploy should fail due to post-action failure
+    let result = run_cli(
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            packages: Some(vec!["f_post_fail".to_string()]),
+            profile: None,
+        }))),
+    );
+
+    assert!(result.is_err(), "Deploy should fail when post-action fails");
+}
+
+#[test]
+fn test_action_with_nonexistent_command() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a simple file
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_bad_cmd"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    // Create package with a non-existent command
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_bad_cmd".to_string(),
+        src: "dotfiles/f_bad_cmd".to_string(),
+        dest: "src/.bad_cmd".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec!["this_command_does_not_exist_12345".to_string()],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("f_bad_cmd".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Deploy should fail due to non-existent command
+    let result = run_cli(
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            packages: Some(vec!["f_bad_cmd".to_string()]),
+            profile: None,
+        }))),
+    );
+
+    assert!(
+        result.is_err(),
+        "Deploy should fail when action uses non-existent command"
+    );
+}
+
+#[test]
+fn test_action_failure_with_error_message() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a simple file
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_err_msg"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    // Create package with an action that fails with error message
+    let mut config = fixture.get_config();
+    let package = dotr::package::Package {
+        name: "f_err_msg".to_string(),
+        src: "dotfiles/f_err_msg".to_string(),
+        dest: "src/.err_msg".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec!["echo 'Error occurred' >&2 && exit 42".to_string()],
+        post_actions: vec![],
+        targets: HashMap::new(),
+        skip: false,
+    };
+    config.packages.insert("f_err_msg".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Deploy should fail with exit code 42
+    let result = run_cli(
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            packages: Some(vec!["f_err_msg".to_string()]),
+            profile: None,
+        }))),
+    );
+
+    assert!(
+        result.is_err(),
+        "Deploy should fail when action exits with non-zero code"
+    );
+}
