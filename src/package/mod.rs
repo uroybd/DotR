@@ -318,6 +318,81 @@ impl Package {
         resolve_path(&self.dest, &ctx.working_dir)
     }
 
+    pub fn diff_file(
+        &self,
+        src: &PathBuf,
+        dest: &PathBuf,
+        ctx: &Context,
+    ) -> Result<(), anyhow::Error> {
+        if let Ok(src_content) = std::fs::read_to_string(src) {
+            let compiled_content = if is_templated_str(&src_content) {
+                compile_string(&src_content, &self.get_context_variables(ctx))?
+            } else {
+                src_content
+            };
+
+            let mut should_diff = false;
+            if dest.exists() {
+                let existing_content = std::fs::read_to_string(dest).unwrap_or_default();
+                if existing_content != compiled_content {
+                    should_diff = true;
+                }
+                if !should_diff {
+                    println!(
+                        "[INFO] No differences for '{}' at '{}'",
+                        src.display(),
+                        dest.display()
+                    );
+                } else {
+                    println!(
+                        "[INFO] Differences for '{}' at '{}':",
+                        src.display(),
+                        dest.display()
+                    );
+                    // Print line-by-line diff, with - for removed lines, + for added lines, and space for unchanged lines. add colors if possible.
+                    for diff in diff::lines(&existing_content, &compiled_content) {
+                        match diff {
+                            diff::Result::Left(l) => {
+                                let s = format!("-{}", l);
+                                print_with_color(s.as_str(), RED);
+                            }
+                            diff::Result::Both(l, _) => {
+                                println!(" {}", l);
+                            }
+                            diff::Result::Right(r) => {
+                                let s = format!("+{}", r);
+                                print_with_color(s.as_str(), GREEN);
+                            }
+                        };
+                    }
+                }
+            }
+        } else {
+            // It can be a binary file, copy as-is and return Ok
+            println!("[INFO] Skipping diff for binary file '{}'", src.display());
+        }
+        Ok(())
+    }
+
+    pub fn diff(&self, ctx: &Context) -> Result<(), anyhow::Error> {
+        let src = resolve_path(&self.src, &ctx.working_dir);
+        let dest = self.resolve_dest(ctx);
+        if src.is_dir() {
+            // Recursively copy directory contents
+            for entry in walkdir::WalkDir::new(&src) {
+                let entry = entry?;
+                let relative_path = entry.path().strip_prefix(&src)?;
+                let dest_path = dest.join(relative_path);
+                if entry.path().is_file() {
+                    self.diff_file(&entry.path().to_path_buf(), &dest_path, ctx)?;
+                }
+            }
+        } else {
+            self.diff_file(&src, &dest, ctx)?;
+        }
+        Ok(())
+    }
+
     pub fn deploy_file(
         &self,
         src: &PathBuf,
@@ -492,4 +567,11 @@ pub fn is_templated(p: &PathBuf) -> bool {
 
 pub fn is_templated_str(s: &str) -> bool {
     TEMPLATE_REGEX.is_match(s)
+}
+
+const RED: &str = "31";
+const GREEN: &str = "32";
+
+pub fn print_with_color(s: &str, color_code: &str) {
+    println!("\x1b[{}m{}\x1b[0m", color_code, s);
 }

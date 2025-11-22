@@ -203,6 +203,19 @@ impl Config {
         Ok(())
     }
 
+    pub fn diff_packages(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> Result<(), anyhow::Error> {
+        println!("Diffing dotfiles...");
+        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
+            println!("[INFO] Diff for package '{}':", pkg.name);
+            pkg.diff(ctx)?;
+        }
+        Ok(())
+    }
+
     pub fn get_profile_details(
         &self,
         pname: &Option<String>,
