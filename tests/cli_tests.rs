@@ -680,11 +680,14 @@ fn test_deploy_nonexistent_package_fails() {
         profile: None,
     }))));
 
-    // Deploy should succeed but not find any packages to deploy
-    // (filter_packages returns empty map for nonexistent packages)
+    // Deploy should fail with error for nonexistent package
     assert!(
-        result.is_ok(),
-        "Deploy with nonexistent package should not error"
+        result.is_err(),
+        "Deploy with nonexistent package should error"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention package not found"
     );
 }
 
@@ -698,10 +701,14 @@ fn test_update_nonexistent_package_fails() {
         profile: None,
     }))));
 
-    // Update should succeed but not find any packages to update
+    // Update should fail with error for nonexistent package
     assert!(
-        result.is_ok(),
-        "Update with nonexistent package should not error"
+        result.is_err(),
+        "Update with nonexistent package should error"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention package not found"
     );
 }
 

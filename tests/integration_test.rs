@@ -367,8 +367,22 @@ fn test_deploy_nonexistent_package() {
     // Modify file to ensure deployment would happen if it were deployed
     fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
 
-    // Try to deploy a non-existent package
-    fixture.deploy(Some(vec!["nonexistent_package".to_string()]));
+    // Try to deploy a non-existent package - should fail
+    let result = run_cli(
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            packages: Some(vec!["nonexistent_package".to_string()]),
+            profile: None,
+        }))),
+    );
+
+    assert!(
+        result.is_err(),
+        "Deploy with nonexistent package should error"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention package not found"
+    );
 
     // Verify nothing was deployed
     fixture.assert_file_not_exists(

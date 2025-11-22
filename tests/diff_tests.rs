@@ -217,9 +217,16 @@ fn test_diff_nonexistent_package() {
     fixture.init();
     fixture.import(BASHRC_PATH);
 
-    // Diff with a non-existent package should not fail
+    // Diff with a non-existent package should fail with error
     let result = fixture.diff(Some(vec!["nonexistent_package".to_string()]));
-    assert!(result.is_ok());
+    assert!(
+        result.is_err(),
+        "Diff with nonexistent package should error"
+    );
+    assert!(
+        result.unwrap_err().to_string().contains("not found"),
+        "Error should mention package not found"
+    );
 }
 
 #[test]

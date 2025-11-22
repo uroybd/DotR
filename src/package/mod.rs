@@ -11,7 +11,7 @@ use toml::Table;
 use crate::{
     cli::ImportArgs,
     context::Context,
-    utils::{BACKUP_EXT, normalize_home_path, resolve_path},
+    utils::{BACKUP_EXT, LogLevel, cprintln, normalize_home_path, resolve_path},
 };
 
 static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
@@ -287,11 +287,11 @@ impl Package {
             .status()?;
         if !status.success() {
             let msg = format!(
-                "Action '{}' failed to execute with exit code: {:?}",
+                "Action '{}' failed with exit code: {:?}",
                 action,
                 status.code()
             );
-            eprintln!("{}", msg);
+            cprintln(&msg, &LogLevel::ERROR);
             return Err(anyhow::anyhow!(msg));
         }
         Ok(())
@@ -336,9 +336,9 @@ impl Package {
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
         if self.package_is_templated(&ctx.working_dir) {
-            println!(
-                "[INFO] Skipping backup for templated package '{}'",
-                self.name
+            cprintln(
+                &format!("Skipping backup for templated '{}'", self.name),
+                &LogLevel::WARNING,
             );
             return Ok(());
         }
@@ -350,10 +350,6 @@ impl Package {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
                 if self.should_ignore(relative_path) {
-                    println!(
-                        "[INFO] Ignoring '{}' during backup as per ignore patterns",
-                        relative_path.display()
-                    );
                     continue;
                 }
                 let dest_path = copy_to.clone().join(relative_path);
@@ -369,11 +365,6 @@ impl Package {
         } else {
             std::fs::copy(&copy_from, &copy_to)?;
         }
-        println!(
-            "[INFO] Backed up file '{}' to '{}'",
-            copy_from.display(),
-            copy_to.display()
-        );
         Ok(())
     }
 
@@ -406,16 +397,21 @@ impl Package {
                     should_diff = true;
                 }
                 if !should_diff {
-                    println!(
-                        "[INFO] No differences for '{}' at '{}'",
-                        src.display(),
-                        dest.display()
+                    cprintln(
+                        &format!(
+                            "No changes in {}",
+                            src.file_name().unwrap_or_default().to_string_lossy()
+                        ),
+                        &LogLevel::INFO,
                     );
                 } else {
-                    println!(
-                        "[INFO] Differences for '{}' at '{}':",
-                        src.display(),
-                        dest.display()
+                    cprintln(
+                        &format!(
+                            "Changes in {} -> {}:",
+                            src.file_name().unwrap_or_default().to_string_lossy(),
+                            dest.display()
+                        ),
+                        &LogLevel::INFO,
                     );
                     // Print line-by-line diff, with - for removed lines, + for added lines, and space for unchanged lines. Add colors if possible.
                     for diff in diff::lines(&existing_content, &compiled_content) {
@@ -435,9 +431,6 @@ impl Package {
                     }
                 }
             }
-        } else {
-            // It can be a binary file, copy as-is and return Ok
-            println!("[INFO] Skipping diff for binary file '{}'", src.display());
         }
         Ok(())
     }
@@ -488,11 +481,6 @@ impl Package {
                 }
             }
             if !should_copy {
-                println!(
-                    "[INFO] Skipping deployment for '{}' as it is unchanged at '{}'",
-                    src.display(),
-                    dest.display()
-                );
                 return Ok(());
             }
             if backup && dest.exists() {
@@ -509,11 +497,7 @@ impl Package {
             std::fs::copy(src, dest)?;
             return Ok(());
         }
-        println!(
-            "[INFO] Deployed file '{}' to '{}'",
-            src.display(),
-            dest.display()
-        );
+        cprintln(&format!("Deployed to {}", dest.display()), &LogLevel::INFO);
         Ok(())
     }
 
@@ -528,10 +512,6 @@ impl Package {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
                 if self.should_ignore(relative_path) {
-                    println!(
-                        "[INFO] Ignoring '{}' during deployment as per ignore patterns",
-                        relative_path.display()
-                    );
                     continue;
                 }
                 let dest_path = copy_to.join(relative_path);
@@ -545,10 +525,9 @@ impl Package {
             self.deploy_file(&copy_from, &copy_to, ctx, true)?;
         }
 
-        println!(
-            "[INFO] Deployed file '{}' to '{}'",
-            copy_from.display(),
-            copy_to.display()
+        cprintln(
+            &format!("Package '{}' deployed", self.name),
+            &LogLevel::INFO,
         );
         self.execute_post_actions(ctx)?;
         Ok(())
