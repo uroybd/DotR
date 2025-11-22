@@ -9,6 +9,7 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
+#[command(version)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Command>,
@@ -20,8 +21,8 @@ pub struct Cli {
 pub enum Command {
     Init(InitArgs),
     Import(ImportArgs),
-    Deploy(DeployArgs),
-    Update(UpdateArgs),
+    Deploy(DeployUpdateArgs),
+    Update(DeployUpdateArgs),
     PrintVars(PrintVarsArgs),
 }
 
@@ -48,21 +49,11 @@ pub struct ImportArgs {
 
 #[derive(Debug, Args)]
 #[command(name = "deploy", about = "Deploy dotfiles from repository.")]
-pub struct DeployArgs {
+pub struct DeployUpdateArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
 
-    #[arg(short, long)]
-    pub profile: Option<String>,
-}
-
-#[derive(Debug, Args)]
-#[command(name = "update", about = "Update dotfiles to repository.")]
-pub struct UpdateArgs {
-    #[arg(num_args(0..), short, long)]
-    pub packages: Option<Vec<String>>,
-
-    #[arg(short, long)]
+    #[arg(short = 'P', long)]
     pub profile: Option<String>,
 }
 

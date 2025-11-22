@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
+    cli::{Cli, Command, DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
     config::Config,
 };
 
@@ -175,7 +175,7 @@ fn test_deploy_creates_files() {
     config.packages.insert("f_test".to_string(), test_package);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -225,7 +225,7 @@ fn test_deploy_with_profile() {
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("work".to_string()),
     }))));
@@ -276,7 +276,7 @@ fn test_deploy_specific_packages() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy only pkg1
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
     }))));
@@ -315,7 +315,7 @@ fn test_update_backs_up_files() {
     // Create file at dest
     fixture.write_file("update_dest", "updated content");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -378,7 +378,7 @@ fn test_banner_display() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -398,7 +398,7 @@ fn test_banner_disabled() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should not show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -447,7 +447,7 @@ fn test_skip_flag_prevents_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy without profile (skip packages should not be deployed)
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -503,7 +503,7 @@ fn test_profile_dependencies_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with profile
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("minimal".to_string()),
     }))));
@@ -538,7 +538,7 @@ fn test_nonexistent_working_directory_fails() {
     let nonexistent = PathBuf::from("/this/path/does/not/exist/dotr_test");
 
     let cli = Cli {
-        command: Some(Command::Deploy(DeployArgs {
+        command: Some(Command::Deploy(DeployUpdateArgs {
             packages: None,
             profile: None,
         })),
@@ -557,7 +557,7 @@ fn test_nonexistent_working_directory_fails() {
 fn test_deploy_without_config_fails() {
     let fixture = TestFixture::new();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -601,7 +601,7 @@ fn test_deploy_with_invalid_profile_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
     }))));
@@ -618,7 +618,7 @@ fn test_update_with_invalid_profile_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: Some("invalid_profile".to_string()),
     }))));
@@ -654,7 +654,7 @@ fn test_deploy_nonexistent_package_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
     }))));
@@ -672,7 +672,7 @@ fn test_update_nonexistent_package_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
     }))));
@@ -692,7 +692,7 @@ fn test_invalid_toml_config_fails() {
     // Corrupt the config file
     fixture.write_file("config.toml", "invalid toml {{{ syntax");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -742,7 +742,7 @@ fn test_package_with_missing_dependency_fails() {
     config.packages.insert("test_pkg".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
     }))));
@@ -778,7 +778,7 @@ fn test_deploy_missing_source_fails() {
     config.packages.insert("missing_src".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -933,7 +933,7 @@ fn test_dotr_profile_env_var_deploy() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"testenv\"\n");
 
     // Deploy without specifying profile (should use env var)
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
@@ -984,7 +984,7 @@ fn test_dotr_profile_env_var_update() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy first
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
     }))))
@@ -997,7 +997,7 @@ fn test_dotr_profile_env_var_update() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"updateenv\"\n");
 
     // Update without specifying profile - should succeed with profile from env var
-    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
     }))));
@@ -1084,7 +1084,7 @@ fn test_cli_profile_overrides_env_var() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"envprofile\"\n");
 
     // But explicitly pass different profile via CLI
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("cliprofile".to_string()),
     }))));
@@ -1123,7 +1123,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"nonexistent\"\n");
 
     // Deploy without profile should fail (env var points to invalid profile)
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
     }))));
