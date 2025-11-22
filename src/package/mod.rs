@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,10 @@ use crate::{
     context::Context,
     utils::{BACKUP_EXT, normalize_home_path, resolve_path},
 };
+
+static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap()
+});
 
 // A package represents a dotfile package with its source, destination, and dependencies.
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -269,7 +274,7 @@ impl Package {
 
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
-        if self.is_templated(&ctx.working_dir) {
+        if self.package_is_templated(&ctx.working_dir) {
             println!(
                 "[INFO] Skipping backup for templated package '{}'",
                 self.name
@@ -313,25 +318,64 @@ impl Package {
         resolve_path(&self.dest, &ctx.working_dir)
     }
 
+    pub fn deploy_file(
+        &self,
+        src: &PathBuf,
+        dest: &PathBuf,
+        ctx: &Context,
+        backup: bool,
+    ) -> Result<(), anyhow::Error> {
+        if let Ok(src_content) = std::fs::read_to_string(src) {
+            let compiled_content = if is_templated_str(&src_content) {
+                compile_string(&src_content, &self.get_context_variables(ctx))?
+            } else {
+                src_content
+            };
+
+            let mut should_copy = false;
+            if !dest.exists() {
+                should_copy = true;
+            } else {
+                let existing_content = std::fs::read_to_string(dest)?;
+                if existing_content != compiled_content {
+                    should_copy = true;
+                }
+            }
+            if !should_copy {
+                println!(
+                    "[INFO] Skipping deployment for '{}' as it is unchanged at '{}'",
+                    src.display(),
+                    dest.display()
+                );
+                return Ok(());
+            }
+            if backup && dest.exists() {
+                let backup_path = create_backup_path(dest);
+                std::fs::copy(dest, &backup_path)?;
+            }
+            std::fs::write(dest, compiled_content)?;
+        } else {
+            // It can be a binary file, copy as-is and return Ok
+            if backup && dest.exists() {
+                let backup_path = create_backup_path(dest);
+                std::fs::copy(dest, &backup_path)?;
+            }
+            std::fs::copy(src, dest)?;
+            return Ok(());
+        }
+        println!(
+            "[INFO] Deployed file '{}' to '{}'",
+            src.display(),
+            dest.display()
+        );
+        Ok(())
+    }
+
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
-        let pkg_vars = self.get_context_variables(ctx);
         self.execute_pre_actions(ctx)?;
-        let is_templated = self.is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
-        let backup_path = copy_to.with_extension(BACKUP_EXT);
-
-        // First, create a backup of the existing file/directory at dest
-        if copy_to.exists() {
-            if copy_to.is_dir() {
-                std::fs::remove_dir_all(&backup_path).ok(); // Remove existing backup if any
-                std::fs::rename(&copy_to, &backup_path)?;
-            } else {
-                std::fs::rename(&copy_to, &backup_path)?;
-            }
-        }
-
         if copy_from.is_dir() {
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
@@ -341,23 +385,11 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    if let Some(parent) = dest_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
-                    if is_templated {
-                        let compiled_content = compile_template(entry.path(), &pkg_vars)?;
-                        std::fs::write(&dest_path, compiled_content)?;
-                    } else {
-                        // Copy directly:
-                        std::fs::copy(entry.path(), &dest_path)?;
-                    }
+                    self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
                 }
             }
-        } else if is_templated {
-            let compiled_content = compile_template(&copy_from, &self.get_context_variables(ctx))?;
-            std::fs::write(&copy_to, compiled_content)?;
         } else {
-            std::fs::copy(&copy_from, &copy_to)?;
+            self.deploy_file(&copy_from, &copy_to, ctx, true)?;
         }
 
         println!(
@@ -373,7 +405,7 @@ impl Package {
         self.name.starts_with("d_")
     }
 
-    pub fn is_templated(&self, cwd: &Path) -> bool {
+    pub fn package_is_templated(&self, cwd: &Path) -> bool {
         // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
         if !src_path.exists() {
@@ -386,27 +418,16 @@ impl Package {
         // {{- and -}} for expressions
         // {%- and -%} for statements
         // {#- and -#} for comments
-        let templating_regex =
-            regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap();
+
         if src_path.is_dir() {
             for entry in walkdir::WalkDir::new(&src_path) {
                 let entry = entry.expect("Failed to read directory entry");
                 if entry.path().is_file() {
-                    // Skip files that cannot be read as UTF-8 (likely binary files)
-                    if let Ok(content) = std::fs::read_to_string(entry.path())
-                        && templating_regex.is_match(&content)
-                    {
-                        return true;
-                    }
+                    return is_templated(&entry.path().to_path_buf());
                 }
             }
         } else if src_path.is_file() {
-            // Skip files that cannot be read as UTF-8 (likely binary files)
-            if let Ok(content) = std::fs::read_to_string(&src_path)
-                && templating_regex.is_match(&content)
-            {
-                return true;
-            }
+            return is_templated(&src_path);
         }
         false
     }
@@ -437,6 +458,14 @@ pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
     package_name.replace(['-', '.'], "_")
 }
 
+/// Create a backup path by appending the backup extension to the original path
+fn create_backup_path(path: &Path) -> PathBuf {
+    let mut backup_path = path.as_os_str().to_os_string();
+    backup_path.push(".");
+    backup_path.push(BACKUP_EXT);
+    PathBuf::from(backup_path)
+}
+
 /// Compile a template file at the given path using Tera templating engine with the provided context. and return the rendered content as a String.
 pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
@@ -447,4 +476,20 @@ pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> 
 pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
     Ok(tera::Tera::one_off(template_str, &ctx, true)?)
+}
+
+pub fn is_templated(p: &PathBuf) -> bool {
+    if !p.exists() {
+        return false;
+    }
+    let content = std::fs::read_to_string(p);
+    if let Ok(text) = content {
+        is_templated_str(&text)
+    } else {
+        false
+    }
+}
+
+pub fn is_templated_str(s: &str) -> bool {
+    TEMPLATE_REGEX.is_match(s)
 }

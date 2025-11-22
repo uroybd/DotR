@@ -27,9 +27,10 @@ struct TestFixture {
 
 impl TestFixture {
     fn new() -> Self {
-        Self {
-            cwd: PathBuf::from(PLAYGROUND_DIR),
-        }
+        let cwd = PathBuf::from(PLAYGROUND_DIR);
+        // Ensure test files exist
+        common::setup(&cwd);
+        Self { cwd }
     }
 
     fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
@@ -201,11 +202,18 @@ fn test_deploy_all_packages() {
     fixture.import(NVIM_PATH);
     fixture.import(BASHRC_PATH);
 
+    // Modify the source files to ensure deployment happens and backups are created
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+    fixture.write_file("src/.bashrc", "# Modified bashrc\n");
+
     // Deploy all packages
     fixture.deploy(None);
 
-    // Verify backups created
-    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    // Verify backups created (granular per-file backups)
+    fixture.assert_file_exists(
+        "src/nvim/init.lua.dotrbak",
+        "nvim init.lua backup should exist",
+    );
     fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
 
     // Verify files deployed
@@ -221,12 +229,18 @@ fn test_deploy_specific_package() {
     fixture.import(NVIM_PATH);
     fixture.import(BASHRC_PATH);
 
+    // Modify nvim to ensure deployment happens
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+
     // Deploy only nvim
     let nvim_package_name = fixture.get_package_name(NVIM_PATH);
     fixture.deploy(Some(vec![nvim_package_name]));
 
     // Verify only nvim was deployed
-    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists(
+        "src/nvim/init.lua.dotrbak",
+        "nvim init.lua backup should exist",
+    );
     fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
     fixture.assert_file_not_exists(
         "src/.bashrc.dotrbak",
@@ -242,13 +256,20 @@ fn test_deploy_multiple_specific_packages() {
     fixture.import(NVIM_PATH);
     fixture.import(BASHRC_PATH);
 
+    // Modify files to ensure deployment happens
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+    fixture.write_file("src/.bashrc", "# Modified bashrc\n");
+
     // Deploy both packages explicitly
     let nvim_package_name = fixture.get_package_name(NVIM_PATH);
     let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
     fixture.deploy(Some(vec![nvim_package_name, bashrc_package_name]));
 
     // Verify both were deployed
-    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
+    fixture.assert_file_exists(
+        "src/nvim/init.lua.dotrbak",
+        "nvim init.lua backup should exist",
+    );
     fixture.assert_file_exists("src/nvim/init.lua", "nvim init.lua should be deployed");
     fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
     fixture.assert_file_exists("src/.bashrc", "bashrc should be deployed");
@@ -337,12 +358,15 @@ fn test_deploy_nonexistent_package() {
     fixture.init();
     fixture.import(NVIM_PATH);
 
+    // Modify file to ensure deployment would happen if it were deployed
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+
     // Try to deploy a non-existent package
     fixture.deploy(Some(vec!["nonexistent_package".to_string()]));
 
     // Verify nothing was deployed
     fixture.assert_file_not_exists(
-        "src/nvim.dotrbak/",
+        "src/nvim/init.lua.dotrbak",
         "No backup should be created for filtered out packages",
     );
 }
@@ -453,6 +477,13 @@ fn test_deploy_all_file_types() {
     fixture.import(NVIM_PATH);
     fixture.import(TMUX_PATH);
 
+    // Modify files to ensure deployment happens
+    fixture.write_file("src/.bashrc", "# Modified bashrc\n");
+    fixture.write_file("src/.zshrc", "# Modified zshrc\n");
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+    fixture.write_file("src/tmux/tmux.conf", "# Modified tmux.conf\n");
+    fixture.write_file("src/tmux/theme.conf", "# Modified theme.conf\n");
+
     // Deploy all packages
     fixture.deploy(None);
 
@@ -460,9 +491,19 @@ fn test_deploy_all_file_types() {
     fixture.assert_file_exists("src/.bashrc.dotrbak", "bashrc backup should exist");
     fixture.assert_file_exists("src/.zshrc.dotrbak", "zshrc backup should exist");
 
-    // Verify directory backups created
-    fixture.assert_file_exists("src/nvim.dotrbak/", "nvim backup should exist");
-    fixture.assert_file_exists("src/tmux.dotrbak/", "tmux backup should exist");
+    // Verify directory backups created (granular per-file)
+    fixture.assert_file_exists(
+        "src/nvim/init.lua.dotrbak",
+        "nvim init.lua backup should exist",
+    );
+    fixture.assert_file_exists(
+        "src/tmux/tmux.conf.dotrbak",
+        "tmux.conf backup should exist",
+    );
+    fixture.assert_file_exists(
+        "src/tmux/theme.conf.dotrbak",
+        "theme.conf backup should exist",
+    );
 
     // Verify deployed files exist
     fixture.assert_file_exists("src/.bashrc", "bashrc should be deployed");
@@ -526,14 +567,20 @@ fn test_deploy_preserves_directory_structure() {
     fixture.init();
     fixture.import(ALACRITTY_PATH);
 
+    // Modify file to ensure deployment happens
+    fixture.write_file(
+        "src/config/alacritty/alacritty.yml",
+        "# Modified alacritty\n",
+    );
+
     // Deploy
     let alacritty_name = fixture.get_package_name(ALACRITTY_PATH);
     fixture.deploy(Some(vec![alacritty_name]));
 
-    // Verify backup was created
+    // Verify backup was created (granular per-file)
     fixture.assert_file_exists(
-        "src/config/alacritty.dotrbak/",
-        "alacritty backup should exist",
+        "src/config/alacritty/alacritty.yml.dotrbak",
+        "alacritty.yml backup should exist",
     );
 
     // Verify deployed with correct structure
@@ -566,6 +613,12 @@ fn test_mixed_files_and_directories() {
 
     // Should have 4 packages
     assert_eq!(config.packages.len(), 4, "Should have 4 packages");
+
+    // Modify files to ensure deployment happens
+    fixture.write_file("src/.bashrc", "# Modified bashrc\n");
+    fixture.write_file("src/.gitconfig", "# Modified gitconfig\n");
+    fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
+    fixture.write_file("src/tmux/theme.conf", "# Modified theme.conf\n");
 
     // Deploy all
     fixture.deploy(None);
