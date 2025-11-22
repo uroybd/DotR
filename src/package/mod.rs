@@ -32,6 +32,7 @@ pub struct Package {
     pub skip: bool,
     #[serde(default)]
     pub prompts: HashMap<String, String>, // Package-level prompts
+    #[serde(default)]
     pub ignore: Vec<String>, // Patterns to ignore during deployment
 }
 
