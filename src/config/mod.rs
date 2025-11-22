@@ -3,12 +3,7 @@ use std::{collections::HashMap, path::Path};
 use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
 
-use crate::{
-    cli::{DeployArgs, UpdateArgs},
-    context::Context,
-    package::Package,
-    profile::Profile,
-};
+use crate::{cli::DeployUpdateArgs, context::Context, package::Package, profile::Profile};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
@@ -138,7 +133,11 @@ impl Config {
         Ok(())
     }
 
-    pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
+    pub fn backup_packages(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> Result<(), anyhow::Error> {
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             pkg.backup(ctx)?;
         }
@@ -192,7 +191,11 @@ impl Config {
         Ok(packages)
     }
 
-    pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
+    pub fn deploy_packages(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> Result<(), anyhow::Error> {
         println!("Copying dotfiles...");
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             pkg.deploy(ctx)?;
