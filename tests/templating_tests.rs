@@ -36,6 +36,7 @@ impl TestFixture {
     fn import(&self, path: &str) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
             path: path.to_string(),
+            name: None,
             profile: None,
         }))))
         .expect("Import failed");
@@ -66,7 +67,12 @@ impl TestFixture {
     }
 
     fn get_package_name(&self, path: &str) -> String {
-        get_package_name(path, &self.cwd)
+        let args = ImportArgs {
+            path: path.to_string(),
+            name: None,
+            profile: None,
+        };
+        get_package_name(&args, &self.cwd)
     }
 
     fn assert_file_exists(&self, path: &str, message: &str) {

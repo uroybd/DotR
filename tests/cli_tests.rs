@@ -101,6 +101,7 @@ fn test_import_creates_package() {
     fixture.write_file("test.conf", "test content");
 
     let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        name: None,
         path: fixture.cwd.join("test.conf").to_str().unwrap().to_string(),
         profile: None,
     }))));
@@ -122,6 +123,7 @@ fn test_import_with_profile() {
     fixture.write_file("work.conf", "work content");
 
     let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        name: None,
         path: fixture.cwd.join("work.conf").to_str().unwrap().to_string(),
         profile: Some("work".to_string()),
     }))));
@@ -589,6 +591,7 @@ fn test_import_nonexistent_file_fails() {
 
     let result = run_cli(
         fixture.get_cli(Some(Command::Import(ImportArgs {
+            name: None,
             path: fixture
                 .cwd
                 .join("does_not_exist.conf")
@@ -819,6 +822,7 @@ fn test_import_normalizes_home_path() {
 
     // Import the file
     let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        name: None,
         path: test_dir.to_str().unwrap().to_string(),
         profile: None,
     }))));
@@ -874,6 +878,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
 
     let abs_path = test_file.to_str().unwrap().to_string();
     let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+        name: None,
         path: abs_path.clone(),
         profile: None,
     }))));

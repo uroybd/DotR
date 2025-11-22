@@ -3,7 +3,12 @@ use std::{collections::HashMap, path::Path};
 use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
 
-use crate::{cli::DeployUpdateArgs, context::Context, package::Package, profile::Profile};
+use crate::{
+    cli::{DeployUpdateArgs, ImportArgs},
+    context::Context,
+    package::Package,
+    profile::Profile,
+};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
@@ -124,12 +129,12 @@ impl Config {
 
     pub fn import_package(
         &mut self,
-        path: &str,
+        args: &ImportArgs,
         ctx: &Context,
         profile_name: &Option<String>,
     ) -> Result<(), anyhow::Error> {
-        println!("Importing dotfiles from path: {}", path);
-        let mut package = Package::from_path(path, &ctx.working_dir)?;
+        println!("Importing dotfiles from path: {}", args.path);
+        let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
         package.backup(ctx)?;
         if let Some(p_name) = profile_name {
