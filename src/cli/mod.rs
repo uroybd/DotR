@@ -45,6 +45,9 @@ pub struct ImportArgs {
     pub path: String,
 
     #[arg(short, long)]
+    pub name: Option<String>,
+
+    #[arg(short, long)]
     pub profile: Option<String>,
 }
 
@@ -114,7 +117,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     let (profile_name, profile) =
                         conf.get_profile_details(&args.profile, &context_vars);
                     ctx.set_profile(profile);
-                    conf.import_package(&args.path, &ctx, &profile_name)?;
+                    conf.import_package(&args, &ctx, &profile_name)?;
                 }
                 Some(Command::Deploy(args)) => {
                     let (profile_name, profile) =

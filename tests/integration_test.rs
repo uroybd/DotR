@@ -47,6 +47,7 @@ impl TestFixture {
     fn import(&self, path: &str) {
         run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
             path: path.to_string(),
+            name: None,
             profile: None,
         }))))
         .expect("Import failed");
@@ -77,7 +78,12 @@ impl TestFixture {
     }
 
     fn get_package_name(&self, path: &str) -> String {
-        get_package_name(path, &self.cwd)
+        let args = ImportArgs {
+            path: path.to_string(),
+            name: None,
+            profile: None,
+        };
+        get_package_name(&args, &self.cwd)
     }
 
     fn assert_file_exists(&self, path: &str, message: &str) {
@@ -1196,4 +1202,135 @@ fn test_nested_variables_do_not_interfere_with_flat_variables() {
     } else {
         panic!("database should be a table");
     }
+}
+
+#[test]
+fn test_import_with_custom_name() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import with custom name
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
+        path: BASHRC_PATH.to_string(),
+        name: Some("custom_bashrc".to_string()),
+        profile: None,
+    }))))
+    .expect("Import with custom name failed");
+
+    let config = fixture.get_config();
+
+    // Should use custom name with f_ prefix
+    assert!(
+        config.packages.contains_key("f_custom_bashrc"),
+        "Package should use custom name"
+    );
+    assert!(
+        !config.packages.contains_key("f_bashrc"),
+        "Package should not use default name"
+    );
+}
+
+#[test]
+fn test_import_directory_with_custom_name() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import directory with custom name
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
+        path: NVIM_PATH.to_string(),
+        name: Some("my_nvim_config".to_string()),
+        profile: None,
+    }))))
+    .expect("Import directory with custom name failed");
+
+    let config = fixture.get_config();
+
+    // Should use custom name with d_ prefix for directory
+    assert!(
+        config.packages.contains_key("d_my_nvim_config"),
+        "Directory package should use custom name with d_ prefix"
+    );
+    assert!(
+        !config.packages.contains_key("d_nvim"),
+        "Package should not use default name"
+    );
+}
+
+#[test]
+fn test_custom_name_replaces_special_characters() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import with custom name containing special characters
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
+        path: BASHRC_PATH.to_string(),
+        name: Some("my-config.v2".to_string()),
+        profile: None,
+    }))))
+    .expect("Import with special chars in name failed");
+
+    let config = fixture.get_config();
+
+    // Special characters should be replaced with underscores
+    assert!(
+        config.packages.contains_key("f_my_config_v2"),
+        "Special characters should be replaced"
+    );
+}
+
+#[test]
+fn test_custom_name_with_profile() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import with custom name and profile
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
+        path: BASHRC_PATH.to_string(),
+        name: Some("work_bashrc".to_string()),
+        profile: Some("work".to_string()),
+    }))))
+    .expect("Import with custom name and profile failed");
+
+    let config = fixture.get_config();
+
+    // Should use custom name
+    assert!(
+        config.packages.contains_key("f_work_bashrc"),
+        "Package should use custom name"
+    );
+
+    // Should be added to profile dependencies
+    let profile = config.profiles.get("work").expect("Profile should exist");
+    assert!(
+        profile.dependencies.contains(&"f_work_bashrc".to_string()),
+        "Profile should contain package with custom name"
+    );
+}
+
+#[test]
+fn test_deploy_package_with_custom_name() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import with custom name
+    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
+        path: BASHRC_PATH.to_string(),
+        name: Some("mybash".to_string()),
+        profile: None,
+    }))))
+    .expect("Import failed");
+
+    // Modify file to trigger deployment
+    let bashrc_content = fs::read_to_string(fixture.cwd.join("src/.bashrc")).unwrap();
+    fs::write(
+        fixture.cwd.join("src/.bashrc"),
+        format!("# Modified\n{}", bashrc_content),
+    )
+    .unwrap();
+
+    // Deploy using custom package name
+    fixture.deploy(Some(vec!["f_mybash".to_string()]));
+
+    // Verify deployment
+    fixture.assert_file_exists("src/.bashrc", "File should be deployed");
 }

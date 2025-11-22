@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use toml::Table;
 
 use crate::{
+    cli::ImportArgs,
     context::Context,
     utils::{BACKUP_EXT, normalize_home_path, resolve_path},
 };
@@ -37,17 +38,17 @@ impl Package {
     // Create a new Package from a given path, used to import dotfiles.
     // The path can be absolute or relative to the current working directory.
     // That path must exist and it will be set to the dest field.
-    pub fn from_path(path: &str, cwd: &Path) -> Result<Self, anyhow::Error> {
-        let resolved_path = resolve_path(path, cwd);
+    pub fn from_path(args: &ImportArgs, cwd: &Path) -> Result<Self, anyhow::Error> {
+        let resolved_path = resolve_path(&args.path, cwd);
         if !resolved_path.exists() {
             anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
-        let package_name = get_package_name(path, cwd);
+        let package_name = get_package_name(args, cwd);
         let dest_path_str = format!("dotfiles/{}", package_name);
 
         // Normalize the path: if it already starts with ~, keep it; otherwise convert if in home dir
-        let path_str = if path.starts_with('~') {
-            path.to_string()
+        let path_str = if args.path.starts_with('~') {
+            args.path.to_string()
         } else {
             let resolved_str = resolved_path
                 .to_str()
@@ -538,8 +539,12 @@ impl Package {
 /// Additionally, any '-' or '.' characters are replaced with '_'.
 /// If the path is a directory, it should be prepended with d_
 /// Or, if it's a file, with f_
-pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
-    let path = resolve_path(pathstr, cwd);
+pub fn get_package_name(args: &ImportArgs, cwd: &Path) -> String {
+    let path = resolve_path(&args.path, cwd);
+    let prefix = if path.is_dir() { "d_" } else { "f_" };
+    if let Some(custom_name) = &args.name {
+        return format!("{}{}", prefix, custom_name.replace(['-', '.'], "_"));
+    }
     let last_component = path
         .file_name()
         .expect("Failed to get file name")
@@ -552,7 +557,6 @@ pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
         package_name.truncate(pos);
     }
     // replace any remaining '-' with '_', and '.' with '_'
-    let prefix = if path.is_dir() { "d_" } else { "f_" };
     package_name = format!("{}{}", prefix, package_name);
     package_name.replace(['-', '.'], "_")
 }
