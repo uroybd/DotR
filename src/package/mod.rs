@@ -324,9 +324,9 @@ impl Package {
     }
 
     pub fn should_ignore(&self, rel_path: &Path) -> bool {
-        let rel_path_str = rel_path.to_str().unwrap_or_default();
+        let rel_path_str = rel_path.to_string_lossy();
         for pattern in &self.ignore {
-            if glob_match::glob_match(pattern, rel_path_str) {
+            if glob_match::glob_match(pattern, &rel_path_str) {
                 return true;
             }
         }
