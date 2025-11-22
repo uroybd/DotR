@@ -626,12 +626,12 @@ fn create_backup_path(path: &Path) -> PathBuf {
 pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
     let template_content = std::fs::read_to_string(path)?;
-    Ok(tera::Tera::one_off(&template_content, &ctx, true)?)
+    compute_string(&template_content, &ctx)
 }
 
 pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
-    Ok(tera::Tera::one_off(template_str, &ctx, true)?)
+    Ok(tera::Tera::one_off(template_str, &ctx, false)?)
 }
 
 pub fn is_templated(p: &PathBuf) -> bool {
