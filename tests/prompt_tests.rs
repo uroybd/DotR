@@ -428,6 +428,7 @@ fn test_package_level_prompts() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),
@@ -469,6 +470,7 @@ fn test_package_multiple_prompts() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     package.prompts.insert(
         "PKG_VAR1".to_string(),
@@ -576,6 +578,7 @@ fn test_package_and_profile_prompts_together() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),
@@ -630,6 +633,7 @@ fn test_package_prompts_do_not_interfere_with_variables() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     package.variables.insert(
         "STATIC_VAR".to_string(),
@@ -703,6 +707,7 @@ fn test_empty_package_prompts() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -764,6 +769,7 @@ fn test_three_level_prompts_hierarchy() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),

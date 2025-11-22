@@ -84,6 +84,7 @@ fn test_package_variables_basic() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -148,6 +149,7 @@ fn test_package_variables_override_config_variables() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -207,6 +209,7 @@ MY_VAR = "user_value"
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -260,6 +263,7 @@ fn test_package_variables_with_nested_structures() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -308,6 +312,7 @@ fn test_package_variables_persist_after_save() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -378,6 +383,7 @@ TEST_VAR = "user_value"
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -433,6 +439,7 @@ fn test_multiple_packages_with_different_variables() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
 
     // Create second package with its variables
@@ -453,6 +460,7 @@ fn test_multiple_packages_with_different_variables() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);
