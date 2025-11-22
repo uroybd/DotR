@@ -121,6 +121,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
@@ -128,6 +130,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::Diff(args)) => {
@@ -135,6 +139,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         conf.get_profile_details(&args.profile, &context_vars);
                     validate_profile_exists(&profile_name, &profile)?;
                     ctx.set_profile(profile);
+                    ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.diff_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {

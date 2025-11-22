@@ -1,12 +1,13 @@
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 
 use serde::Serialize;
 use toml::Table;
 
-use crate::profile::Profile;
+use crate::{config::Config, profile::Profile};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
@@ -42,6 +43,50 @@ impl Context {
 
     pub fn set_profile(&mut self, profile: Option<Profile>) {
         self.profile = profile;
+    }
+
+    pub fn get_prompted_variables(
+        &mut self,
+        conf: &Config,
+        packages: &Option<Vec<String>>,
+    ) -> Result<Table, anyhow::Error> {
+        // First, get the user variables
+        let mut prompted_vars = self.user_variables.clone();
+        // Now, get the prompts from config
+        let mut prompts = conf.prompts.clone();
+        // If profile exists, merge its prompts too
+        if let Some(profile) = &self.profile {
+            for (key, prompt) in profile.prompts.iter() {
+                prompts.insert(key.clone(), prompt.clone());
+            }
+        }
+        if let Ok(filtered_packages) = conf.filter_packages(self, packages) {
+            // For each package, merge its prompts too
+            for (_, package) in filtered_packages.iter() {
+                for (key, prompt) in package.prompts.iter() {
+                    prompts.insert(key.clone(), prompt.clone());
+                }
+            }
+        }
+        // Then check for prompted variables and add them if they don't exist in user variables
+        // prompt for their values
+        for (key, prompt) in prompts.iter() {
+            if !prompted_vars.contains_key(key) {
+                // Prompt the user for input
+                print!("{}\n>>> ", prompt);
+                std::io::stdout().flush()?;
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+                let input = input.trim().to_string();
+                prompted_vars.insert(key.clone(), toml::Value::String(input));
+            }
+        }
+        // Save prompted variables back to .uservariables.toml
+        let path = self.working_dir.join(".uservariables.toml");
+        let toml_string = toml::to_string(&prompted_vars)?;
+        fs::write(&path, toml_string)?;
+        self.user_variables = prompted_vars.clone();
+        Ok(prompted_vars)
     }
 
     pub fn parse_uservariables(cwd: &Path) -> Result<Table, anyhow::Error> {

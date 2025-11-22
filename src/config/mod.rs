@@ -11,6 +11,7 @@ pub struct Config {
     pub packages: HashMap<String, Package>,
     pub profiles: HashMap<String, Profile>,
     pub variables: Table,
+    pub prompts: HashMap<String, String>, // The key of variable, and the value is the prompt message
 }
 
 impl Default for Config {
@@ -69,6 +70,14 @@ impl Config {
                 variables.insert(k.clone(), v.clone());
             }
         }
+        let mut prompts: HashMap<String, String> = HashMap::new();
+        if let Some(prompts_table) = table.get("prompts").and_then(|v| v.as_table()) {
+            for (k, v) in prompts_table.iter() {
+                if let Some(prompt_str) = v.as_str() {
+                    prompts.insert(k.clone(), prompt_str.to_string());
+                }
+            }
+        }
         Ok(Self {
             banner: table
                 .get("banner")
@@ -77,6 +86,7 @@ impl Config {
             packages,
             profiles,
             variables,
+            prompts,
         })
     }
     pub fn to_table(&self) -> Table {
@@ -101,6 +111,13 @@ impl Config {
                 profiles_table.insert(name.clone(), Value::Table(profile.to_table()));
             });
             table.insert("profiles".to_string(), profiles_table.into());
+        }
+        if !self.prompts.is_empty() {
+            let mut prompts_table: Map<String, Value> = Map::new();
+            self.prompts.iter().for_each(|(key, prompt)| {
+                prompts_table.insert(key.clone(), Value::String(prompt.clone()));
+            });
+            table.insert("prompts".to_string(), prompts_table.into());
         }
         table
     }
@@ -144,7 +161,7 @@ impl Config {
         Ok(())
     }
 
-    fn filter_packages(
+    pub fn filter_packages(
         &self,
         ctx: &Context,
         names: &Option<Vec<String>>,
@@ -265,6 +282,7 @@ impl Config {
             packages: HashMap::new(),
             variables: Table::new(),
             profiles: HashMap::new(),
+            prompts: HashMap::new(),
         }
     }
 }

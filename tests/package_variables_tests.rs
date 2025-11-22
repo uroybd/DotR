@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
     cli::{DeployUpdateArgs, InitArgs, run_cli},
@@ -83,6 +83,7 @@ fn test_package_variables_basic() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config
         .packages
@@ -146,6 +147,7 @@ fn test_package_variables_override_config_variables() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config
         .packages
@@ -204,6 +206,7 @@ MY_VAR = "user_value"
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config
         .packages
@@ -256,6 +259,7 @@ fn test_package_variables_with_nested_structures() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -303,6 +307,7 @@ fn test_package_variables_persist_after_save() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -372,6 +377,7 @@ TEST_VAR = "user_value"
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
     config
         .packages
@@ -426,6 +432,7 @@ fn test_multiple_packages_with_different_variables() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     // Create second package with its variables
@@ -445,6 +452,7 @@ fn test_multiple_packages_with_different_variables() {
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
+        prompts: HashMap::new(),
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);
