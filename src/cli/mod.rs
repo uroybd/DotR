@@ -106,6 +106,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir)?;
             ctx.extend_variables(conf.variables.clone());
+            ctx.get_prompted_variables(&conf.prompts)?;
             let context_vars = ctx.get_context_variables();
 
             // Merge config variables, which override environment variables
