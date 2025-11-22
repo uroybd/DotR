@@ -132,7 +132,7 @@ email = "you@example.com"
 
 Use in templates: `{{ EDITOR }}` and `{{ git.email }}`
 
-📖 **[Learn more about Variables in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Variables](https://github.com/uroybd/DotR/wiki/Configuration#variables)**
 
 ## Templating Example
 
@@ -148,7 +148,7 @@ data = "{{ HOME }}/Data"
 {% endif %}
 ```
 
-📖 **[Learn more about Templating in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Templating](https://github.com/uroybd/DotR/wiki/Templating)**
 
 ## Actions Example
 
@@ -163,7 +163,7 @@ post_actions = ["nvim --headless +PluginInstall +qall"]
 
 Actions support variable interpolation and run before/after deployment.
 
-📖 **[Learn more about Actions in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Actions](https://github.com/uroybd/DotR/wiki/Actions)**
 
 ## Prompts Example
 
@@ -185,7 +185,7 @@ WORK_EMAIL = "Enter work email"
 
 Prompts are asked once on first deploy, saved to `.uservariables.toml` (gitignored).
 
-📖 **[Learn more about Prompts in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Prompts](https://github.com/uroybd/DotR/wiki/Configuration#prompts)**
 
 ## Profiles Example
 
@@ -205,7 +205,7 @@ GIT_EMAIL = "personal@email.com"
 
 Deploy with: `dotr deploy --profile work`
 
-📖 **[Learn more about Profiles in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Profiles](https://github.com/uroybd/DotR/wiki/Profiles)**
 
 ## Diff Command
 
@@ -222,7 +222,7 @@ dotr diff --profile work
 
 Shows line-by-line differences with color coding (+ green for additions, - red for deletions).
 
-📖 **[Learn more about Diff in the Wiki](https://github.com/uroybd/DotR/wiki)**
+📖 **[Learn more about Diff](https://github.com/uroybd/DotR/wiki/Diff)**
 
 ## WARNING!
 
