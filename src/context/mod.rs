@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -46,7 +47,7 @@ impl Context {
     }
 
     pub fn get_prompted_variables(
-        &self,
+        &mut self,
         prompts: &HashMap<String, String>,
     ) -> Result<Table, anyhow::Error> {
         // First, get the user variables
@@ -56,7 +57,8 @@ impl Context {
         for (key, prompt) in prompts.iter() {
             if !prompted_vars.contains_key(key) {
                 // Prompt the user for input
-                println!("{}", prompt);
+                print!("{}\n>>> ", prompt);
+                _ = std::io::stdout().flush();
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input)?;
                 let input = input.trim().to_string();
@@ -67,6 +69,7 @@ impl Context {
         let path = self.working_dir.join(".uservariables.toml");
         let toml_string = toml::to_string(&prompted_vars)?;
         fs::write(&path, toml_string)?;
+        self.user_variables = prompted_vars.clone();
         Ok(prompted_vars)
     }
 
