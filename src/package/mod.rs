@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     ffi::OsStr,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,10 @@ use crate::{
     context::Context,
     utils::{BACKUP_EXT, normalize_home_path, resolve_path},
 };
+
+static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap()
+});
 
 // A package represents a dotfile package with its source, destination, and dependencies.
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -269,7 +274,7 @@ impl Package {
 
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
-        if self.is_templated(&ctx.working_dir) {
+        if self.package_is_templated(&ctx.working_dir) {
             println!(
                 "[INFO] Skipping backup for templated package '{}'",
                 self.name
@@ -313,24 +318,61 @@ impl Package {
         resolve_path(&self.dest, &ctx.working_dir)
     }
 
+    pub fn deploy_file(
+        &self,
+        src: &Path,
+        dest: &Path,
+        ctx: &Context,
+        backup: bool,
+    ) -> Result<(), anyhow::Error> {
+        let content = if self.is_templated(src) {
+            compile_template(src, &self.get_context_variables(ctx))?
+        } else {
+            std::fs::read_to_string(src)?
+        };
+        let mut should_copy = false;
+        if !dest.exists() {
+            should_copy = true;
+        } else {
+            let existing_content = std::fs::read_to_string(dest)?;
+            if existing_content != content {
+                should_copy = true;
+            }
+        }
+        if !should_copy {
+            println!(
+                "[INFO] Skipping deployment for '{}' as it is unchanged at '{}'",
+                src.display(),
+                dest.display()
+            );
+            return Ok(());
+        }
+        if backup && dest.exists() {
+            let backup_path = dest.with_extension(BACKUP_EXT);
+            std::fs::copy(dest, &backup_path)?;
+            println!(
+                "[INFO] Backed up file '{}' to '{}'",
+                dest.display(),
+                backup_path.display()
+            );
+        }
+        std::fs::write(dest, content)?;
+        println!(
+            "[INFO] Deployed file '{}' to '{}'",
+            src.display(),
+            dest.display()
+        );
+        Ok(())
+    }
+
     /// Deploy the package by copying files from src to dest.
     pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
         let pkg_vars = self.get_context_variables(ctx);
         self.execute_pre_actions(ctx)?;
-        let is_templated = self.is_templated(&ctx.working_dir);
+        let is_templated = self.package_is_templated(&ctx.working_dir);
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
         let backup_path = copy_to.with_extension(BACKUP_EXT);
-
-        // First, create a backup of the existing file/directory at dest
-        if copy_to.exists() {
-            if copy_to.is_dir() {
-                std::fs::remove_dir_all(&backup_path).ok(); // Remove existing backup if any
-                std::fs::rename(&copy_to, &backup_path)?;
-            } else {
-                std::fs::rename(&copy_to, &backup_path)?;
-            }
-        }
 
         if copy_from.is_dir() {
             // Recursively copy directory contents
@@ -341,23 +383,11 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    if let Some(parent) = dest_path.parent() {
-                        std::fs::create_dir_all(parent)?;
-                    }
-                    if is_templated {
-                        let compiled_content = compile_template(entry.path(), &pkg_vars)?;
-                        std::fs::write(&dest_path, compiled_content)?;
-                    } else {
-                        // Copy directly:
-                        std::fs::copy(entry.path(), &dest_path)?;
-                    }
+                    self.deploy_file(entry.path(), &dest_path, ctx, true)?;
                 }
             }
-        } else if is_templated {
-            let compiled_content = compile_template(&copy_from, &self.get_context_variables(ctx))?;
-            std::fs::write(&copy_to, compiled_content)?;
         } else {
-            std::fs::copy(&copy_from, &copy_to)?;
+            self.deploy_file(&copy_from, &copy_to, ctx, true)?;
         }
 
         println!(
@@ -373,7 +403,19 @@ impl Package {
         self.name.starts_with("d_")
     }
 
-    pub fn is_templated(&self, cwd: &Path) -> bool {
+    pub fn is_templated(&self, p: &PathBuf) -> bool {
+        if !p.exists() {
+            return false;
+        }
+        let content = std::fs::read_to_string(p);
+        if let Ok(text) = content {
+            return TEMPLATE_REGEX.is_match(&text);
+        } else {
+            return false;
+        }
+    }
+
+    pub fn package_is_templated(&self, cwd: &Path) -> bool {
         // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
         if !src_path.exists() {
@@ -386,27 +428,16 @@ impl Package {
         // {{- and -}} for expressions
         // {%- and -%} for statements
         // {#- and -#} for comments
-        let templating_regex =
-            regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap();
+
         if src_path.is_dir() {
             for entry in walkdir::WalkDir::new(&src_path) {
                 let entry = entry.expect("Failed to read directory entry");
                 if entry.path().is_file() {
-                    // Skip files that cannot be read as UTF-8 (likely binary files)
-                    if let Ok(content) = std::fs::read_to_string(entry.path())
-                        && templating_regex.is_match(&content)
-                    {
-                        return true;
-                    }
+                    return self.is_templated(&entry.path().to_path_buf());
                 }
             }
         } else if src_path.is_file() {
-            // Skip files that cannot be read as UTF-8 (likely binary files)
-            if let Ok(content) = std::fs::read_to_string(&src_path)
-                && templating_regex.is_match(&content)
-            {
-                return true;
-            }
+            return self.is_templated(&src_path);
         }
         false
     }
