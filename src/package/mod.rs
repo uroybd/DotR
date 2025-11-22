@@ -350,14 +350,14 @@ impl Package {
                 return Ok(());
             }
             if backup && dest.exists() {
-                let backup_path = dest.with_extension(BACKUP_EXT);
+                let backup_path = create_backup_path(dest);
                 std::fs::copy(dest, &backup_path)?;
             }
             std::fs::write(dest, compiled_content)?;
         } else {
             // It can be a binary file, copy as-is and return Ok
             if backup && dest.exists() {
-                let backup_path = dest.with_extension(BACKUP_EXT);
+                let backup_path = create_backup_path(dest);
                 std::fs::copy(dest, &backup_path)?;
             }
             std::fs::copy(src, dest)?;
@@ -456,6 +456,14 @@ pub fn get_package_name(pathstr: &str, cwd: &Path) -> String {
     let prefix = if path.is_dir() { "d_" } else { "f_" };
     package_name = format!("{}{}", prefix, package_name);
     package_name.replace(['-', '.'], "_")
+}
+
+/// Create a backup path by appending the backup extension to the original path
+fn create_backup_path(path: &Path) -> PathBuf {
+    let mut backup_path = path.as_os_str().to_os_string();
+    backup_path.push(".");
+    backup_path.push(BACKUP_EXT);
+    PathBuf::from(backup_path)
 }
 
 /// Compile a template file at the given path using Tera templating engine with the provided context. and return the rendered content as a String.

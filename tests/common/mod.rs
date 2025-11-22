@@ -1,5 +1,14 @@
 use std::{fs, path::Path};
 
+pub fn setup(cwd: &Path) {
+    // Ensure src directory exists
+    let src_dir = cwd.join("src");
+    let _ = fs::create_dir_all(&src_dir);
+
+    // Restore all test files
+    restore_test_files(cwd);
+}
+
 pub fn teardown(cwd: &Path) {
     // If NO_CLEANUP is set, skip cleanup
     if std::env::var("NO_CLEANUP").is_ok() {
@@ -35,8 +44,9 @@ fn cleanup_backups(cwd: &Path) {
 
     let backup_patterns = vec![".dotrbak", ".bak", ".dotrback", ".testbak"];
 
-    if let Ok(entries) = std::fs::read_dir(&src_dir) {
-        for entry in entries.flatten() {
+    // Use walkdir to recursively find and remove backup files
+    for entry in walkdir::WalkDir::new(&src_dir) {
+        if let Ok(entry) = entry {
             let path = entry.path();
             let name = entry.file_name();
             let name_str = name.to_string_lossy();
@@ -45,9 +55,9 @@ fn cleanup_backups(cwd: &Path) {
             for pattern in &backup_patterns {
                 if name_str.contains(pattern) {
                     let _ = if path.is_dir() {
-                        std::fs::remove_dir_all(&path)
+                        std::fs::remove_dir_all(path)
                     } else {
-                        std::fs::remove_file(&path)
+                        std::fs::remove_file(path)
                     };
                     break;
                 }
