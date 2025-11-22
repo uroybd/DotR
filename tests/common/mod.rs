@@ -1,5 +1,6 @@
 use std::{fs, path::Path};
 
+#[allow(dead_code)]
 pub fn setup(cwd: &Path) {
     // Ensure src directory exists
     let src_dir = cwd.join("src");
@@ -45,22 +46,20 @@ fn cleanup_backups(cwd: &Path) {
     let backup_patterns = vec![".dotrbak", ".bak", ".dotrback", ".testbak"];
 
     // Use walkdir to recursively find and remove backup files
-    for entry in walkdir::WalkDir::new(&src_dir) {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy();
+    for entry in walkdir::WalkDir::new(&src_dir).into_iter().flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
 
-            // Check if it matches any backup pattern
-            for pattern in &backup_patterns {
-                if name_str.contains(pattern) {
-                    let _ = if path.is_dir() {
-                        std::fs::remove_dir_all(path)
-                    } else {
-                        std::fs::remove_file(path)
-                    };
-                    break;
-                }
+        // Check if it matches any backup pattern
+        for pattern in &backup_patterns {
+            if name_str.contains(pattern) {
+                let _ = if path.is_dir() {
+                    std::fs::remove_dir_all(path)
+                } else {
+                    std::fs::remove_file(path)
+                };
+                break;
             }
         }
     }
