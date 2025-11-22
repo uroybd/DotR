@@ -148,6 +148,7 @@ fn test_template_deployment_with_variables() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -213,6 +214,7 @@ fn test_template_with_custom_variables() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -274,6 +276,7 @@ fn test_template_not_backed_up_on_update() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -339,6 +342,7 @@ fn test_template_directory_deployment() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("d_config_dir".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -400,6 +404,7 @@ fn test_mixed_template_and_regular_files() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_templated".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -475,6 +480,7 @@ fn test_template_with_tera_statements() {
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages

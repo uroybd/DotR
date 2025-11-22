@@ -89,6 +89,7 @@ fn test_pre_action_basic() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -137,6 +138,7 @@ fn test_post_action_basic() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -185,6 +187,7 @@ fn test_pre_and_post_actions_together() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -250,6 +253,7 @@ fn test_multiple_pre_actions() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -316,6 +320,7 @@ fn test_multiple_post_actions() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -384,6 +389,7 @@ fn test_actions_with_variables() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -420,6 +426,7 @@ fn test_actions_persist_after_save() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("test_persist".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -471,6 +478,7 @@ fn test_actions_execution_order() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_order_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -516,6 +524,7 @@ fn test_empty_actions_dont_fail() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -560,6 +569,7 @@ fn test_actions_with_complex_commands() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
@@ -605,6 +615,7 @@ fn test_pre_action_failure() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_pre_fail".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -643,6 +654,7 @@ fn test_post_action_failure() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_post_fail".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -685,6 +697,7 @@ fn test_action_with_nonexistent_command() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_bad_cmd".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -726,6 +739,7 @@ fn test_action_failure_with_error_message() {
         targets: HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config.packages.insert("f_err_msg".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");

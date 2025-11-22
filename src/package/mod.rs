@@ -32,6 +32,7 @@ pub struct Package {
     pub skip: bool,
     #[serde(default)]
     pub prompts: HashMap<String, String>, // Package-level prompts
+    pub ignore: Vec<String>, // Patterns to ignore during deployment
 }
 
 impl Package {
@@ -67,6 +68,7 @@ impl Package {
             targets: HashMap::new(),
             skip: false,
             prompts: HashMap::new(),
+            ignore: Vec::new(),
         })
     }
 
@@ -171,6 +173,20 @@ impl Package {
                 prompts.insert(key.clone(), prompt_str.to_string());
             }
         }
+        let mut ignore = Vec::new();
+        if let Some(ignore_block) = pkg_val.get("ignore") {
+            let array = ignore_block
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("The 'ignore' field must be an array"))?;
+            ignore = array
+                .iter()
+                .map(|v| {
+                    v.as_str()
+                        .ok_or_else(|| anyhow::anyhow!("Ignore pattern must be a string"))
+                        .map(|s| s.to_string())
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+        }
 
         Ok(Self {
             name: pkg_name.to_string(),
@@ -183,6 +199,7 @@ impl Package {
             post_actions,
             targets,
             prompts,
+            ignore,
         })
     }
 
@@ -242,6 +259,14 @@ impl Package {
             }
             pkg_table.insert("prompts".to_string(), toml::Value::Table(prompts_table));
         }
+        if !self.ignore.is_empty() {
+            let ignore_val: Vec<toml::Value> = self
+                .ignore
+                .iter()
+                .map(|i| toml::Value::String(i.clone()))
+                .collect();
+            pkg_table.insert("ignore".to_string(), toml::Value::Array(ignore_val));
+        }
         pkg_table
     }
 
@@ -297,6 +322,16 @@ impl Package {
         vars
     }
 
+    pub fn should_ignore(&self, rel_path: &Path) -> bool {
+        let rel_path_str = rel_path.to_str().unwrap_or_default();
+        for pattern in &self.ignore {
+            if glob_match::glob_match(pattern, rel_path_str) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
         if self.package_is_templated(&ctx.working_dir) {
@@ -313,6 +348,13 @@ impl Package {
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
+                if self.should_ignore(relative_path) {
+                    println!(
+                        "[INFO] Ignoring '{}' during backup as per ignore patterns",
+                        relative_path.display()
+                    );
+                    continue;
+                }
                 let dest_path = copy_to.clone().join(relative_path);
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
@@ -407,6 +449,9 @@ impl Package {
             for entry in walkdir::WalkDir::new(&src) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&src)?;
+                if self.should_ignore(relative_path) {
+                    continue;
+                }
                 let dest_path = dest.join(relative_path);
                 if entry.path().is_file() {
                     self.diff_file(&entry.path().to_path_buf(), &dest_path, ctx)?;
@@ -481,6 +526,13 @@ impl Package {
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
+                if self.should_ignore(relative_path) {
+                    println!(
+                        "[INFO] Ignoring '{}' during deployment as per ignore patterns",
+                        relative_path.display()
+                    );
+                    continue;
+                }
                 let dest_path = copy_to.join(relative_path);
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;

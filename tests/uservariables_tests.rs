@@ -239,6 +239,7 @@ DATABASE_NAME = "production-db"
         targets: std::collections::HashMap::new(),
         skip: false,
         prompts: HashMap::new(),
+        ignore: Vec::new(),
     };
     config
         .packages
