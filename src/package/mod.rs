@@ -325,9 +325,9 @@ impl Package {
         ctx: &Context,
         backup: bool,
     ) -> Result<(), anyhow::Error> {
-        if let Some(src_content) = std::fs::read_to_string(src) {
-            let compiled_content = if self.is_templated(src) {
-                compile_string(src, &self.get_context_variables(ctx))?
+        if let Ok(src_content) = std::fs::read_to_string(src) {
+            let compiled_content = if is_templated_str(&src_content) {
+                compile_string(&src_content, &self.get_context_variables(ctx))?
             } else {
                 src_content
             };
@@ -405,18 +405,6 @@ impl Package {
         self.name.starts_with("d_")
     }
 
-    pub fn is_templated(&self, p: &PathBuf) -> bool {
-        if !p.exists() {
-            return false;
-        }
-        let content = std::fs::read_to_string(p);
-        if let Ok(text) = content {
-            TEMPLATE_REGEX.is_match(&text)
-        } else {
-            false
-        }
-    }
-
     pub fn package_is_templated(&self, cwd: &Path) -> bool {
         // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
@@ -435,11 +423,11 @@ impl Package {
             for entry in walkdir::WalkDir::new(&src_path) {
                 let entry = entry.expect("Failed to read directory entry");
                 if entry.path().is_file() {
-                    return self.is_templated(&entry.path().to_path_buf());
+                    return is_templated(&entry.path().to_path_buf());
                 }
             }
         } else if src_path.is_file() {
-            return self.is_templated(&src_path);
+            return is_templated(&src_path);
         }
         false
     }
@@ -480,4 +468,20 @@ pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> 
 pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
     Ok(tera::Tera::one_off(template_str, &ctx, true)?)
+}
+
+pub fn is_templated(p: &PathBuf) -> bool {
+    if !p.exists() {
+        return false;
+    }
+    let content = std::fs::read_to_string(p);
+    if let Ok(text) = content {
+        is_templated_str(&text)
+    } else {
+        false
+    }
+}
+
+pub fn is_templated_str(s: &str) -> bool {
+    TEMPLATE_REGEX.is_match(s)
 }
