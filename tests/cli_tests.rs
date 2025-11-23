@@ -2038,3 +2038,354 @@ fn test_clean_preserves_kept_directories() {
         "extra directory should be removed",
     );
 }
+
+#[test]
+fn test_clean_respects_ignore_patterns_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_ignore_files".to_string(),
+        src: "dotfiles/d_ignore_files".to_string(),
+        dest: "deploy_dest/ignore_files".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: vec!["*.log".to_string(), "temp*".to_string()],
+    };
+
+    config
+        .packages
+        .insert("d_ignore_files".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("dotfiles/d_ignore_files/config.txt", "config");
+
+    // Create destination with files matching ignore patterns and extra files
+    fixture.write_file("deploy_dest/ignore_files/config.txt", "old config");
+    fixture.write_file("deploy_dest/ignore_files/app.log", "logs");
+    fixture.write_file("deploy_dest/ignore_files/debug.log", "debug");
+    fixture.write_file("deploy_dest/ignore_files/temp_data", "temp");
+    fixture.write_file("deploy_dest/ignore_files/extra.txt", "should be removed");
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that config file exists
+    fixture.assert_file_exists(
+        "deploy_dest/ignore_files/config.txt",
+        "config.txt should exist",
+    );
+
+    // Check that ignored files are preserved
+    fixture.assert_file_exists(
+        "deploy_dest/ignore_files/app.log",
+        "*.log should be ignored and preserved",
+    );
+    fixture.assert_file_exists(
+        "deploy_dest/ignore_files/debug.log",
+        "*.log should be ignored and preserved",
+    );
+    fixture.assert_file_exists(
+        "deploy_dest/ignore_files/temp_data",
+        "temp* should be ignored and preserved",
+    );
+
+    // Check that non-ignored extra file was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/ignore_files/extra.txt",
+        "extra.txt should be removed",
+    );
+}
+
+#[test]
+fn test_clean_respects_ignore_patterns_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_ignore_dirs".to_string(),
+        src: "dotfiles/d_ignore_dirs".to_string(),
+        dest: "deploy_dest/ignore_dirs".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: vec!["cache".to_string(), ".git".to_string()],
+    };
+
+    config.packages.insert("d_ignore_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("dotfiles/d_ignore_dirs/config.txt", "config");
+
+    // Create destination with directories that should be ignored
+    fixture.write_file("deploy_dest/ignore_dirs/config.txt", "old config");
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/ignore_dirs/cache")).unwrap();
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/ignore_dirs/.git")).unwrap();
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/ignore_dirs/old_dir")).unwrap();
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that config file exists
+    fixture.assert_file_exists(
+        "deploy_dest/ignore_dirs/config.txt",
+        "config.txt should exist",
+    );
+
+    // Check that ignored directories are preserved (as empty dirs)
+    assert!(
+        fixture.cwd.join("deploy_dest/ignore_dirs/cache").exists(),
+        "cache dir should be preserved"
+    );
+    assert!(
+        fixture.cwd.join("deploy_dest/ignore_dirs/.git").exists(),
+        ".git dir should be preserved"
+    );
+
+    // Check that non-ignored directory was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/ignore_dirs/old_dir",
+        "old_dir should be removed",
+    );
+}
+
+#[test]
+fn test_clean_ignore_patterns_in_backup() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_backup_ignore".to_string(),
+        src: "dotfiles/d_backup_ignore".to_string(),
+        dest: "source/backup_ignore".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: vec!["*.tmp".to_string(), "build".to_string()],
+    };
+
+    config
+        .packages
+        .insert("d_backup_ignore".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("source/backup_ignore/config.txt", "config");
+
+    // Create dotfiles with files matching ignore patterns and old files
+    fixture.write_file("dotfiles/d_backup_ignore/config.txt", "old config");
+    fixture.write_file("dotfiles/d_backup_ignore/temp.tmp", "temp file");
+    std::fs::create_dir_all(fixture.cwd.join("dotfiles/d_backup_ignore/build")).unwrap();
+    fixture.write_file("dotfiles/d_backup_ignore/old.txt", "should be removed");
+
+    // Backup with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Backup with clean should succeed");
+
+    // Check that config file exists
+    fixture.assert_file_exists(
+        "dotfiles/d_backup_ignore/config.txt",
+        "config.txt should exist",
+    );
+
+    // Check that ignored files/dirs are preserved
+    fixture.assert_file_exists(
+        "dotfiles/d_backup_ignore/temp.tmp",
+        "*.tmp should be ignored and preserved",
+    );
+    assert!(
+        fixture.cwd.join("dotfiles/d_backup_ignore/build").exists(),
+        "build dir should be preserved"
+    );
+
+    // Check that old file was removed
+    fixture.assert_file_not_exists(
+        "dotfiles/d_backup_ignore/old.txt",
+        "old.txt should be removed",
+    );
+}
+
+#[test]
+fn test_clean_ignore_patterns_with_nested_paths() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_nested_ignore".to_string(),
+        src: "dotfiles/d_nested_ignore".to_string(),
+        dest: "deploy_dest/nested_ignore".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: vec!["node_modules".to_string(), "**/*.swp".to_string()],
+    };
+
+    config
+        .packages
+        .insert("d_nested_ignore".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("dotfiles/d_nested_ignore/app/main.js", "main");
+
+    // Create destination with nested ignored patterns
+    fixture.write_file("deploy_dest/nested_ignore/app/main.js", "old main");
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/nested_ignore/node_modules")).unwrap();
+    std::fs::create_dir_all(
+        fixture
+            .cwd
+            .join("deploy_dest/nested_ignore/app/node_modules"),
+    )
+    .unwrap();
+    fixture.write_file("deploy_dest/nested_ignore/app/file.swp", "vim swap");
+    fixture.write_file("deploy_dest/nested_ignore/old.js", "should be removed");
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that app file exists
+    fixture.assert_file_exists(
+        "deploy_dest/nested_ignore/app/main.js",
+        "app/main.js should exist",
+    );
+
+    // Check that ignored patterns are preserved
+    assert!(
+        fixture
+            .cwd
+            .join("deploy_dest/nested_ignore/node_modules")
+            .exists(),
+        "node_modules dir should be preserved"
+    );
+    fixture.assert_file_exists(
+        "deploy_dest/nested_ignore/app/file.swp",
+        "**/*.swp should be preserved",
+    );
+
+    // Nested node_modules inside app will be removed since pattern matches top-level only
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested_ignore/app/node_modules",
+        "nested node_modules should be removed",
+    );
+
+    // Check that non-ignored file was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested_ignore/old.js",
+        "old.js should be removed",
+    );
+}
+
+#[test]
+fn test_clean_without_ignore_patterns() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_no_ignore".to_string(),
+        src: "dotfiles/d_no_ignore".to_string(),
+        dest: "deploy_dest/no_ignore".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(), // No ignore patterns
+    };
+
+    config.packages.insert("d_no_ignore".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("dotfiles/d_no_ignore/config.txt", "config");
+
+    // Create destination with various files
+    fixture.write_file("deploy_dest/no_ignore/config.txt", "old config");
+    fixture.write_file("deploy_dest/no_ignore/app.log", "logs");
+    fixture.write_file("deploy_dest/no_ignore/temp.txt", "temp");
+
+    // Deploy with clean=true and no ignore patterns
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that config file exists
+    fixture.assert_file_exists(
+        "deploy_dest/no_ignore/config.txt",
+        "config.txt should exist",
+    );
+
+    // Check that all extra files are removed (no ignore patterns)
+    fixture.assert_file_not_exists("deploy_dest/no_ignore/app.log", "app.log should be removed");
+    fixture.assert_file_not_exists(
+        "deploy_dest/no_ignore/temp.txt",
+        "temp.txt should be removed",
+    );
+}

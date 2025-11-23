@@ -333,13 +333,7 @@ impl Package {
     }
 
     pub fn should_ignore(&self, rel_path: &Path) -> bool {
-        let rel_path_str = rel_path.to_string_lossy();
-        for pattern in &self.ignore {
-            if glob_match::glob_match(pattern, &rel_path_str) {
-                return true;
-            }
-        }
-        false
+        should_ignore(&self.ignore, rel_path)
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
@@ -379,7 +373,7 @@ impl Package {
             }
             if args.clean {
                 // Remove any files in copy_to that were not copied in this operation
-                clean(&copy_to, &all_copied_paths)?;
+                clean(&copy_to, &all_copied_paths, &self.ignore)?;
             }
         } else {
             std::fs::copy(&copy_from, &copy_to)?;
@@ -552,7 +546,7 @@ impl Package {
             }
             if args.clean {
                 // Remove any files in copy_to that were not deployed in this operation
-                clean(&copy_to, &all_deployed_paths)?;
+                clean(&copy_to, &all_deployed_paths, &self.ignore)?;
             }
         } else {
             let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true)?;
@@ -697,13 +691,17 @@ pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
 }
 
-pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
+pub fn clean(operation_path: &PathBuf, keep: &[PathBuf], ignore: &[String]) -> anyhow::Result<()> {
     let mut dirs = vec![];
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;
         let path = entry.path().to_path_buf();
         if path == *operation_path {
             continue; // Skip the root operation path
+        }
+        let rel_path = path.strip_prefix(operation_path)?;
+        if should_ignore(ignore, rel_path) {
+            continue; // Skip ignored patterns
         }
         if !keep.contains(&path) {
             if path.is_file() {
@@ -729,4 +727,14 @@ pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn should_ignore(ignore: &[String], rel_path: &Path) -> bool {
+    let rel_path_str = rel_path.to_string_lossy();
+    for pattern in ignore {
+        if glob_match::glob_match(pattern, &rel_path_str) {
+            return true;
+        }
+    }
+    false
 }
