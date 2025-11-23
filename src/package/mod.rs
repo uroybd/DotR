@@ -45,8 +45,8 @@ impl Package {
         if !resolved_path.exists() {
             anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
-        let package_name = get_package_name(args, cwd);
-        let dest_path_str = format!("dotfiles/{}", package_name);
+        let (package_name, pkg_ns) = get_pkg_name_and_rel_path(args, cwd)?;
+        let dest_path_str = format!("dotfiles/{}", pkg_ns);
 
         // Normalize the path: if it already starts with ~, keep it; otherwise convert if in home dir
         let path_str = if args.path.starts_with('~') {
@@ -565,32 +565,65 @@ impl Package {
     }
 }
 
-/// Get a package name from a given path string.
+/// Get a package name and relative path from the given import arguments and current working directory.
 /// The package name is derived from the last component of the path,
 /// with any leading '.' removed, and any trailing version numbers removed.
-/// Additionally, any '-' or '.' characters are replaced with '_'.
+/// Additionally, any '-' or '.' characters are replaced with '_'. but exntensiojn is preserved.
 /// If the path is a directory, it should be prepended with d_
 /// Or, if it's a file, with f_
-pub fn get_package_name(args: &ImportArgs, cwd: &Path) -> String {
+/// Example:
+/// - For a directory path "/home/user/.config/nvim", the package name would be "d_nvim", rel_path "d_nvim"
+/// - For a file path "/home/user/.bashrc", the package name would be "f_bashrc", rel_path "f_bashrc"
+/// - For a file path "~/.config/starship/init.lua", the package name would be "f_init_lua", rel_path "f_init.lua"
+/// - For a file path "~/.config/starship/init.lua" with custom arg.name as "starship", the package name would be "f_starship_lua", rel_path "f_starship.lua"
+pub fn get_pkg_name_and_rel_path(
+    args: &ImportArgs,
+    cwd: &Path,
+) -> Result<(String, String), anyhow::Error> {
     let path = resolve_path(&args.path, cwd);
     let prefix = if path.is_dir() { "d_" } else { "f_" };
-    if let Some(custom_name) = &args.name {
-        return format!("{}{}", prefix, custom_name.replace(['-', '.'], "_"));
-    }
-    let last_component = path
-        .file_name()
-        .expect("Failed to get file name")
-        .to_str()
-        .unwrap();
-    let mut package_name = last_component.trim_start_matches('.').to_string();
+    let extension = path.extension().and_then(|ext| ext.to_str());
 
-    // Remove any trailing version numbers
-    if let Some(pos) = package_name.rfind('-') {
-        package_name.truncate(pos);
+    // Get the name (with extension for files, full name for dirs)
+    let mut name = match args.name.as_ref() {
+        Some(n) => n.clone(),
+        None => {
+            let file_name = path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .ok_or_else(|| anyhow::anyhow!("Failed to get file name"))?;
+            file_name.trim_start_matches('.').to_string()
+        }
+    };
+
+    // If no custom name, remove trailing version numbers
+    if args.name.is_none()
+        && let Some(pos) = name.rfind('-')
+    {
+        name.truncate(pos);
     }
-    // replace any remaining '-' with '_', and '.' with '_'
-    package_name = format!("{}{}", prefix, package_name);
-    package_name.replace(['-', '.'], "_")
+
+    // Replace special characters with underscores for package_name
+    let sanitized_name = name.replace(['-', '.'], "_");
+    let package_name = format!("{}{}", prefix, sanitized_name);
+
+    // For pkg_ns, preserve the dot before extension
+    let pkg_ns = if extension.is_some() {
+        // The name already includes the extension, so just replace chars except the last dot
+        let name_with_prefix = format!("{}{}", prefix, name);
+        // Replace all '-' and '.' with '_' except for the extension separator
+        if let Some(ext) = extension {
+            let base_name = name.trim_end_matches(&format!(".{}", ext));
+            let sanitized_base = base_name.replace(['-', '.'], "_");
+            format!("{}{}.{}", prefix, sanitized_base, ext)
+        } else {
+            name_with_prefix.replace(['-', '.'], "_")
+        }
+    } else {
+        package_name.clone()
+    };
+
+    Ok((package_name, pkg_ns))
 }
 
 /// Create a backup path by appending the backup extension to the original path
@@ -633,4 +666,226 @@ const GREEN: &str = "32";
 
 pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_file_with_extension() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_1");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("test.conf");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // Package name has extension with underscore, pkg_ns preserves dot
+        assert_eq!(pkg_name, "f_test_conf");
+        assert_eq!(pkg_ns, "f_test.conf");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_file_without_extension() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_2");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("bashrc");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        assert_eq!(pkg_name, "f_bashrc");
+        assert_eq!(pkg_ns, "f_bashrc");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_dotfile() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_3");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join(".bashrc");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        assert_eq!(pkg_name, "f_bashrc");
+        assert_eq!(pkg_ns, "f_bashrc");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_directory() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_4");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_dir = temp_dir.join("nvim");
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let args = ImportArgs {
+            path: test_dir.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        assert_eq!(pkg_name, "d_nvim");
+        assert_eq!(pkg_ns, "d_nvim");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_with_custom_name() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_5");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("init.lua");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: Some("starship".to_string()),
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        assert_eq!(pkg_name, "f_starship");
+        assert_eq!(pkg_ns, "f_starship.lua");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_with_version_number() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_6");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("package-1.2.3.tar.gz");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // Version number (after last '-') should be removed
+        assert_eq!(pkg_name, "f_package");
+        assert_eq!(pkg_ns, "f_package.gz");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_special_chars_replaced() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_7");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("my-config.file.conf");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // '-' and '.' should be replaced with '_' in package name
+        assert_eq!(pkg_name, "f_my");
+        assert_eq!(pkg_ns, "f_my.conf");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_template_file() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_8");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join(".bashrc.template");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // .template extension included with underscore in name, dot in pkg_ns
+        assert_eq!(pkg_name, "f_bashrc_template");
+        assert_eq!(pkg_ns, "f_bashrc.template");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_custom_name_no_version_removal() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_9");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("package-1.2.3.conf");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: Some("my-custom-name".to_string()),
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // With custom name, version numbers should NOT be removed, but special chars replaced
+        assert_eq!(pkg_name, "f_my_custom_name");
+        assert_eq!(pkg_ns, "f_my_custom_name.conf");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_pkg_name_and_rel_path_dotfile_with_extension() {
+        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_10");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join(".config.yml");
+        std::fs::write(&test_file, "test").unwrap();
+
+        let args = ImportArgs {
+            path: test_file.to_str().unwrap().to_string(),
+            name: None,
+            profile: None,
+        };
+
+        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
+
+        // Leading '.' removed, extension with underscore in name, dot in pkg_ns
+        assert_eq!(pkg_name, "f_config_yml");
+        assert_eq!(pkg_ns, "f_config.yml");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
 }

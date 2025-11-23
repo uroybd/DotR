@@ -78,7 +78,9 @@ impl TestFixture {
             name: None,
             profile: None,
         };
-        dotr::package::get_package_name(&args, &self.cwd)
+        dotr::package::get_pkg_name_and_rel_path(&args, &self.cwd)
+            .unwrap()
+            .0
     }
 }
 

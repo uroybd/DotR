@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use dotr::{
     cli::{DeployUpdateArgs, ImportArgs, InitArgs, run_cli},
     config::Config,
-    package::get_package_name,
+    package::get_pkg_name_and_rel_path,
 };
 
 mod common;
@@ -72,7 +72,16 @@ impl TestFixture {
             name: None,
             profile: None,
         };
-        get_package_name(&args, &self.cwd)
+        get_pkg_name_and_rel_path(&args, &self.cwd).unwrap().0
+    }
+
+    fn get_package_ns(&self, path: &str) -> String {
+        let args = ImportArgs {
+            path: path.to_string(),
+            name: None,
+            profile: None,
+        };
+        get_pkg_name_and_rel_path(&args, &self.cwd).unwrap().1
     }
 
     fn assert_file_exists(&self, path: &str, message: &str) {
@@ -109,12 +118,16 @@ fn test_template_detection_simple() {
 
     // The file SHOULD exist in dotfiles after import (templates are backed up during import)
     fixture.assert_file_exists(
-        &format!("dotfiles/{}", pkg_name),
+        &format!(
+            "dotfiles/{}",
+            fixture.get_package_ns("src/.bashrc.template")
+        ),
         "Templated files should be backed up during import",
     );
 
     // Verify it still has template markers (not compiled)
-    let template_content = fs::read_to_string(fixture.cwd.join(format!("dotfiles/{}", pkg_name)))
+    let pkg_ns = fixture.get_package_ns("src/.bashrc.template");
+    let template_content = fs::read_to_string(fixture.cwd.join(format!("dotfiles/{}", pkg_ns)))
         .expect("Failed to read template");
     assert!(
         template_content.contains("{{ USER }}"),

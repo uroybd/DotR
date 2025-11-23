@@ -112,7 +112,7 @@ fn test_import_creates_package() {
         "Package should be imported"
     );
 
-    fixture.assert_file_exists("dotfiles/f_test_conf", "File should be copied to dotfiles");
+    fixture.assert_file_exists("dotfiles/f_test.conf", "File should be copied to dotfiles");
 }
 
 #[test]
