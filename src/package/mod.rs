@@ -46,7 +46,7 @@ impl Package {
             anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
         let (package_name, pkg_ns) = get_pkg_name_and_rel_path(args, cwd)?;
-        let dest_path_str = format!("dotfiles/{}", pkg_ns);
+        let src_path_str = format!("dotfiles/{}", pkg_ns);
 
         // Normalize the path: if it already starts with ~, keep it; otherwise convert if in home dir
         let path_str = if args.path.starts_with('~') {
@@ -61,7 +61,7 @@ impl Package {
         Ok(Self {
             name: package_name.clone(),
             dest: path_str,
-            src: dest_path_str.clone(),
+            src: src_path_str.clone(),
             dependencies: None,
             variables: Table::new(),
             pre_actions: Vec::new(),
