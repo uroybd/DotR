@@ -62,6 +62,9 @@ pub struct DeployUpdateArgs {
 
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub clean: bool,
 }
 
 const BANNER: &str = r#"

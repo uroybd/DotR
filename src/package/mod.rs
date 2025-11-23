@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use toml::Table;
 
 use crate::{
-    cli::ImportArgs,
+    cli::{DeployUpdateArgs, ImportArgs},
     context::Context,
     utils::{BACKUP_EXT, LogLevel, cprintln, normalize_home_path, resolve_path},
 };
@@ -343,7 +343,11 @@ impl Package {
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
-    pub fn backup(&self, ctx: &Context) -> anyhow::Result<BackupDeployResult> {
+    pub fn backup(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> anyhow::Result<BackupDeployResult> {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
                 &format!("Skipping backup for templated '{}'", self.name),
@@ -354,6 +358,7 @@ impl Package {
         let copy_from = self.resolve_dest(ctx);
         let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
+            let mut all_copied_paths = vec![];
             // Recursively copy directory contents, avoiding files ending with BACKUP_EXT
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
@@ -370,6 +375,11 @@ impl Package {
                     }
                     std::fs::copy(entry.path(), &dest_path)?;
                 }
+                all_copied_paths.push(dest_path);
+            }
+            if args.clean {
+                // Remove any files in copy_to that were not copied in this operation
+                clean(&copy_to, &all_copied_paths)?;
             }
         } else {
             std::fs::copy(&copy_from, &copy_to)?;
@@ -510,12 +520,17 @@ impl Package {
     }
 
     /// Deploy the package by copying files from src to dest.
-    pub fn deploy(&self, ctx: &Context) -> Result<BackupDeployResult, anyhow::Error> {
+    pub fn deploy(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> Result<BackupDeployResult, anyhow::Error> {
         self.execute_pre_actions(ctx)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
+            let mut all_deployed_paths = vec![];
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
@@ -533,6 +548,11 @@ impl Package {
                         result = BackupDeployResult::Success;
                     }
                 }
+                all_deployed_paths.push(dest_path);
+            }
+            if args.clean {
+                // Remove any files in copy_to that were not deployed in this operation
+                clean(&copy_to, &all_deployed_paths)?;
             }
         } else {
             let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true)?;
@@ -675,4 +695,38 @@ const GREEN: &str = "32";
 
 pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
+}
+
+pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
+    let mut dirs = vec![];
+    for entry in walkdir::WalkDir::new(operation_path) {
+        let entry = entry?;
+        let path = entry.path().to_path_buf();
+        if path == *operation_path {
+            continue; // Skip the root operation path
+        }
+        if !keep.contains(&path) {
+            if path.is_file() {
+                if path.extension() == Some(OsStr::new(BACKUP_EXT)) {
+                    continue; // Skip backup files
+                }
+                std::fs::remove_file(&path)?;
+            } else if path.is_dir() {
+                dirs.push(path);
+            }
+        }
+    }
+    // Remove empty directories in reverse order (from deepest to shallowest)
+    dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    for dir in dirs {
+        if !dir.exists() {
+            continue;
+        }
+        if dir.read_dir()?.next().is_none() {
+            std::fs::remove_dir(&dir)?;
+        } else {
+            std::fs::remove_dir_all(&dir)?; // Remove non-empty directories
+        }
+    }
+    Ok(())
 }

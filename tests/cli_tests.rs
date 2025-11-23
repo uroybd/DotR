@@ -184,6 +184,7 @@ fn test_deploy_creates_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_exists("deploy_dest/config.txt", "Deployed file should exist");
@@ -238,6 +239,7 @@ fn test_deploy_with_profile() {
         packages: None,
         profile: Some("work".to_string()),
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_exists(
@@ -294,6 +296,7 @@ fn test_deploy_specific_packages() {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_exists("dest1/file1.txt", "pkg1 should be deployed");
@@ -336,6 +339,7 @@ fn test_update_backs_up_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_exists("dotfiles/f_update", "File should be backed up");
@@ -400,6 +404,7 @@ fn test_banner_display() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     // Just testing it doesn't panic
@@ -421,6 +426,7 @@ fn test_banner_disabled() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     // Just testing it doesn't panic
@@ -473,6 +479,7 @@ fn test_skip_flag_prevents_deployment() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_not_exists("skip_dest/skip.txt", "Skip package should not be deployed");
@@ -535,6 +542,7 @@ fn test_profile_dependencies_deployment() {
         packages: None,
         profile: Some("minimal".to_string()),
         ignore_errors: false,
+        clean: false,
     }))));
 
     fixture.assert_file_exists(
@@ -571,6 +579,7 @@ fn test_nonexistent_working_directory_fails() {
             packages: None,
             profile: None,
             ignore_errors: false,
+            clean: false,
         })),
         working_dir: Some(nonexistent.to_str().unwrap().to_string()),
     };
@@ -591,6 +600,7 @@ fn test_deploy_without_config_fails() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(result.is_err(), "Deploy without config should fail");
@@ -637,6 +647,7 @@ fn test_deploy_with_invalid_profile_fails() {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(result.is_err(), "Deploy with invalid profile should fail");
@@ -655,6 +666,7 @@ fn test_update_with_invalid_profile_fails() {
         packages: None,
         profile: Some("invalid_profile".to_string()),
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -692,6 +704,7 @@ fn test_deploy_nonexistent_package_fails() {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     // Deploy should fail with error for nonexistent package
@@ -714,6 +727,7 @@ fn test_update_nonexistent_package_fails() {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     // Update should fail with error for nonexistent package
@@ -739,6 +753,7 @@ fn test_invalid_toml_config_fails() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(result.is_err(), "Invalid TOML config should fail");
@@ -792,6 +807,7 @@ fn test_package_with_missing_dependency_fails() {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
@@ -831,6 +847,7 @@ fn test_deploy_missing_source_fails() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     // This might succeed as walkdir might not find any files, depending on implementation
@@ -992,6 +1009,7 @@ fn test_dotr_profile_env_var_deploy() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
@@ -1047,6 +1065,7 @@ fn test_dotr_profile_env_var_update() {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))))
     .expect("Deploy failed");
 
@@ -1061,6 +1080,7 @@ fn test_dotr_profile_env_var_update() {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
@@ -1154,6 +1174,7 @@ fn test_cli_profile_overrides_env_var() {
         packages: None,
         profile: Some("cliprofile".to_string()),
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(result.is_ok(), "Deploy should use CLI profile over env var");
@@ -1196,6 +1217,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
@@ -1276,6 +1298,7 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: true,
+        clean: false,
     }))));
 
     assert!(
@@ -1342,6 +1365,7 @@ fn test_deploy_without_ignore_errors_stops_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
@@ -1403,6 +1427,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: true,
+        clean: false,
     }))));
 
     assert!(
@@ -1466,10 +1491,550 @@ fn test_update_without_ignore_errors_stops_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: false,
+        clean: false,
     }))));
 
     assert!(
         result.is_err(),
         "Update should fail with ignore_errors=false when a package fails"
+    );
+}
+
+#[test]
+fn test_deploy_with_clean_removes_extra_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_config_dir".to_string(),
+        src: "dotfiles/d_config_dir".to_string(),
+        dest: "deploy_dest/config".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_config_dir".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source directory with two files
+    fixture.write_file("dotfiles/d_config_dir/file1.txt", "file1 content");
+    fixture.write_file("dotfiles/d_config_dir/file2.txt", "file2 content");
+
+    // Create destination directory with an extra file that shouldn't be there
+    fixture.write_file("deploy_dest/config/file1.txt", "old file1");
+    fixture.write_file("deploy_dest/config/file2.txt", "old file2");
+    fixture.write_file(
+        "deploy_dest/config/extra_file.txt",
+        "this should be removed",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that the correct files exist
+    fixture.assert_file_exists("deploy_dest/config/file1.txt", "file1 should exist");
+    fixture.assert_file_exists("deploy_dest/config/file2.txt", "file2 should exist");
+
+    // Check that the extra file was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/config/extra_file.txt",
+        "extra_file should be removed by clean",
+    );
+}
+
+#[test]
+fn test_deploy_without_clean_keeps_extra_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_another_dir".to_string(),
+        src: "dotfiles/d_another_dir".to_string(),
+        dest: "deploy_dest/another".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_another_dir".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source directory with two files
+    fixture.write_file("dotfiles/d_another_dir/file1.txt", "file1 content");
+    fixture.write_file("dotfiles/d_another_dir/file2.txt", "file2 content");
+
+    // Create destination directory with an extra file
+    fixture.write_file("deploy_dest/another/file1.txt", "old file1");
+    fixture.write_file("deploy_dest/another/file2.txt", "old file2");
+    fixture.write_file("deploy_dest/another/extra_file.txt", "this should remain");
+
+    // Deploy with clean=false
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
+
+    assert!(result.is_ok(), "Deploy without clean should succeed");
+
+    // Check that all files exist, including the extra one
+    fixture.assert_file_exists("deploy_dest/another/file1.txt", "file1 should exist");
+    fixture.assert_file_exists("deploy_dest/another/file2.txt", "file2 should exist");
+    fixture.assert_file_exists(
+        "deploy_dest/another/extra_file.txt",
+        "extra_file should remain without clean",
+    );
+}
+
+#[test]
+fn test_backup_with_clean_removes_extra_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_backup_dir".to_string(),
+        src: "dotfiles/d_backup_dir".to_string(),
+        dest: "source/backup_dir".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_backup_dir".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source directory with two files
+    fixture.write_file("source/backup_dir/file1.txt", "file1 content");
+    fixture.write_file("source/backup_dir/file2.txt", "file2 content");
+
+    // Create dotfiles directory with an extra file that shouldn't be there
+    fixture.write_file("dotfiles/d_backup_dir/file1.txt", "old file1");
+    fixture.write_file("dotfiles/d_backup_dir/file2.txt", "old file2");
+    fixture.write_file(
+        "dotfiles/d_backup_dir/old_file.txt",
+        "this should be removed",
+    );
+
+    // Backup with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Backup with clean should succeed");
+
+    // Check that the correct files exist
+    fixture.assert_file_exists("dotfiles/d_backup_dir/file1.txt", "file1 should exist");
+    fixture.assert_file_exists("dotfiles/d_backup_dir/file2.txt", "file2 should exist");
+
+    // Check that the old file was removed
+    fixture.assert_file_not_exists(
+        "dotfiles/d_backup_dir/old_file.txt",
+        "old_file should be removed by clean",
+    );
+}
+
+#[test]
+fn test_backup_without_clean_keeps_extra_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_backup_keep".to_string(),
+        src: "dotfiles/d_backup_keep".to_string(),
+        dest: "source/backup_keep".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_backup_keep".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source directory with two files
+    fixture.write_file("source/backup_keep/file1.txt", "file1 content");
+    fixture.write_file("source/backup_keep/file2.txt", "file2 content");
+
+    // Create dotfiles directory with an extra file
+    fixture.write_file("dotfiles/d_backup_keep/file1.txt", "old file1");
+    fixture.write_file("dotfiles/d_backup_keep/file2.txt", "old file2");
+    fixture.write_file("dotfiles/d_backup_keep/old_file.txt", "this should remain");
+
+    // Backup with clean=false
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
+
+    assert!(result.is_ok(), "Backup without clean should succeed");
+
+    // Check that all files exist, including the extra one
+    fixture.assert_file_exists("dotfiles/d_backup_keep/file1.txt", "file1 should exist");
+    fixture.assert_file_exists("dotfiles/d_backup_keep/file2.txt", "file2 should exist");
+    fixture.assert_file_exists(
+        "dotfiles/d_backup_keep/old_file.txt",
+        "old_file should remain without clean",
+    );
+}
+
+#[test]
+fn test_clean_preserves_backup_files() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_test_clean".to_string(),
+        src: "dotfiles/d_test_clean".to_string(),
+        dest: "deploy_dest/test_clean".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_test_clean".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source files
+    fixture.write_file("dotfiles/d_test_clean/config.txt", "config content");
+
+    // Create destination with a file and a backup file
+    fixture.write_file("deploy_dest/test_clean/config.txt", "old config");
+    fixture.write_file("deploy_dest/test_clean/extra.txt", "should be removed");
+    fixture.write_file(
+        "deploy_dest/test_clean/config.txt.dotrbak",
+        "backup content",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that config file exists
+    fixture.assert_file_exists(
+        "deploy_dest/test_clean/config.txt",
+        "config.txt should exist",
+    );
+
+    // Check that extra file was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/test_clean/extra.txt",
+        "extra.txt should be removed",
+    );
+
+    // Check that backup file is preserved
+    fixture.assert_file_exists(
+        "deploy_dest/test_clean/config.txt.dotrbak",
+        "backup file should be preserved",
+    );
+}
+
+#[test]
+fn test_clean_removes_empty_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_empty_dirs".to_string(),
+        src: "dotfiles/d_empty_dirs".to_string(),
+        dest: "deploy_dest/empty_dirs".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_empty_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with a simple structure
+    fixture.write_file("dotfiles/d_empty_dirs/file.txt", "content");
+
+    // Create destination with nested empty directories
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/empty_dirs/subdir1/subdir2")).unwrap();
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/empty_dirs/subdir3")).unwrap();
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that the file exists
+    fixture.assert_file_exists("deploy_dest/empty_dirs/file.txt", "file.txt should exist");
+
+    // Check that empty directories were removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/empty_dirs/subdir1",
+        "empty subdir1 should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/empty_dirs/subdir3",
+        "empty subdir3 should be removed",
+    );
+}
+
+#[test]
+fn test_clean_removes_non_empty_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_nonempty_dirs".to_string(),
+        src: "dotfiles/d_nonempty_dirs".to_string(),
+        dest: "deploy_dest/nonempty_dirs".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config
+        .packages
+        .insert("d_nonempty_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with a simple file
+    fixture.write_file("dotfiles/d_nonempty_dirs/current.txt", "current content");
+
+    // Create destination with a directory containing files
+    fixture.write_file(
+        "deploy_dest/nonempty_dirs/old_dir/old_file.txt",
+        "old content",
+    );
+    fixture.write_file(
+        "deploy_dest/nonempty_dirs/old_dir/another.txt",
+        "more old content",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that current file exists
+    fixture.assert_file_exists(
+        "deploy_dest/nonempty_dirs/current.txt",
+        "current.txt should exist",
+    );
+
+    // Check that the entire old directory was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/nonempty_dirs/old_dir",
+        "old_dir should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/nonempty_dirs/old_dir/old_file.txt",
+        "files in old_dir should be removed",
+    );
+}
+
+#[test]
+fn test_clean_handles_nested_directory_structure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_nested".to_string(),
+        src: "dotfiles/d_nested".to_string(),
+        dest: "deploy_dest/nested".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_nested".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with nested structure
+    fixture.write_file("dotfiles/d_nested/level1/level2/file.txt", "nested content");
+
+    // Create destination with different structure - some to keep, some to remove
+    fixture.write_file(
+        "deploy_dest/nested/old_level1/old_file.txt",
+        "should be removed",
+    );
+    fixture.write_file(
+        "deploy_dest/nested/old_level1/old_level2/deep.txt",
+        "should be removed",
+    );
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/nested/empty_dir")).unwrap();
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that new structure exists
+    fixture.assert_file_exists(
+        "deploy_dest/nested/level1/level2/file.txt",
+        "nested file should exist",
+    );
+
+    // Check that old structure was removed (deepest first)
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested/old_level1",
+        "old nested structure should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested/empty_dir",
+        "empty_dir should be removed",
+    );
+}
+
+#[test]
+fn test_clean_preserves_kept_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_preserve_dirs".to_string(),
+        src: "dotfiles/d_preserve_dirs".to_string(),
+        dest: "deploy_dest/preserve".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config
+        .packages
+        .insert("d_preserve_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with subdirectory
+    fixture.write_file("dotfiles/d_preserve_dirs/subdir/file.txt", "content");
+    fixture.write_file("dotfiles/d_preserve_dirs/root.txt", "root content");
+
+    // Create destination matching the structure plus extra
+    fixture.write_file("deploy_dest/preserve/subdir/file.txt", "old content");
+    fixture.write_file("deploy_dest/preserve/root.txt", "old root");
+    fixture.write_file(
+        "deploy_dest/preserve/extra_in_subdir/extra.txt",
+        "should be removed",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that deployed structure exists
+    fixture.assert_file_exists(
+        "deploy_dest/preserve/subdir/file.txt",
+        "subdir/file.txt should exist",
+    );
+    fixture.assert_file_exists("deploy_dest/preserve/root.txt", "root.txt should exist");
+
+    // Check that extra directory was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/preserve/extra_in_subdir",
+        "extra directory should be removed",
     );
 }
