@@ -702,6 +702,9 @@ pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;
         let path = entry.path().to_path_buf();
+        if path == *operation_path {
+            continue; // Skip the root operation path
+        }
         if !keep.contains(&path) {
             if path.is_file() {
                 if path.extension() == Some(OsStr::new(BACKUP_EXT)) {
