@@ -6,7 +6,7 @@ use toml::{Table, Value, map::Map};
 use crate::{
     cli::{DeployUpdateArgs, ImportArgs},
     context::Context,
-    package::Package,
+    package::{BackupDeployResult, Package},
     profile::Profile,
     utils::{LogLevel, cprintln},
 };
@@ -24,6 +24,11 @@ impl Default for Config {
     fn default() -> Self {
         Self::new()
     }
+}
+
+enum OpType {
+    Backup,
+    Deploy,
 }
 
 impl Config {
@@ -156,17 +161,6 @@ impl Config {
         Ok(())
     }
 
-    pub fn backup_packages(
-        &self,
-        ctx: &Context,
-        args: &DeployUpdateArgs,
-    ) -> Result<(), anyhow::Error> {
-        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            pkg.backup(ctx)?;
-        }
-        Ok(())
-    }
-
     pub fn filter_packages(
         &self,
         ctx: &Context,
@@ -218,15 +212,61 @@ impl Config {
         Ok(packages)
     }
 
+    pub fn backup_packages(
+        &self,
+        ctx: &Context,
+        args: &DeployUpdateArgs,
+    ) -> Result<(), anyhow::Error> {
+        cprintln("Backing up packages...", &LogLevel::INFO);
+        let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
+        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
+            match pkg.backup(ctx) {
+                Err(e) => {
+                    if args.ignore_errors {
+                        cprintln(
+                            &format!("Error backing up package '{}': {}", pkg.name, e),
+                            &LogLevel::ERROR,
+                        );
+                        *stats.entry(BackupDeployResult::Failed).or_insert(0) += 1;
+                    } else {
+                        return Err(e);
+                    }
+                }
+                Ok(res) => {
+                    *stats.entry(res).or_insert(0) += 1;
+                }
+            }
+        }
+        print_stats(&stats, OpType::Backup);
+        Ok(())
+    }
+
     pub fn deploy_packages(
         &self,
         ctx: &Context,
         args: &DeployUpdateArgs,
     ) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::INFO);
+        let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            pkg.deploy(ctx)?;
+            match pkg.deploy(ctx) {
+                Err(e) => {
+                    if args.ignore_errors {
+                        cprintln(
+                            &format!("Error deploying package '{}': {}", pkg.name, e),
+                            &LogLevel::ERROR,
+                        );
+                        *stats.entry(BackupDeployResult::Failed).or_insert(0) += 1;
+                    } else {
+                        return Err(e);
+                    }
+                }
+                Ok(res) => {
+                    *stats.entry(res).or_insert(0) += 1;
+                }
+            }
         }
+        print_stats(&stats, OpType::Deploy);
         Ok(())
     }
 
@@ -238,7 +278,16 @@ impl Config {
         cprintln("Checking differences...", &LogLevel::INFO);
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             cprintln(&format!("Package: {}", pkg.name), &LogLevel::INFO);
-            pkg.diff(ctx)?;
+            if let Err(e) = pkg.diff(ctx) {
+                if args.ignore_errors {
+                    cprintln(
+                        &format!("Error diffing package '{}': {}", pkg.name, e),
+                        &LogLevel::ERROR,
+                    );
+                } else {
+                    return Err(e);
+                }
+            }
         }
         Ok(())
     }
@@ -294,5 +343,37 @@ impl Config {
             profiles: HashMap::new(),
             prompts: HashMap::new(),
         }
+    }
+}
+
+fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpType) {
+    // Print a one-liner summary of stats for each result type, with emojis
+    let (op_name, op_success_name) = match op_type {
+        OpType::Backup => ("Backup", "backed up"),
+        OpType::Deploy => ("Deployment", "deployed"),
+    };
+    let mut summary_parts = vec![];
+    if let Some(count) = stats.get(&BackupDeployResult::Success) {
+        summary_parts.push(format!("✅ {} {}", count, op_success_name));
+    }
+    if let Some(count) = stats.get(&BackupDeployResult::Skipped) {
+        summary_parts.push(format!("🔄 {} no changes", count));
+    }
+    if let Some(count) = stats.get(&BackupDeployResult::Failed) {
+        summary_parts.push(format!("❌ {} failed", count));
+    }
+    if summary_parts.is_empty() {
+        cprintln(
+            &format!("No packages processed for {}", op_name),
+            &LogLevel::INFO,
+        );
+    } else {
+        let mut summary_string = summary_parts.join(", ");
+        summary_string.push('.');
+        cprintln(
+            &format!("{} summary:", op_name).to_string(),
+            &LogLevel::INFO,
+        );
+        cprintln(&summary_string, &LogLevel::INFO);
     }
 }

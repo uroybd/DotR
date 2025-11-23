@@ -36,6 +36,13 @@ pub struct Package {
     pub ignore: Vec<String>, // Patterns to ignore during deployment
 }
 
+#[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
+pub enum BackupDeployResult {
+    Success,
+    Skipped,
+    Failed,
+}
+
 impl Package {
     // Create a new Package from a given path, used to import dotfiles.
     // The path can be absolute or relative to the current working directory.
@@ -334,13 +341,13 @@ impl Package {
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
-    pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
+    pub fn backup(&self, ctx: &Context) -> anyhow::Result<BackupDeployResult> {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
                 &format!("Skipping backup for templated '{}'", self.name),
                 &LogLevel::WARNING,
             );
-            return Ok(());
+            return Ok(BackupDeployResult::Skipped);
         }
         let copy_from = self.resolve_dest(ctx);
         let copy_to = ctx.working_dir.join(self.src.clone());
@@ -365,7 +372,7 @@ impl Package {
         } else {
             std::fs::copy(&copy_from, &copy_to)?;
         }
-        Ok(())
+        Ok(BackupDeployResult::Success)
     }
 
     pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
@@ -463,7 +470,7 @@ impl Package {
         dest: &PathBuf,
         ctx: &Context,
         backup: bool,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<BackupDeployResult, anyhow::Error> {
         if let Ok(src_content) = std::fs::read_to_string(src) {
             let compiled_content = if is_templated_str(&src_content) {
                 compile_string(&src_content, &self.get_context_variables(ctx))?
@@ -481,7 +488,7 @@ impl Package {
                 }
             }
             if !should_copy {
-                return Ok(());
+                return Ok(BackupDeployResult::Skipped);
             }
             if backup && dest.exists() {
                 let backup_path = create_backup_path(dest);
@@ -495,17 +502,17 @@ impl Package {
                 std::fs::copy(dest, &backup_path)?;
             }
             std::fs::copy(src, dest)?;
-            return Ok(());
         }
         cprintln(&format!("Deployed to {}", dest.display()), &LogLevel::INFO);
-        Ok(())
+        Ok(BackupDeployResult::Success)
     }
 
     /// Deploy the package by copying files from src to dest.
-    pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
+    pub fn deploy(&self, ctx: &Context) -> Result<BackupDeployResult, anyhow::Error> {
         self.execute_pre_actions(ctx)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
+        let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
@@ -518,11 +525,18 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
+                    let dep_result =
+                        self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
+                    if let BackupDeployResult::Success = dep_result {
+                        result = BackupDeployResult::Success;
+                    }
                 }
             }
         } else {
-            self.deploy_file(&copy_from, &copy_to, ctx, true)?;
+            let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true)?;
+            if let BackupDeployResult::Success = dep_result {
+                result = BackupDeployResult::Success;
+            }
         }
 
         cprintln(
@@ -530,7 +544,7 @@ impl Package {
             &LogLevel::INFO,
         );
         self.execute_post_actions(ctx)?;
-        Ok(())
+        Ok(result)
     }
 
     pub fn is_dir(&self) -> bool {
