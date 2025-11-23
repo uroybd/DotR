@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployArgs, UpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
+    cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
     context::Context,
     package::get_pkg_name_and_rel_path,
@@ -54,26 +54,22 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Update failed");
     }
 
@@ -372,14 +368,12 @@ fn test_deploy_nonexistent_package() {
     fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
 
     // Try to deploy a non-existent package - should fail
-    let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages: Some(vec!["nonexistent_package".to_string()]),
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-        }))),
-    );
+    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+        packages: Some(vec!["nonexistent_package".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
 
     assert!(
         result.is_err(),

@@ -337,11 +337,7 @@ impl Package {
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
-    pub fn backup(
-        &self,
-        ctx: &Context,
-        args: &UpdateArgs,
-    ) -> anyhow::Result<BackupDeployResult> {
+    pub fn backup(&self, ctx: &Context, args: &UpdateArgs) -> anyhow::Result<BackupDeployResult> {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
                 &format!("Skipping backup for templated '{}'", self.name),

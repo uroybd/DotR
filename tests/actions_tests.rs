@@ -40,14 +40,12 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Deploy failed");
     }
 
@@ -623,14 +621,12 @@ fn test_pre_action_failure() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail due to pre-action failure
-    let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages: Some(vec!["f_pre_fail".to_string()]),
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-        }))),
-    );
+    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+        packages: Some(vec!["f_pre_fail".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
 
     assert!(result.is_err(), "Deploy should fail when pre-action fails");
 }
@@ -668,14 +664,12 @@ fn test_post_action_failure() {
         .expect("Failed to create file");
 
     // Deploy should fail due to post-action failure
-    let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages: Some(vec!["f_post_fail".to_string()]),
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-        }))),
-    );
+    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+        packages: Some(vec!["f_post_fail".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
 
     assert!(result.is_err(), "Deploy should fail when post-action fails");
 }
@@ -709,14 +703,12 @@ fn test_action_with_nonexistent_command() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail due to non-existent command
-    let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages: Some(vec!["f_bad_cmd".to_string()]),
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-        }))),
-    );
+    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+        packages: Some(vec!["f_bad_cmd".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
 
     assert!(
         result.is_err(),
@@ -753,14 +745,12 @@ fn test_action_failure_with_error_message() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail with exit code 42
-    let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages: Some(vec!["f_err_msg".to_string()]),
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-        }))),
-    );
+    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+        packages: Some(vec!["f_err_msg".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: false,
+    }))));
 
     assert!(
         result.is_err(),

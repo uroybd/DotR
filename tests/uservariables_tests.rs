@@ -33,14 +33,12 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Deploy failed");
     }
 

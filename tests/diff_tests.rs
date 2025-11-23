@@ -44,25 +44,21 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Deploy failed");
     }
 
     fn diff(&self, packages: Option<Vec<String>>) -> Result<(), anyhow::Error> {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Diff(DiffArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Diff(DiffArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+        }))))
     }
 
     #[allow(dead_code)]

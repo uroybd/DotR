@@ -223,11 +223,7 @@ impl Config {
         Ok(packages)
     }
 
-    pub fn backup_packages(
-        &self,
-        ctx: &Context,
-        args: &UpdateArgs,
-    ) -> Result<(), anyhow::Error> {
+    pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
         cprintln("Backing up packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
@@ -252,11 +248,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn deploy_packages(
-        &self,
-        ctx: &Context,
-        args: &DeployArgs,
-    ) -> Result<(), anyhow::Error> {
+    pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
@@ -281,11 +273,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn diff_packages(
-        &self,
-        ctx: &Context,
-        args: &DiffArgs,
-    ) -> Result<(), anyhow::Error> {
+    pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::INFO);
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
             cprintln(&format!("Package: {}", pkg.name), &LogLevel::INFO);

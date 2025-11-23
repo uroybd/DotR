@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
-    cli::{Cli, Command, DeployArgs, UpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
+    cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
     package::Package,
 };

@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployArgs, UpdateArgs, ImportArgs, InitArgs, run_cli},
+    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
     config::Config,
 };
 
@@ -41,26 +41,22 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: false,
-            }))),
-        )
+        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
+            packages,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        }))))
         .expect("Update failed");
     }
 
