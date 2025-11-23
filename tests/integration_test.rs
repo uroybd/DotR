@@ -4,7 +4,7 @@ use dotr::{
     cli::{DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
     config::Config,
     context::Context,
-    package::get_package_name,
+    package::get_pkg_name_and_rel_path,
     utils,
 };
 
@@ -83,7 +83,7 @@ impl TestFixture {
             name: None,
             profile: None,
         };
-        get_package_name(&args, &self.cwd)
+        get_pkg_name_and_rel_path(&args, &self.cwd).unwrap().0
     }
 
     fn assert_file_exists(&self, path: &str, message: &str) {
