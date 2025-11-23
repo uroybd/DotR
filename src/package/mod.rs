@@ -817,8 +817,8 @@ mod tests {
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
         // '-' and '.' should be replaced with '_' in package name
-        assert_eq!(pkg_name, "f_my");
-        assert_eq!(pkg_ns, "f_my.conf");
+        assert_eq!(pkg_name, "f_my_config_file");
+        assert_eq!(pkg_ns, "f_my_config_file.conf");
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
