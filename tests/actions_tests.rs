@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployUpdateArgs, InitArgs, run_cli},
+    cli::{DeployArgs, InitArgs, run_cli},
     config::Config,
 };
 
@@ -41,7 +41,7 @@ impl TestFixture {
 
     fn deploy(&self, packages: Option<Vec<String>>) {
         run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
                 packages,
                 profile: None,
                 ignore_errors: false,
@@ -624,7 +624,7 @@ fn test_pre_action_failure() {
 
     // Deploy should fail due to pre-action failure
     let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages: Some(vec!["f_pre_fail".to_string()]),
             profile: None,
             ignore_errors: false,
@@ -669,7 +669,7 @@ fn test_post_action_failure() {
 
     // Deploy should fail due to post-action failure
     let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages: Some(vec!["f_post_fail".to_string()]),
             profile: None,
             ignore_errors: false,
@@ -710,7 +710,7 @@ fn test_action_with_nonexistent_command() {
 
     // Deploy should fail due to non-existent command
     let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages: Some(vec!["f_bad_cmd".to_string()]),
             profile: None,
             ignore_errors: false,
@@ -754,7 +754,7 @@ fn test_action_failure_with_error_message() {
 
     // Deploy should fail with exit code 42
     let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages: Some(vec!["f_err_msg".to_string()]),
             profile: None,
             ignore_errors: false,

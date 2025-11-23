@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use toml::Table;
 
 use crate::{
-    cli::{DeployUpdateArgs, ImportArgs},
+    cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
     utils::{BACKUP_EXT, LogLevel, cprintln, normalize_home_path, resolve_path},
 };
@@ -340,7 +340,7 @@ impl Package {
     pub fn backup(
         &self,
         ctx: &Context,
-        args: &DeployUpdateArgs,
+        args: &UpdateArgs,
     ) -> anyhow::Result<BackupDeployResult> {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
@@ -517,7 +517,7 @@ impl Package {
     pub fn deploy(
         &self,
         ctx: &Context,
-        args: &DeployUpdateArgs,
+        args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
         self.execute_pre_actions(ctx)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);

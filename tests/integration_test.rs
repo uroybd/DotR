@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
+    cli::{DeployArgs, UpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
     config::Config,
     context::Context,
     package::get_pkg_name_and_rel_path,
@@ -55,7 +55,7 @@ impl TestFixture {
 
     fn deploy(&self, packages: Option<Vec<String>>) {
         run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
                 packages,
                 profile: None,
                 ignore_errors: false,
@@ -67,7 +67,7 @@ impl TestFixture {
 
     fn update(&self, packages: Option<Vec<String>>) {
         run_cli(
-            self.get_cli(Some(dotr::cli::Command::Update(DeployUpdateArgs {
+            self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
                 packages,
                 profile: None,
                 ignore_errors: false,
@@ -373,7 +373,7 @@ fn test_deploy_nonexistent_package() {
 
     // Try to deploy a non-existent package - should fail
     let result = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+        fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
             packages: Some(vec!["nonexistent_package".to_string()]),
             profile: None,
             ignore_errors: false,

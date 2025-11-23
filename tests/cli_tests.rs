@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
-    cli::{Cli, Command, DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
+    cli::{Cli, Command, DeployArgs, UpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
     config::Config,
     package::Package,
 };
@@ -180,7 +180,7 @@ fn test_deploy_creates_files() {
     config.packages.insert("f_test".to_string(), test_package);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -235,7 +235,7 @@ fn test_deploy_with_profile() {
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("work".to_string()),
         ignore_errors: false,
@@ -292,7 +292,7 @@ fn test_deploy_specific_packages() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy only pkg1
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -335,7 +335,7 @@ fn test_update_backs_up_files() {
     // Create file at dest
     fixture.write_file("update_dest", "updated content");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -400,7 +400,7 @@ fn test_banner_display() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -422,7 +422,7 @@ fn test_banner_disabled() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should not show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -475,7 +475,7 @@ fn test_skip_flag_prevents_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy without profile (skip packages should not be deployed)
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -538,7 +538,7 @@ fn test_profile_dependencies_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with profile
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("minimal".to_string()),
         ignore_errors: false,
@@ -575,7 +575,7 @@ fn test_nonexistent_working_directory_fails() {
     let nonexistent = PathBuf::from("/this/path/does/not/exist/dotr_test");
 
     let cli = Cli {
-        command: Some(Command::Deploy(DeployUpdateArgs {
+        command: Some(Command::Deploy(DeployArgs {
             packages: None,
             profile: None,
             ignore_errors: false,
@@ -596,7 +596,7 @@ fn test_nonexistent_working_directory_fails() {
 fn test_deploy_without_config_fails() {
     let fixture = TestFixture::new();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -643,7 +643,7 @@ fn test_deploy_with_invalid_profile_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
         ignore_errors: false,
@@ -662,7 +662,7 @@ fn test_update_with_invalid_profile_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: Some("invalid_profile".to_string()),
         ignore_errors: false,
@@ -700,7 +700,7 @@ fn test_deploy_nonexistent_package_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -723,7 +723,7 @@ fn test_update_nonexistent_package_fails() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -749,7 +749,7 @@ fn test_invalid_toml_config_fails() {
     // Corrupt the config file
     fixture.write_file("config.toml", "invalid toml {{{ syntax");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -803,7 +803,7 @@ fn test_package_with_missing_dependency_fails() {
     config.packages.insert("test_pkg".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -843,7 +843,7 @@ fn test_deploy_missing_source_fails() {
     config.packages.insert("missing_src".to_string(), pkg);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1005,7 +1005,7 @@ fn test_dotr_profile_env_var_deploy() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"testenv\"\n");
 
     // Deploy without specifying profile (should use env var)
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1061,7 +1061,7 @@ fn test_dotr_profile_env_var_update() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy first
-    run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -1076,7 +1076,7 @@ fn test_dotr_profile_env_var_update() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"updateenv\"\n");
 
     // Update without specifying profile - should succeed with profile from env var
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
@@ -1170,7 +1170,7 @@ fn test_cli_profile_overrides_env_var() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"envprofile\"\n");
 
     // But explicitly pass different profile via CLI
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("cliprofile".to_string()),
         ignore_errors: false,
@@ -1213,7 +1213,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     fixture.write_file(".uservariables.toml", "DOTR_PROFILE = \"nonexistent\"\n");
 
     // Deploy without profile should fail (env var points to invalid profile)
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1294,7 +1294,7 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
     fixture.write_file("dotfiles/f_another_valid", "another valid content");
 
     // Deploy with ignore_errors=true should succeed despite one package failing
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: true,
@@ -1361,7 +1361,7 @@ fn test_deploy_without_ignore_errors_stops_on_failure() {
     fixture.write_file("dotfiles/f_first_pkg", "first content");
 
     // Deploy with ignore_errors=false should fail when any package fails
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1423,7 +1423,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
     fixture.write_file("backup_src/valid.txt", "valid backup content");
 
     // Backup with ignore_errors=true should succeed despite one package failing
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: true,
@@ -1487,7 +1487,7 @@ fn test_update_without_ignore_errors_stops_on_failure() {
     fixture.write_file("backup_src/exists.txt", "exists");
 
     // Update with ignore_errors=false should fail when any package fails
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1538,7 +1538,7 @@ fn test_deploy_with_clean_removes_extra_files() {
     );
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1593,7 +1593,7 @@ fn test_deploy_without_clean_keeps_extra_files() {
     fixture.write_file("deploy_dest/another/extra_file.txt", "this should remain");
 
     // Deploy with clean=false
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1649,7 +1649,7 @@ fn test_backup_with_clean_removes_extra_files() {
     );
 
     // Backup with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1704,7 +1704,7 @@ fn test_backup_without_clean_keeps_extra_files() {
     fixture.write_file("dotfiles/d_backup_keep/old_file.txt", "this should remain");
 
     // Backup with clean=false
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1759,7 +1759,7 @@ fn test_clean_preserves_backup_files() {
     );
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1820,7 +1820,7 @@ fn test_clean_removes_empty_directories() {
     std::fs::create_dir_all(fixture.cwd.join("deploy_dest/empty_dirs/subdir3")).unwrap();
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1884,7 +1884,7 @@ fn test_clean_removes_non_empty_directories() {
     );
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -1950,7 +1950,7 @@ fn test_clean_handles_nested_directory_structure() {
     std::fs::create_dir_all(fixture.cwd.join("deploy_dest/nested/empty_dir")).unwrap();
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2016,7 +2016,7 @@ fn test_clean_preserves_kept_directories() {
     );
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2077,7 +2077,7 @@ fn test_clean_respects_ignore_patterns_files() {
     fixture.write_file("deploy_dest/ignore_files/extra.txt", "should be removed");
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2148,7 +2148,7 @@ fn test_clean_respects_ignore_patterns_directories() {
     std::fs::create_dir_all(fixture.cwd.join("deploy_dest/ignore_dirs/old_dir")).unwrap();
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2217,7 +2217,7 @@ fn test_clean_ignore_patterns_in_backup() {
     fixture.write_file("dotfiles/d_backup_ignore/old.txt", "should be removed");
 
     // Backup with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2292,7 +2292,7 @@ fn test_clean_ignore_patterns_with_nested_paths() {
     fixture.write_file("deploy_dest/nested_ignore/old.js", "should be removed");
 
     // Deploy with clean=true
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,
@@ -2367,7 +2367,7 @@ fn test_clean_without_ignore_patterns() {
     fixture.write_file("deploy_dest/no_ignore/temp.txt", "temp");
 
     // Deploy with clean=true and no ignore patterns
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: None,
         ignore_errors: false,

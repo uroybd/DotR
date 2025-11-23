@@ -21,9 +21,9 @@ pub struct Cli {
 pub enum Command {
     Init(InitArgs),
     Import(ImportArgs),
-    Deploy(DeployUpdateArgs),
-    Update(DeployUpdateArgs),
-    Diff(DeployUpdateArgs),
+    Deploy(DeployArgs),
+    Update(UpdateArgs),
+    Diff(DiffArgs),
     PrintVars(PrintVarsArgs),
 }
 
@@ -52,8 +52,37 @@ pub struct ImportArgs {
 }
 
 #[derive(Debug, Args)]
+#[command(name = "diff", about = "Show differences between dotfiles.")]
+pub struct DiffArgs {
+    #[arg(num_args(0..), short, long)]
+    pub packages: Option<Vec<String>>,
+
+    #[arg(short = 'P', long)]
+    pub profile: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    pub ignore_errors: bool,
+}
+
+#[derive(Debug, Args)]
+#[command(name = "update", about = "Update dotfiles from deployed versions.")]
+pub struct UpdateArgs {
+    #[arg(num_args(0..), short, long)]
+    pub packages: Option<Vec<String>>,
+
+    #[arg(short = 'P', long)]
+    pub profile: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    pub ignore_errors: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub clean: bool,
+}
+
+#[derive(Debug, Args)]
 #[command(name = "deploy", about = "Deploy dotfiles from repository.")]
-pub struct DeployUpdateArgs {
+pub struct DeployArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
 

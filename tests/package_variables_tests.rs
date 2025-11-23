@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr::{
-    cli::{DeployUpdateArgs, InitArgs, run_cli},
+    cli::{DeployArgs, InitArgs, run_cli},
     config::Config,
 };
 
@@ -33,7 +33,7 @@ impl TestFixture {
 
     fn deploy(&self, packages: Option<Vec<String>>) {
         run_cli(
-            self.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
+            self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
                 packages,
                 profile: None,
                 ignore_errors: false,

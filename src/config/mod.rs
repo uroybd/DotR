@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
 
 use crate::{
-    cli::{DeployUpdateArgs, ImportArgs},
+    cli::{DeployArgs, DiffArgs, ImportArgs, UpdateArgs},
     context::Context,
     package::{BackupDeployResult, Package},
     profile::Profile,
@@ -146,8 +146,8 @@ impl Config {
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
 
-        // Create default DeployUpdateArgs for import backup
-        let backup_args = crate::cli::DeployUpdateArgs {
+        // Create default UpdateArgs for import backup
+        let backup_args = crate::cli::UpdateArgs {
             packages: None,
             profile: None,
             ignore_errors: false,
@@ -226,7 +226,7 @@ impl Config {
     pub fn backup_packages(
         &self,
         ctx: &Context,
-        args: &DeployUpdateArgs,
+        args: &UpdateArgs,
     ) -> Result<(), anyhow::Error> {
         cprintln("Backing up packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
@@ -255,7 +255,7 @@ impl Config {
     pub fn deploy_packages(
         &self,
         ctx: &Context,
-        args: &DeployUpdateArgs,
+        args: &DeployArgs,
     ) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
@@ -284,7 +284,7 @@ impl Config {
     pub fn diff_packages(
         &self,
         ctx: &Context,
-        args: &DeployUpdateArgs,
+        args: &DiffArgs,
     ) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::INFO);
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
