@@ -182,6 +182,7 @@ fn test_deploy_creates_files() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("deploy_dest/config.txt", "Deployed file should exist");
@@ -235,6 +236,7 @@ fn test_deploy_with_profile() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("work".to_string()),
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists(
@@ -290,6 +292,7 @@ fn test_deploy_specific_packages() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("dest1/file1.txt", "pkg1 should be deployed");
@@ -331,6 +334,7 @@ fn test_update_backs_up_files() {
     let _ = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("dotfiles/f_update", "File should be backed up");
@@ -394,6 +398,7 @@ fn test_banner_display() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Just testing it doesn't panic
@@ -414,6 +419,7 @@ fn test_banner_disabled() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Just testing it doesn't panic
@@ -465,6 +471,7 @@ fn test_skip_flag_prevents_deployment() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_not_exists("skip_dest/skip.txt", "Skip package should not be deployed");
@@ -526,6 +533,7 @@ fn test_profile_dependencies_deployment() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("minimal".to_string()),
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists(
@@ -561,6 +569,7 @@ fn test_nonexistent_working_directory_fails() {
         command: Some(Command::Deploy(DeployUpdateArgs {
             packages: None,
             profile: None,
+        ignore_errors: false,
         })),
         working_dir: Some(nonexistent.to_str().unwrap().to_string()),
     };
@@ -580,6 +589,7 @@ fn test_deploy_without_config_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Deploy without config should fail");
@@ -625,6 +635,7 @@ fn test_deploy_with_invalid_profile_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Deploy with invalid profile should fail");
@@ -642,6 +653,7 @@ fn test_update_with_invalid_profile_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: Some("invalid_profile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -678,6 +690,7 @@ fn test_deploy_nonexistent_package_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Deploy should fail with error for nonexistent package
@@ -699,6 +712,7 @@ fn test_update_nonexistent_package_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Update should fail with error for nonexistent package
@@ -723,6 +737,7 @@ fn test_invalid_toml_config_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Invalid TOML config should fail");
@@ -775,6 +790,7 @@ fn test_package_with_missing_dependency_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -813,6 +829,7 @@ fn test_deploy_missing_source_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // This might succeed as walkdir might not find any files, depending on implementation
@@ -973,6 +990,7 @@ fn test_dotr_profile_env_var_deploy() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -1027,6 +1045,7 @@ fn test_dotr_profile_env_var_update() {
     run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))))
     .expect("Deploy failed");
 
@@ -1040,6 +1059,7 @@ fn test_dotr_profile_env_var_update() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -1132,6 +1152,7 @@ fn test_cli_profile_overrides_env_var() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("cliprofile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_ok(), "Deploy should use CLI profile over env var");
@@ -1173,6 +1194,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(

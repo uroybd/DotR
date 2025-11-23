@@ -11,6 +11,9 @@ use crate::{
     utils::{LogLevel, cprintln},
 };
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Config {
     pub banner: bool,
@@ -26,7 +29,7 @@ impl Default for Config {
     }
 }
 
-enum OpType {
+pub(crate) enum OpType {
     Backup,
     Deploy,
 }
@@ -346,7 +349,7 @@ impl Config {
     }
 }
 
-fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpType) {
+pub(crate) fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpType) {
     // Print a one-liner summary of stats for each result type, with emojis
     let (op_name, op_success_name) = match op_type {
         OpType::Backup => ("Backup", "backed up"),
