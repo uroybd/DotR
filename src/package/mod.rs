@@ -697,8 +697,8 @@ pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
 }
 
-pub fn clean(operation_path: &PathBuf, keep: &Vec<PathBuf>) -> anyhow::Result<()> {
-    for entry in walkdir::WalkDir::new(&operation_path) {
+pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
+    for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;
         let path = entry.path().to_path_buf();
         if !keep.contains(&path) {

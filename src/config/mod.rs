@@ -145,7 +145,15 @@ impl Config {
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
-        package.backup(ctx, args)?;
+
+        // Create default DeployUpdateArgs for import backup
+        let backup_args = crate::cli::DeployUpdateArgs {
+            packages: None,
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+        };
+        package.backup(ctx, &backup_args)?;
         if let Some(p_name) = profile_name {
             let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
                 cprintln(

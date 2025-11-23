@@ -46,6 +46,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
+                clean: false,
             }))),
         )
         .expect("Deploy failed");
@@ -57,6 +58,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
+                clean: false,
             }))),
         )
         .expect("Update failed");
