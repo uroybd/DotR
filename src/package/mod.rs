@@ -568,7 +568,7 @@ impl Package {
 /// Get a package name and relative path from the given import arguments and current working directory.
 /// The package name is derived from the last component of the path,
 /// with any leading '.' removed, and any trailing version numbers removed.
-/// Additionally, any '-' or '.' characters are replaced with '_'. but exntensiojn is preserved.
+/// Additionally, any '-' or '.' characters are replaced with '_'. But extension is preserved.
 /// If the path is a directory, it should be prepended with d_
 /// Or, if it's a file, with f_
 /// Example:
