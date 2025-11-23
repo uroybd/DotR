@@ -59,6 +59,9 @@ pub struct DeployUpdateArgs {
 
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    pub ignore_errors: bool,
 }
 
 const BANNER: &str = r#"

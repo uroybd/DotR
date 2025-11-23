@@ -14,6 +14,8 @@ use crate::{
     utils::{BACKUP_EXT, LogLevel, cprintln, normalize_home_path, resolve_path},
 };
 
+mod tests;
+
 static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap()
 });
@@ -34,6 +36,13 @@ pub struct Package {
     pub prompts: HashMap<String, String>, // Package-level prompts
     #[serde(default)]
     pub ignore: Vec<String>, // Patterns to ignore during deployment
+}
+
+#[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
+pub enum BackupDeployResult {
+    Success,
+    Skipped,
+    Failed,
 }
 
 impl Package {
@@ -334,13 +343,13 @@ impl Package {
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
-    pub fn backup(&self, ctx: &Context) -> anyhow::Result<()> {
+    pub fn backup(&self, ctx: &Context) -> anyhow::Result<BackupDeployResult> {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
                 &format!("Skipping backup for templated '{}'", self.name),
                 &LogLevel::WARNING,
             );
-            return Ok(());
+            return Ok(BackupDeployResult::Skipped);
         }
         let copy_from = self.resolve_dest(ctx);
         let copy_to = ctx.working_dir.join(self.src.clone());
@@ -365,7 +374,7 @@ impl Package {
         } else {
             std::fs::copy(&copy_from, &copy_to)?;
         }
-        Ok(())
+        Ok(BackupDeployResult::Success)
     }
 
     pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
@@ -463,7 +472,7 @@ impl Package {
         dest: &PathBuf,
         ctx: &Context,
         backup: bool,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<BackupDeployResult, anyhow::Error> {
         if let Ok(src_content) = std::fs::read_to_string(src) {
             let compiled_content = if is_templated_str(&src_content) {
                 compile_string(&src_content, &self.get_context_variables(ctx))?
@@ -481,7 +490,7 @@ impl Package {
                 }
             }
             if !should_copy {
-                return Ok(());
+                return Ok(BackupDeployResult::Skipped);
             }
             if backup && dest.exists() {
                 let backup_path = create_backup_path(dest);
@@ -495,17 +504,17 @@ impl Package {
                 std::fs::copy(dest, &backup_path)?;
             }
             std::fs::copy(src, dest)?;
-            return Ok(());
         }
         cprintln(&format!("Deployed to {}", dest.display()), &LogLevel::INFO);
-        Ok(())
+        Ok(BackupDeployResult::Success)
     }
 
     /// Deploy the package by copying files from src to dest.
-    pub fn deploy(&self, ctx: &Context) -> Result<(), anyhow::Error> {
+    pub fn deploy(&self, ctx: &Context) -> Result<BackupDeployResult, anyhow::Error> {
         self.execute_pre_actions(ctx)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
+        let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
@@ -518,11 +527,18 @@ impl Package {
                 if entry.path().is_dir() {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
+                    let dep_result =
+                        self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
+                    if let BackupDeployResult::Success = dep_result {
+                        result = BackupDeployResult::Success;
+                    }
                 }
             }
         } else {
-            self.deploy_file(&copy_from, &copy_to, ctx, true)?;
+            let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true)?;
+            if let BackupDeployResult::Success = dep_result {
+                result = BackupDeployResult::Success;
+            }
         }
 
         cprintln(
@@ -530,7 +546,7 @@ impl Package {
             &LogLevel::INFO,
         );
         self.execute_post_actions(ctx)?;
-        Ok(())
+        Ok(result)
     }
 
     pub fn is_dir(&self) -> bool {
@@ -659,226 +675,4 @@ const GREEN: &str = "32";
 
 pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::env;
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_file_with_extension() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_1");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("test.conf");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // Package name has extension with underscore, pkg_ns preserves dot
-        assert_eq!(pkg_name, "f_test_conf");
-        assert_eq!(pkg_ns, "f_test.conf");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_file_without_extension() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_2");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("bashrc");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        assert_eq!(pkg_name, "f_bashrc");
-        assert_eq!(pkg_ns, "f_bashrc");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_dotfile() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_3");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join(".bashrc");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        assert_eq!(pkg_name, "f_bashrc");
-        assert_eq!(pkg_ns, "f_bashrc");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_directory() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_4");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_dir = temp_dir.join("nvim");
-        std::fs::create_dir_all(&test_dir).unwrap();
-
-        let args = ImportArgs {
-            path: test_dir.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        assert_eq!(pkg_name, "d_nvim");
-        assert_eq!(pkg_ns, "d_nvim");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_with_custom_name() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_5");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("init.lua");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: Some("starship".to_string()),
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        assert_eq!(pkg_name, "f_starship");
-        assert_eq!(pkg_ns, "f_starship.lua");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_with_version_number() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_6");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("package-1.2.3.tar.gz");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // Version numbers are NOT removed anymore
-        assert_eq!(pkg_name, "f_package_1_2_3_tar_gz");
-        assert_eq!(pkg_ns, "f_package_1_2_3_tar.gz");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_special_chars_replaced() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_7");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("my-config.file.conf");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // All '-' and '.' replaced with '_' in package name, no version removal
-        assert_eq!(pkg_name, "f_my_config_file_conf");
-        assert_eq!(pkg_ns, "f_my_config_file.conf");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_template_file() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_8");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join(".bashrc.template");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // .template extension included with underscore in name, dot in pkg_ns
-        assert_eq!(pkg_name, "f_bashrc_template");
-        assert_eq!(pkg_ns, "f_bashrc.template");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_custom_name_no_version_removal() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_9");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join("package-1.2.3.conf");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: Some("my-custom-name".to_string()),
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // With custom name, version numbers should NOT be removed, but special chars replaced
-        assert_eq!(pkg_name, "f_my_custom_name");
-        assert_eq!(pkg_ns, "f_my_custom_name.conf");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_get_pkg_name_and_rel_path_dotfile_with_extension() {
-        let temp_dir = env::temp_dir().join("dotr_test_pkg_name_10");
-        std::fs::create_dir_all(&temp_dir).unwrap();
-        let test_file = temp_dir.join(".config.yml");
-        std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
-        let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
-
-        // Leading '.' removed, extension with underscore in name, dot in pkg_ns
-        assert_eq!(pkg_name, "f_config_yml");
-        assert_eq!(pkg_ns, "f_config.yml");
-
-        std::fs::remove_dir_all(&temp_dir).ok();
-    }
 }

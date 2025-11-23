@@ -47,6 +47,7 @@ impl TestFixture {
             self.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
                 packages,
                 profile: None,
+                ignore_errors: false,
             }))),
         )
         .expect("Deploy failed");
@@ -57,6 +58,7 @@ impl TestFixture {
             self.get_cli(Some(dotr::cli::Command::Update(DeployUpdateArgs {
                 packages,
                 profile: None,
+                ignore_errors: false,
             }))),
         )
         .expect("Update failed");

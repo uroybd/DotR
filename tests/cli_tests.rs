@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs, path::PathBuf};
 use dotr::{
     cli::{Cli, Command, DeployUpdateArgs, ImportArgs, InitArgs, PrintVarsArgs, run_cli},
     config::Config,
+    package::Package,
 };
 
 struct TestFixture {
@@ -182,6 +183,7 @@ fn test_deploy_creates_files() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("deploy_dest/config.txt", "Deployed file should exist");
@@ -235,6 +237,7 @@ fn test_deploy_with_profile() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("work".to_string()),
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists(
@@ -290,6 +293,7 @@ fn test_deploy_specific_packages() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("dest1/file1.txt", "pkg1 should be deployed");
@@ -331,6 +335,7 @@ fn test_update_backs_up_files() {
     let _ = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists("dotfiles/f_update", "File should be backed up");
@@ -394,6 +399,7 @@ fn test_banner_display() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Just testing it doesn't panic
@@ -414,6 +420,7 @@ fn test_banner_disabled() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Just testing it doesn't panic
@@ -465,6 +472,7 @@ fn test_skip_flag_prevents_deployment() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_not_exists("skip_dest/skip.txt", "Skip package should not be deployed");
@@ -526,6 +534,7 @@ fn test_profile_dependencies_deployment() {
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("minimal".to_string()),
+        ignore_errors: false,
     }))));
 
     fixture.assert_file_exists(
@@ -561,6 +570,7 @@ fn test_nonexistent_working_directory_fails() {
         command: Some(Command::Deploy(DeployUpdateArgs {
             packages: None,
             profile: None,
+            ignore_errors: false,
         })),
         working_dir: Some(nonexistent.to_str().unwrap().to_string()),
     };
@@ -580,6 +590,7 @@ fn test_deploy_without_config_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Deploy without config should fail");
@@ -625,6 +636,7 @@ fn test_deploy_with_invalid_profile_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Deploy with invalid profile should fail");
@@ -642,6 +654,7 @@ fn test_update_with_invalid_profile_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: None,
         profile: Some("invalid_profile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -678,6 +691,7 @@ fn test_deploy_nonexistent_package_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Deploy should fail with error for nonexistent package
@@ -699,6 +713,7 @@ fn test_update_nonexistent_package_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     // Update should fail with error for nonexistent package
@@ -723,6 +738,7 @@ fn test_invalid_toml_config_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(result.is_err(), "Invalid TOML config should fail");
@@ -775,6 +791,7 @@ fn test_package_with_missing_dependency_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -813,6 +830,7 @@ fn test_deploy_missing_source_fails() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     // This might succeed as walkdir might not find any files, depending on implementation
@@ -973,6 +991,7 @@ fn test_dotr_profile_env_var_deploy() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -1027,6 +1046,7 @@ fn test_dotr_profile_env_var_update() {
     run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))))
     .expect("Deploy failed");
 
@@ -1040,6 +1060,7 @@ fn test_dotr_profile_env_var_update() {
     let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
@@ -1132,6 +1153,7 @@ fn test_cli_profile_overrides_env_var() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: Some("cliprofile".to_string()),
+        ignore_errors: false,
     }))));
 
     assert!(result.is_ok(), "Deploy should use CLI profile over env var");
@@ -1173,10 +1195,281 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
         packages: None,
         profile: None,
+        ignore_errors: false,
     }))));
 
     assert!(
         result.is_err(),
         "Deploy should fail with invalid DOTR_PROFILE env var"
+    );
+}
+
+#[test]
+fn test_deploy_with_ignore_errors_continues_on_failure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create a package that will fail during deployment (non-existent source)
+    let mut config = fixture.get_config();
+
+    let package1 = Package {
+        name: "f_valid_pkg".to_string(),
+        src: "dotfiles/f_valid_pkg".to_string(),
+        dest: "deploy_dest/valid.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    let package2 = Package {
+        name: "f_invalid_pkg".to_string(),
+        src: "dotfiles/f_nonexistent".to_string(), // This doesn't exist
+        dest: "deploy_dest/invalid.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    let package3 = Package {
+        name: "f_another_valid".to_string(),
+        src: "dotfiles/f_another_valid".to_string(),
+        dest: "deploy_dest/another.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("f_valid_pkg".to_string(), package1);
+    config
+        .packages
+        .insert("f_invalid_pkg".to_string(), package2);
+    config
+        .packages
+        .insert("f_another_valid".to_string(), package3);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create the destination directory
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest")).unwrap();
+
+    // Create the valid package files
+    fixture.write_file("dotfiles/f_valid_pkg", "valid content");
+    fixture.write_file("dotfiles/f_another_valid", "another valid content");
+
+    // Deploy with ignore_errors=true should succeed despite one package failing
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: true,
+    }))));
+
+    assert!(
+        result.is_ok(),
+        "Deploy should succeed with ignore_errors=true even when one package fails"
+    );
+
+    // Valid packages should have been deployed
+    fixture.assert_file_exists("deploy_dest/valid.txt", "Valid package should be deployed");
+    fixture.assert_file_exists(
+        "deploy_dest/another.txt",
+        "Another valid package should be deployed",
+    );
+}
+
+#[test]
+fn test_deploy_without_ignore_errors_stops_on_failure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create packages where one will fail
+    let mut config = fixture.get_config();
+
+    let package1 = Package {
+        name: "f_first_pkg".to_string(),
+        src: "dotfiles/f_first_pkg".to_string(),
+        dest: "deploy_dest/first.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    let package2 = Package {
+        name: "f_failing_pkg".to_string(),
+        src: "dotfiles/f_nonexistent".to_string(), // This doesn't exist
+        dest: "deploy_dest/failing.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("f_first_pkg".to_string(), package1);
+    config
+        .packages
+        .insert("f_failing_pkg".to_string(), package2);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest")).unwrap();
+    fixture.write_file("dotfiles/f_first_pkg", "first content");
+
+    // Deploy with ignore_errors=false should fail when any package fails
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+    }))));
+
+    assert!(
+        result.is_err(),
+        "Deploy should fail with ignore_errors=false when a package fails"
+    );
+}
+
+#[test]
+fn test_backup_with_ignore_errors_continues_on_failure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    // Create packages
+    let mut config = fixture.get_config();
+
+    let package1 = Package {
+        name: "f_valid_backup".to_string(),
+        src: "dotfiles/f_valid_backup".to_string(),
+        dest: "backup_src/valid.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    let package2 = Package {
+        name: "f_invalid_backup".to_string(),
+        src: "dotfiles/f_invalid_backup".to_string(),
+        dest: "backup_src/nonexistent.txt".to_string(), // Source doesn't exist
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config
+        .packages
+        .insert("f_valid_backup".to_string(), package1);
+    config
+        .packages
+        .insert("f_invalid_backup".to_string(), package2);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create the valid source file
+    fixture.write_file("backup_src/valid.txt", "valid backup content");
+
+    // Backup with ignore_errors=true should succeed despite one package failing
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: true,
+    }))));
+
+    assert!(
+        result.is_ok(),
+        "Backup should succeed with ignore_errors=true even when one package fails"
+    );
+
+    // Valid package should have been backed up
+    fixture.assert_file_exists(
+        "dotfiles/f_valid_backup",
+        "Valid package should be backed up",
+    );
+}
+
+#[test]
+fn test_update_without_ignore_errors_stops_on_failure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package1 = Package {
+        name: "f_backup_pkg".to_string(),
+        src: "dotfiles/f_backup_pkg".to_string(),
+        dest: "backup_src/exists.txt".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    let package2 = Package {
+        name: "f_failing_backup".to_string(),
+        src: "dotfiles/f_failing_backup".to_string(),
+        dest: "backup_src/missing.txt".to_string(), // Doesn't exist
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("f_backup_pkg".to_string(), package1);
+    config
+        .packages
+        .insert("f_failing_backup".to_string(), package2);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.write_file("backup_src/exists.txt", "exists");
+
+    // Update with ignore_errors=false should fail when any package fails
+    let result = run_cli(fixture.get_cli(Some(Command::Update(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+    }))));
+
+    assert!(
+        result.is_err(),
+        "Update should fail with ignore_errors=false when a package fails"
     );
 }
