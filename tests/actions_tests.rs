@@ -44,7 +44,7 @@ impl TestFixture {
             self.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
                 packages,
                 profile: None,
-        ignore_errors: false,
+                ignore_errors: false,
             }))),
         )
         .expect("Deploy failed");
@@ -626,7 +626,7 @@ fn test_pre_action_failure() {
         fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
             packages: Some(vec!["f_pre_fail".to_string()]),
             profile: None,
-        ignore_errors: false,
+            ignore_errors: false,
         }))),
     );
 
@@ -670,7 +670,7 @@ fn test_post_action_failure() {
         fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
             packages: Some(vec!["f_post_fail".to_string()]),
             profile: None,
-        ignore_errors: false,
+            ignore_errors: false,
         }))),
     );
 
@@ -710,7 +710,7 @@ fn test_action_with_nonexistent_command() {
         fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
             packages: Some(vec!["f_bad_cmd".to_string()]),
             profile: None,
-        ignore_errors: false,
+            ignore_errors: false,
         }))),
     );
 
@@ -753,7 +753,7 @@ fn test_action_failure_with_error_message() {
         fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployUpdateArgs {
             packages: Some(vec!["f_err_msg".to_string()]),
             profile: None,
-        ignore_errors: false,
+            ignore_errors: false,
         }))),
     );
 
