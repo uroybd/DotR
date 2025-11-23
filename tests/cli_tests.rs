@@ -1786,3 +1786,255 @@ fn test_clean_preserves_backup_files() {
         "backup file should be preserved",
     );
 }
+
+#[test]
+fn test_clean_removes_empty_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_empty_dirs".to_string(),
+        src: "dotfiles/d_empty_dirs".to_string(),
+        dest: "deploy_dest/empty_dirs".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_empty_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with a simple structure
+    fixture.write_file("dotfiles/d_empty_dirs/file.txt", "content");
+
+    // Create destination with nested empty directories
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/empty_dirs/subdir1/subdir2")).unwrap();
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/empty_dirs/subdir3")).unwrap();
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that the file exists
+    fixture.assert_file_exists("deploy_dest/empty_dirs/file.txt", "file.txt should exist");
+
+    // Check that empty directories were removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/empty_dirs/subdir1",
+        "empty subdir1 should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/empty_dirs/subdir3",
+        "empty subdir3 should be removed",
+    );
+}
+
+#[test]
+fn test_clean_removes_non_empty_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_nonempty_dirs".to_string(),
+        src: "dotfiles/d_nonempty_dirs".to_string(),
+        dest: "deploy_dest/nonempty_dirs".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config
+        .packages
+        .insert("d_nonempty_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with a simple file
+    fixture.write_file("dotfiles/d_nonempty_dirs/current.txt", "current content");
+
+    // Create destination with a directory containing files
+    fixture.write_file(
+        "deploy_dest/nonempty_dirs/old_dir/old_file.txt",
+        "old content",
+    );
+    fixture.write_file(
+        "deploy_dest/nonempty_dirs/old_dir/another.txt",
+        "more old content",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that current file exists
+    fixture.assert_file_exists(
+        "deploy_dest/nonempty_dirs/current.txt",
+        "current.txt should exist",
+    );
+
+    // Check that the entire old directory was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/nonempty_dirs/old_dir",
+        "old_dir should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/nonempty_dirs/old_dir/old_file.txt",
+        "files in old_dir should be removed",
+    );
+}
+
+#[test]
+fn test_clean_handles_nested_directory_structure() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_nested".to_string(),
+        src: "dotfiles/d_nested".to_string(),
+        dest: "deploy_dest/nested".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config.packages.insert("d_nested".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with nested structure
+    fixture.write_file("dotfiles/d_nested/level1/level2/file.txt", "nested content");
+
+    // Create destination with different structure - some to keep, some to remove
+    fixture.write_file(
+        "deploy_dest/nested/old_level1/old_file.txt",
+        "should be removed",
+    );
+    fixture.write_file(
+        "deploy_dest/nested/old_level1/old_level2/deep.txt",
+        "should be removed",
+    );
+    std::fs::create_dir_all(fixture.cwd.join("deploy_dest/nested/empty_dir")).unwrap();
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that new structure exists
+    fixture.assert_file_exists(
+        "deploy_dest/nested/level1/level2/file.txt",
+        "nested file should exist",
+    );
+
+    // Check that old structure was removed (deepest first)
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested/old_level1",
+        "old nested structure should be removed",
+    );
+    fixture.assert_file_not_exists(
+        "deploy_dest/nested/empty_dir",
+        "empty_dir should be removed",
+    );
+}
+
+#[test]
+fn test_clean_preserves_kept_directories() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    let package = Package {
+        name: "d_preserve_dirs".to_string(),
+        src: "dotfiles/d_preserve_dirs".to_string(),
+        dest: "deploy_dest/preserve".to_string(),
+        dependencies: None,
+        variables: toml::Table::new(),
+        pre_actions: vec![],
+        post_actions: vec![],
+        targets: std::collections::HashMap::new(),
+        skip: false,
+        prompts: HashMap::new(),
+        ignore: Vec::new(),
+    };
+
+    config
+        .packages
+        .insert("d_preserve_dirs".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create source with subdirectory
+    fixture.write_file("dotfiles/d_preserve_dirs/subdir/file.txt", "content");
+    fixture.write_file("dotfiles/d_preserve_dirs/root.txt", "root content");
+
+    // Create destination matching the structure plus extra
+    fixture.write_file("deploy_dest/preserve/subdir/file.txt", "old content");
+    fixture.write_file("deploy_dest/preserve/root.txt", "old root");
+    fixture.write_file(
+        "deploy_dest/preserve/extra_in_subdir/extra.txt",
+        "should be removed",
+    );
+
+    // Deploy with clean=true
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployUpdateArgs {
+        packages: None,
+        profile: None,
+        ignore_errors: false,
+        clean: true,
+    }))));
+
+    assert!(result.is_ok(), "Deploy with clean should succeed");
+
+    // Check that deployed structure exists
+    fixture.assert_file_exists(
+        "deploy_dest/preserve/subdir/file.txt",
+        "subdir/file.txt should exist",
+    );
+    fixture.assert_file_exists("deploy_dest/preserve/root.txt", "root.txt should exist");
+
+    // Check that extra directory was removed
+    fixture.assert_file_not_exists(
+        "deploy_dest/preserve/extra_in_subdir",
+        "extra directory should be removed",
+    );
+}

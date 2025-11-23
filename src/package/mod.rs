@@ -698,6 +698,7 @@ pub fn print_with_color(s: &str, color_code: &str) {
 }
 
 pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
+    let mut dirs = vec![];
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;
         let path = entry.path().to_path_buf();
@@ -708,8 +709,20 @@ pub fn clean(operation_path: &PathBuf, keep: &[PathBuf]) -> anyhow::Result<()> {
                 }
                 std::fs::remove_file(&path)?;
             } else if path.is_dir() {
-                std::fs::remove_dir_all(&path)?;
+                dirs.push(path);
             }
+        }
+    }
+    // Remove empty directories in reverse order (from deepest to shallowest)
+    dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    for dir in dirs {
+        if !dir.exists() {
+            continue;
+        }
+        if dir.read_dir()?.next().is_none() {
+            std::fs::remove_dir(&dir)?;
+        } else {
+            std::fs::remove_dir_all(&dir)?; // Remove non-empty directories
         }
     }
     Ok(())
