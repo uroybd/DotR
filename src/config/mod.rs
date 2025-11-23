@@ -145,7 +145,7 @@ impl Config {
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
-        package.backup(ctx)?;
+        package.backup(ctx, args)?;
         if let Some(p_name) = profile_name {
             let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
                 cprintln(
@@ -223,7 +223,7 @@ impl Config {
         cprintln("Backing up packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            match pkg.backup(ctx) {
+            match pkg.backup(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
                         cprintln(
@@ -252,7 +252,7 @@ impl Config {
         cprintln("Deploying packages...", &LogLevel::INFO);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            match pkg.deploy(ctx) {
+            match pkg.deploy(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
                         cprintln(
