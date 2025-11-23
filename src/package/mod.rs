@@ -567,7 +567,7 @@ impl Package {
 
 /// Get a package name and relative path from the given import arguments and current working directory.
 /// The package name is derived from the last component of the path,
-/// with any leading '.' removed, and any trailing version numbers removed.
+/// with any leading '.' removed
 /// Additionally, any '-' or '.' characters are replaced with '_'. But extension is preserved.
 /// If the path is a directory, it should be prepended with d_
 /// Or, if it's a file, with f_
@@ -585,7 +585,7 @@ pub fn get_pkg_name_and_rel_path(
     let extension = path.extension().and_then(|ext| ext.to_str());
 
     // Get the name (with extension for files, full name for dirs)
-    let mut name = match args.name.as_ref() {
+    let name = match args.name.as_ref() {
         Some(n) => n.clone(),
         None => {
             let file_name = path
@@ -595,13 +595,6 @@ pub fn get_pkg_name_and_rel_path(
             file_name.trim_start_matches('.').to_string()
         }
     };
-
-    // If no custom name, remove trailing version numbers
-    if args.name.is_none()
-        && let Some(pos) = name.rfind('-')
-    {
-        name.truncate(pos);
-    }
 
     // Replace special characters with underscores for package_name
     let sanitized_name = name.replace(['-', '.'], "_");
@@ -794,9 +787,9 @@ mod tests {
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
-        // Version number (after last '-') should be removed
-        assert_eq!(pkg_name, "f_package");
-        assert_eq!(pkg_ns, "f_package.gz");
+        // Version numbers are NOT removed anymore
+        assert_eq!(pkg_name, "f_package_1_2_3_tar_gz");
+        assert_eq!(pkg_ns, "f_package_1_2_3_tar.gz");
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -816,8 +809,8 @@ mod tests {
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
-        // '-' and '.' should be replaced with '_' in package name
-        assert_eq!(pkg_name, "f_my_config_file");
+        // All '-' and '.' replaced with '_' in package name, no version removal
+        assert_eq!(pkg_name, "f_my_config_file_conf");
         assert_eq!(pkg_ns, "f_my_config_file.conf");
 
         std::fs::remove_dir_all(&temp_dir).ok();
