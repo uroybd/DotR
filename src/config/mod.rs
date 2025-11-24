@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{any, collections::HashMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
@@ -35,7 +35,7 @@ pub(crate) enum OpType {
 }
 
 impl Config {
-    pub fn from_path(cwd: &Path) -> Result<Self, anyhow::Error> {
+    pub fn from_path(cwd: &Path) -> anyhow::Result<Self> {
         let config_path = cwd.join("config.toml");
         if !config_path.exists() {
             anyhow::bail!("config.toml not found in the current directory");
@@ -45,14 +45,14 @@ impl Config {
         Self::from_table(&conf_table)
     }
 
-    pub fn save(&self, cwd: &Path) -> Result<(), anyhow::Error> {
+    pub fn save(&self, cwd: &Path) -> anyhow::Result<()> {
         let table = self.to_table();
         let config_content = table.to_string();
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
 
-    pub fn from_table(table: &Table) -> Result<Self, anyhow::Error> {
+    pub fn from_table(table: &Table) -> anyhow::Result<Self> {
         let mut packages: HashMap<String, Package> = HashMap::new();
         // Iter on packages value as key value
         let package_confs = table.get("packages").and_then(|v| v.as_table());
