@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 pub const BACKUP_EXT: &str = "dotrbak";
 
@@ -92,6 +95,60 @@ pub fn cprintln(message: &str, level: &LogLevel) {
         LogLevel::WARNING | LogLevel::INFO => {
             println!("{} {}", level.to_colorful_str(), message);
         }
+    }
+}
+
+pub fn get_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<String> {
+    Ok(v.ok_or_else(|| anyhow::anyhow!("Package src is required"))?
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
+        .to_string())
+}
+
+pub fn get_string_hashmap_from_value(
+    v: Option<&toml::Value>,
+) -> anyhow::Result<HashMap<String, String>> {
+    match v {
+        Some(value) => value
+            .as_table()
+            .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?
+            .iter()
+            .map(|(key, value)| {
+                let prompt_str = value
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
+                Ok((key.clone(), prompt_str.to_string()))
+            })
+            .collect::<Result<HashMap<_, _>, _>>(),
+        None => Ok(HashMap::new()),
+    }
+}
+
+pub fn vec_string_to_toml_array(vec: &[String]) -> toml::Value {
+    toml::Value::Array(vec.iter().map(|a| toml::Value::String(a.clone())).collect())
+}
+
+pub fn string_hashmap_to_toml_table(map: &HashMap<String, String>) -> toml::Value {
+    toml::Value::Table(
+        map.iter()
+            .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
+            .collect(),
+    )
+}
+
+pub fn get_vec_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<Vec<String>> {
+    match v {
+        Some(block) => block
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?
+            .iter()
+            .map(|v| {
+                v.as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
+                    .map(|s| s.to_string())
+            })
+            .collect::<Result<Vec<_>, _>>(),
+        None => Ok(Vec::new()),
     }
 }
 

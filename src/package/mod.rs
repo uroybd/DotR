@@ -11,7 +11,11 @@ use toml::Table;
 use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
-    utils::{BACKUP_EXT, LogLevel, cprintln, normalize_home_path, resolve_path},
+    utils::{
+        BACKUP_EXT, LogLevel, cprintln, get_string_from_value, get_string_hashmap_from_value,
+        get_vec_string_from_value, normalize_home_path, resolve_path, string_hashmap_to_toml_table,
+        vec_string_to_toml_array,
+    },
 };
 
 mod tests;
@@ -88,10 +92,7 @@ impl Package {
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
         let dependencies: Option<Vec<String>> =
-            match get_vec_string_from_value(pkg_val.get("dependencies")) {
-                Ok(deps) => Some(deps),
-                Err(_) => None,
-            };
+            get_vec_string_from_value(pkg_val.get("dependencies")).ok();
         let variables = match pkg_val.get("variables") {
             Some(var_block) => var_block
                 .as_table()
@@ -136,11 +137,7 @@ impl Package {
         pkg_table.insert("src".to_string(), toml::Value::String(self.src.clone()));
         pkg_table.insert("dest".to_string(), toml::Value::String(self.dest.clone()));
         if let Some(deps) = &self.dependencies {
-            let deps_val: Vec<toml::Value> = deps
-                .iter()
-                .map(|d| toml::Value::String(d.clone()))
-                .collect();
-            pkg_table.insert("dependencies".to_string(), toml::Value::Array(deps_val));
+            pkg_table.insert("dependencies".to_string(), vec_string_to_toml_array(deps));
         }
         if !self.variables.is_empty() {
             pkg_table.insert(
@@ -149,51 +146,34 @@ impl Package {
             );
         }
         if !self.pre_actions.is_empty() {
-            let pre_actions_val: Vec<toml::Value> = self
-                .pre_actions
-                .iter()
-                .map(|a| toml::Value::String(a.clone()))
-                .collect();
             pkg_table.insert(
                 "pre_actions".to_string(),
-                toml::Value::Array(pre_actions_val),
+                vec_string_to_toml_array(&self.pre_actions),
             );
         }
         if !self.post_actions.is_empty() {
-            let post_actions_val: Vec<toml::Value> = self
-                .post_actions
-                .iter()
-                .map(|a| toml::Value::String(a.clone()))
-                .collect();
             pkg_table.insert(
                 "post_actions".to_string(),
-                toml::Value::Array(post_actions_val),
+                vec_string_to_toml_array(&self.post_actions),
             );
-        }
-        if !self.targets.is_empty() {
-            let mut targets_table = Table::new();
-            for (key, value) in &self.targets {
-                targets_table.insert(key.clone(), toml::Value::String(value.clone()));
-            }
-            pkg_table.insert("targets".to_string(), toml::Value::Table(targets_table));
         }
         if self.skip {
             pkg_table.insert("skip".to_string(), toml::Value::Boolean(true));
         }
+        if !self.targets.is_empty() {
+            pkg_table.insert(
+                "targets".to_string(),
+                string_hashmap_to_toml_table(&self.targets),
+            );
+        }
         if !self.prompts.is_empty() {
-            let mut prompts_table = Table::new();
-            for (key, value) in &self.prompts {
-                prompts_table.insert(key.clone(), toml::Value::String(value.clone()));
-            }
-            pkg_table.insert("prompts".to_string(), toml::Value::Table(prompts_table));
+            pkg_table.insert(
+                "prompts".to_string(),
+                string_hashmap_to_toml_table(&self.prompts),
+            );
         }
         if !self.ignore.is_empty() {
-            let ignore_val: Vec<toml::Value> = self
-                .ignore
-                .iter()
-                .map(|i| toml::Value::String(i.clone()))
-                .collect();
-            pkg_table.insert("ignore".to_string(), toml::Value::Array(ignore_val));
+            pkg_table.insert("ignore".to_string(), vec_string_to_toml_array(&self.ignore));
         }
         pkg_table
     }
@@ -651,46 +631,4 @@ pub fn should_ignore(ignore: &[String], rel_path: &Path) -> bool {
         }
     }
     false
-}
-
-pub fn get_vec_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<Vec<String>> {
-    match v {
-        Some(block) => block
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?
-            .iter()
-            .map(|v| {
-                v.as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
-                    .map(|s| s.to_string())
-            })
-            .collect::<Result<Vec<_>, _>>(),
-        None => Ok(Vec::new()),
-    }
-}
-
-pub fn get_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<String> {
-    Ok(v.ok_or_else(|| anyhow::anyhow!("Package src is required"))?
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
-        .to_string())
-}
-
-fn get_string_hashmap_from_value(
-    v: Option<&toml::Value>,
-) -> anyhow::Result<HashMap<String, String>> {
-    match v {
-        Some(value) => value
-            .as_table()
-            .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?
-            .iter()
-            .map(|(key, value)| {
-                let prompt_str = value
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
-                Ok((key.clone(), prompt_str.to_string()))
-            })
-            .collect::<Result<HashMap<_, _>, _>>(),
-        None => Ok(HashMap::new()),
-    }
 }
