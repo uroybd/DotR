@@ -359,7 +359,7 @@ impl Config {
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         profiles.insert("default".to_string(), Profile::new("default"));
         Self {
-            banner: true,
+            banner: !cfg!(test),
             packages: HashMap::new(),
             variables: Table::new(),
             profiles,
