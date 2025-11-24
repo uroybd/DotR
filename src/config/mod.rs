@@ -137,7 +137,10 @@ impl Config {
     }
 
     pub fn import_package(&mut self, args: &ImportArgs, ctx: &Context) -> anyhow::Result<()> {
-        let mut profile = ctx.profile.clone().ok_or_else(|| anyhow::anyhow!("Profile must be set in context for import"))?;
+        let mut profile = ctx
+            .profile
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("Profile must be set in context for import"))?;
         let profile_name = profile.name.clone();
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
