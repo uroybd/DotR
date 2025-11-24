@@ -253,7 +253,7 @@ mod tests {
         assert_eq!(resolved, home.join(".bashrc"));
 
         // Normalize it back
-        let normalized = normalize_home_path(resolved.to_str().unwrap());
+        let normalized = normalize_home_path(resolved.to_string_lossy().as_ref());
         assert_eq!(normalized, original);
     }
 
