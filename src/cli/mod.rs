@@ -108,20 +108,16 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
     let mut working_dir = std::env::current_dir()?;
     if let Some(wd) = args.working_dir {
         working_dir = PathBuf::from(wd);
-        // Only canonicalize if the path exists
-        if working_dir.exists() {
-            working_dir = working_dir.canonicalize()?;
+    }
+
+    if !working_dir.exists() {
+        if matches!(args.command, Some(Command::Init(_))) {
+            std::fs::create_dir_all(&working_dir)?;
+        } else {
+            anyhow::bail!("The specified working directory does not exist");
         }
-    }
-
-    // For Init command, we allow non-existent directories
-    if !working_dir.exists() && !matches!(args.command, Some(Command::Init(_))) {
-        anyhow::bail!("The specified working directory does not exist");
-    }
-
-    // Create working directory for Init if it doesn't exist
-    if matches!(args.command, Some(Command::Init(_))) && !working_dir.exists() {
-        std::fs::create_dir_all(&working_dir)?;
+    } else {
+        working_dir = working_dir.canonicalize()?;
     }
 
     // Print working directory
@@ -147,55 +143,26 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    if conf
-                        .set_profile_context(&args.profile, &mut ctx, true)
-                        .is_err()
-                    {
-                        anyhow::bail!(
-                            "Profile not found in configuration, and could not be created",
-                        );
-                    }
+                    conf.set_profile_context(&args.profile, &mut ctx, true)?;
                     conf.import_package(&args, &ctx)?;
                 }
                 Some(Command::Deploy(args)) => {
-                    if conf
-                        .set_profile_context(&args.profile, &mut ctx, false)
-                        .is_err()
-                    {
-                        anyhow::bail!("Profile not found in configuration");
-                    }
-
+                    conf.set_profile_context(&args.profile, &mut ctx, false)?;
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
-                    if conf
-                        .set_profile_context(&args.profile, &mut ctx, false)
-                        .is_err()
-                    {
-                        anyhow::bail!("Profile not found in configuration");
-                    }
-
+                    conf.set_profile_context(&args.profile, &mut ctx, false)?;
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::Diff(args)) => {
-                    if conf
-                        .set_profile_context(&args.profile, &mut ctx, false)
-                        .is_err()
-                    {
-                        anyhow::bail!("Profile not found in configuration");
-                    }
+                    conf.set_profile_context(&args.profile, &mut ctx, false)?;
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.diff_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {
-                    if conf
-                        .set_profile_context(&args.profile, &mut ctx, false)
-                        .is_err()
-                    {
-                        anyhow::bail!("Profile not found in configuration");
-                    }
+                    conf.set_profile_context(&args.profile, &mut ctx, false)?;
                     ctx.print_variables();
                 }
                 _ => {
