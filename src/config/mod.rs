@@ -137,16 +137,12 @@ impl Config {
     }
 
     pub fn import_package(&mut self, args: &ImportArgs, ctx: &Context) -> anyhow::Result<()> {
-        let profile_name = args.profile.clone();
-        if profile_name.is_none() {
-            anyhow::bail!("Profile name must be provided for import");
-        }
-        let profile_name = profile_name.unwrap();
-        let profile = self.profiles.get_mut(&profile_name);
+        let profile = ctx.profile.clone();
         if profile.is_none() {
-            anyhow::bail!("Profile '{}' not found", profile_name);
+            anyhow::bail!("Profile must be set in context for import");
         }
-        let profile = profile.unwrap();
+        let mut profile = profile.unwrap();
+        let profile_name = profile.name.clone();
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
@@ -166,6 +162,7 @@ impl Config {
                 .insert(profile_name.clone(), package.dest.clone());
         }
         self.packages.insert(pkg_name.clone(), package);
+        self.profiles.insert(profile_name.clone(), profile);
         self.save(&ctx.working_dir)?;
         cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::INFO);
         Ok(())
@@ -188,7 +185,9 @@ impl Config {
         } else if let Some(profile) = &ctx.profile {
             for dep in &profile.dependencies {
                 if let Some(pkg) = self.packages.get(dep) {
-                    packages.insert(dep.clone(), pkg.clone());
+                    if !pkg.skip {
+                        packages.insert(dep.clone(), pkg.clone());
+                    }
                 } else {
                     return Err(anyhow::anyhow!(
                         "Package '{}' not found for profile '{}'",

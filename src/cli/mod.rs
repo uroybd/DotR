@@ -5,7 +5,6 @@ use clap::{Args, Parser, Subcommand};
 use crate::{
     config::{self, Config},
     context::Context,
-    profile::Profile,
 };
 
 #[derive(Debug, Parser)]
@@ -163,7 +162,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         .set_profile_context(&args.profile, &mut ctx, false)
                         .is_err()
                     {
-                        anyhow::bail!("Profile could not be found in configuration");
+                        anyhow::bail!("Profile not found in configuration");
                     }
 
                     ctx.get_prompted_variables(&conf, &args.packages)?;
@@ -174,7 +173,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         .set_profile_context(&args.profile, &mut ctx, false)
                         .is_err()
                     {
-                        anyhow::bail!("Profile could not be found in configuration");
+                        anyhow::bail!("Profile not found in configuration");
                     }
 
                     ctx.get_prompted_variables(&conf, &args.packages)?;
@@ -185,7 +184,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         .set_profile_context(&args.profile, &mut ctx, false)
                         .is_err()
                     {
-                        anyhow::bail!("Profile could not be found in configuration");
+                        anyhow::bail!("Profile not found in configuration");
                     }
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.diff_packages(&ctx, &args)?;
@@ -195,7 +194,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         .set_profile_context(&args.profile, &mut ctx, false)
                         .is_err()
                     {
-                        anyhow::bail!("Profile could not be found in configuration");
+                        anyhow::bail!("Profile not found in configuration");
                     }
                     ctx.print_variables();
                 }

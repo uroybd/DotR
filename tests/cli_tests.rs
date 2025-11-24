@@ -135,7 +135,7 @@ fn test_import_with_profile() {
         .get("f_work_conf")
         .expect("Package should exist");
 
-    assert!(package.skip, "Package should be marked as skip");
+    assert!(!package.skip, "Package should not be marked as skip");
     assert!(
         config.profiles.contains_key("work"),
         "Profile should be created"
@@ -178,6 +178,12 @@ fn test_deploy_creates_files() {
     };
 
     config.packages.insert("f_test".to_string(), test_package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_test".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
@@ -225,6 +231,12 @@ fn test_deploy_with_profile() {
     );
 
     config.packages.insert("f_app".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_app".to_string());
 
     let profile = dotr::profile::Profile {
         name: "work".to_string(),
@@ -288,7 +300,19 @@ fn test_deploy_specific_packages() {
     };
 
     config.packages.insert("f_pkg1".to_string(), pkg1);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_pkg1".to_string());
     config.packages.insert("f_pkg2".to_string(), pkg2);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_pkg2".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy only pkg1
@@ -330,6 +354,12 @@ fn test_update_backs_up_files() {
         ignore: Vec::new(),
     };
     config.packages.insert("f_update".to_string(), pkg);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_update".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create file at dest
@@ -472,6 +502,12 @@ fn test_skip_flag_prevents_deployment() {
         ignore: Vec::new(),
     };
     config.packages.insert("f_skip".to_string(), pkg);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_skip".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy without profile (skip packages should not be deployed)
@@ -505,7 +541,7 @@ fn test_profile_dependencies_deployment() {
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
-        skip: true,
+        skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
     };
@@ -519,13 +555,25 @@ fn test_profile_dependencies_deployment() {
         pre_actions: Vec::new(),
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
-        skip: true,
+        skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
     };
 
     config.packages.insert("f_dep1".to_string(), pkg1);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_dep1".to_string());
     config.packages.insert("f_dep2".to_string(), pkg2);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_dep2".to_string());
 
     // Profile with only dep1 as dependency
     let profile = dotr::profile::Profile {
@@ -801,6 +849,12 @@ fn test_package_with_missing_dependency_fails() {
         ignore: Vec::new(),
     };
     config.packages.insert("test_pkg".to_string(), pkg);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("test_pkg".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
@@ -841,6 +895,12 @@ fn test_deploy_missing_source_fails() {
         ignore: Vec::new(),
     };
     config.packages.insert("missing_src".to_string(), pkg);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("missing_src".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
@@ -983,7 +1043,7 @@ fn test_dotr_profile_env_var_deploy() {
         pre_actions: vec![],
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
-        skip: true,
+        skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
     };
@@ -1057,6 +1117,12 @@ fn test_dotr_profile_env_var_update() {
     };
 
     config.packages.insert("f_env_update".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_env_update".to_string());
     config.profiles.insert("updateenv".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
@@ -1142,7 +1208,7 @@ fn test_cli_profile_overrides_env_var() {
         pre_actions: vec![],
         post_actions: vec![],
         targets: std::collections::HashMap::new(),
-        skip: true,
+        skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
     };
@@ -1162,6 +1228,12 @@ fn test_cli_profile_overrides_env_var() {
     };
 
     config.packages.insert("f_override".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_override".to_string());
     config.profiles.insert("envprofile".to_string(), profile1);
     config.profiles.insert("cliprofile".to_string(), profile2);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -1207,6 +1279,12 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     };
 
     config.packages.insert("f_invalid_env".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_invalid_env".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Set env var to non-existent profile
@@ -1279,11 +1357,29 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
 
     config.packages.insert("f_valid_pkg".to_string(), package1);
     config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_valid_pkg".to_string());
+    config
         .packages
         .insert("f_invalid_pkg".to_string(), package2);
     config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_invalid_pkg".to_string());
+    config
         .packages
         .insert("f_another_valid".to_string(), package3);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_another_valid".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create the destination directory
@@ -1353,8 +1449,20 @@ fn test_deploy_without_ignore_errors_stops_on_failure() {
 
     config.packages.insert("f_first_pkg".to_string(), package1);
     config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_first_pkg".to_string());
+    config
         .packages
         .insert("f_failing_pkg".to_string(), package2);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_failing_pkg".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     std::fs::create_dir_all(fixture.cwd.join("deploy_dest")).unwrap();
@@ -1415,8 +1523,20 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         .packages
         .insert("f_valid_backup".to_string(), package1);
     config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_valid_backup".to_string());
+    config
         .packages
         .insert("f_invalid_backup".to_string(), package2);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_invalid_backup".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create the valid source file
@@ -1480,8 +1600,20 @@ fn test_update_without_ignore_errors_stops_on_failure() {
 
     config.packages.insert("f_backup_pkg".to_string(), package1);
     config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_backup_pkg".to_string());
+    config
         .packages
         .insert("f_failing_backup".to_string(), package2);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_failing_backup".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     fixture.write_file("backup_src/exists.txt", "exists");
@@ -1523,6 +1655,12 @@ fn test_deploy_with_clean_removes_extra_files() {
     };
 
     config.packages.insert("d_config_dir".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_config_dir".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source directory with two files
@@ -1581,6 +1719,12 @@ fn test_deploy_without_clean_keeps_extra_files() {
     };
 
     config.packages.insert("d_another_dir".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_another_dir".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source directory with two files
@@ -1634,6 +1778,12 @@ fn test_backup_with_clean_removes_extra_files() {
     };
 
     config.packages.insert("d_backup_dir".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_backup_dir".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source directory with two files
@@ -1692,6 +1842,12 @@ fn test_backup_without_clean_keeps_extra_files() {
     };
 
     config.packages.insert("d_backup_keep".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_backup_keep".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source directory with two files
@@ -1745,6 +1901,12 @@ fn test_clean_preserves_backup_files() {
     };
 
     config.packages.insert("d_test_clean".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_test_clean".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files
@@ -1810,6 +1972,12 @@ fn test_clean_removes_empty_directories() {
     };
 
     config.packages.insert("d_empty_dirs".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_empty_dirs".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source with a simple structure
@@ -1868,6 +2036,12 @@ fn test_clean_removes_non_empty_directories() {
     config
         .packages
         .insert("d_nonempty_dirs".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_nonempty_dirs".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source with a simple file
@@ -1933,6 +2107,12 @@ fn test_clean_handles_nested_directory_structure() {
     };
 
     config.packages.insert("d_nested".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_nested".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source with nested structure
@@ -2001,6 +2181,12 @@ fn test_clean_preserves_kept_directories() {
     config
         .packages
         .insert("d_preserve_dirs".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_preserve_dirs".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source with subdirectory
@@ -2064,6 +2250,12 @@ fn test_clean_respects_ignore_patterns_files() {
     config
         .packages
         .insert("d_ignore_files".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_ignore_files".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files
@@ -2136,6 +2328,12 @@ fn test_clean_respects_ignore_patterns_directories() {
     };
 
     config.packages.insert("d_ignore_dirs".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_ignore_dirs".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files
@@ -2205,6 +2403,12 @@ fn test_clean_ignore_patterns_in_backup() {
     config
         .packages
         .insert("d_backup_ignore".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_backup_ignore".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files
@@ -2274,6 +2478,12 @@ fn test_clean_ignore_patterns_with_nested_paths() {
     config
         .packages
         .insert("d_nested_ignore".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_nested_ignore".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files
@@ -2356,6 +2566,12 @@ fn test_clean_without_ignore_patterns() {
     };
 
     config.packages.insert("d_no_ignore".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("d_no_ignore".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Create source files

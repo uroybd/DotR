@@ -46,6 +46,22 @@ pub enum BackupDeployResult {
 }
 
 impl Package {
+    pub fn new(name: &str, src: &str, dest: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            src: src.to_string(),
+            dest: dest.to_string(),
+            dependencies: None,
+            variables: Table::new(),
+            pre_actions: Vec::new(),
+            post_actions: Vec::new(),
+            targets: HashMap::new(),
+            skip: false,
+            prompts: HashMap::new(),
+            ignore: Vec::new(),
+        }
+    }
+
     // Create a new Package from a given path, used to import dotfiles.
     // The path can be absolute or relative to the current working directory.
     // That path must exist and it will be set to the dest field.
@@ -66,20 +82,7 @@ impl Package {
                 .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?;
             normalize_home_path(resolved_str)
         };
-
-        Ok(Self {
-            name: package_name.clone(),
-            dest: path_str,
-            src: src_path_str.clone(),
-            dependencies: None,
-            variables: Table::new(),
-            pre_actions: Vec::new(),
-            post_actions: Vec::new(),
-            targets: HashMap::new(),
-            skip: false,
-            prompts: HashMap::new(),
-            ignore: Vec::new(),
-        })
+        Ok(Self::new(&package_name, &src_path_str, &path_str))
     }
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
