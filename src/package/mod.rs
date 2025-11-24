@@ -17,7 +17,8 @@ use crate::{
 mod tests;
 
 static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})").unwrap()
+    regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})")
+        .expect("Failed to compile template regex")
 });
 
 // A package represents a dotfile package with its source, destination, and dependencies.
