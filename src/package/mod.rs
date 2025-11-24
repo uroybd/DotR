@@ -87,120 +87,34 @@ impl Package {
     }
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
-        let dependencies: Option<Vec<String>> = match pkg_val.get("dependencies") {
-            Some(deps) => {
-                let array = deps
-                    .as_array()
-                    .ok_or_else(|| anyhow::anyhow!("Dependencies should be an array"))?;
-                let d = array
-                    .iter()
-                    .map(|d| {
-                        d.as_str()
-                            .ok_or_else(|| anyhow::anyhow!("Dependency must be a string"))
-                            .map(|s| s.to_string())
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Some(d)
-            }
-            None => None,
-        };
-
-        let mut variables = Table::new();
-        if let Some(var_block) = pkg_val.get("variables") {
-            variables = var_block
+        let dependencies: Option<Vec<String>> =
+            match get_vec_string_from_value(pkg_val.get("dependencies")) {
+                Ok(deps) => Some(deps),
+                Err(_) => None,
+            };
+        let variables = match pkg_val.get("variables") {
+            Some(var_block) => var_block
                 .as_table()
                 .ok_or_else(|| anyhow::anyhow!("The 'variables' field must be a table"))?
-                .clone();
-        }
-
-        let mut pre_actions = Vec::new();
-        if let Some(pre_block) = pkg_val.get("pre_actions") {
-            let array = pre_block
-                .as_array()
-                .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?;
-            pre_actions = array
-                .iter()
-                .map(|v| {
-                    v.as_str()
-                        .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
-                        .map(|s| s.to_string())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-        }
-
-        let mut post_actions = Vec::new();
-        if let Some(post_block) = pkg_val.get("post_actions") {
-            let array = post_block
-                .as_array()
-                .ok_or_else(|| anyhow::anyhow!("The 'post_actions' field must be an array"))?;
-            post_actions = array
-                .iter()
-                .map(|v| {
-                    v.as_str()
-                        .ok_or_else(|| anyhow::anyhow!("Post-action must be a string"))
-                        .map(|s| s.to_string())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-        }
-
-        let mut targets = HashMap::new();
-        if let Some(targets_block) = pkg_val.get("targets") {
-            let targets_table = targets_block
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("The 'targets' field must be a table"))?;
-            for (key, value) in targets_table {
-                let dest_str = value
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Target dest must be a string"))?;
-                targets.insert(key.clone(), dest_str.to_string());
-            }
-        }
-
-        let src = pkg_val
-            .get("src")
-            .ok_or_else(|| anyhow::anyhow!("Package src is required"))?
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
-            .to_string();
-
-        let dest = pkg_val
-            .get("dest")
-            .ok_or_else(|| anyhow::anyhow!("Package dest is required"))?
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Package dest must be a string"))?
-            .to_string();
-
+                .clone(),
+            None => Table::new(),
+        };
+        let pre_actions = get_vec_string_from_value(pkg_val.get("pre_actions"))
+            .expect("The 'pre_actions' field must be an array of strings");
+        let post_actions = get_vec_string_from_value(pkg_val.get("post_actions"))
+            .expect("The 'post_actions' field must be an array of strings");
+        let targets = get_string_hashmap_from_value(pkg_val.get("targets"))
+            .expect("The 'targets' field must be a table of string to string mappings");
+        let src = get_string_from_value(pkg_val.get("src")).expect("Package src is required");
+        let dest = get_string_from_value(pkg_val.get("dest")).expect("Package dest is required");
         let skip = pkg_val
             .get("skip")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
-
-        let mut prompts = HashMap::new();
-        if let Some(prompts_block) = pkg_val.get("prompts") {
-            let prompts_table = prompts_block
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?;
-            for (key, value) in prompts_table {
-                let prompt_str = value
-                    .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
-                prompts.insert(key.clone(), prompt_str.to_string());
-            }
-        }
-        let mut ignore = Vec::new();
-        if let Some(ignore_block) = pkg_val.get("ignore") {
-            let array = ignore_block
-                .as_array()
-                .ok_or_else(|| anyhow::anyhow!("The 'ignore' field must be an array"))?;
-            ignore = array
-                .iter()
-                .map(|v| {
-                    v.as_str()
-                        .ok_or_else(|| anyhow::anyhow!("Ignore pattern must be a string"))
-                        .map(|s| s.to_string())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-        }
+        let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))
+            .expect("The 'prompts' field must be a table of string to string mappings");
+        let ignore = get_vec_string_from_value(pkg_val.get("ignore"))
+            .expect("The 'ignore' field must be an array of strings");
 
         Ok(Self {
             name: pkg_name.to_string(),
@@ -737,4 +651,46 @@ pub fn should_ignore(ignore: &[String], rel_path: &Path) -> bool {
         }
     }
     false
+}
+
+pub fn get_vec_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<Vec<String>> {
+    match v {
+        Some(block) => block
+            .as_array()
+            .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?
+            .iter()
+            .map(|v| {
+                v.as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
+                    .map(|s| s.to_string())
+            })
+            .collect::<Result<Vec<_>, _>>(),
+        None => Ok(Vec::new()),
+    }
+}
+
+pub fn get_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<String> {
+    Ok(v.ok_or_else(|| anyhow::anyhow!("Package src is required"))?
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
+        .to_string())
+}
+
+fn get_string_hashmap_from_value(
+    v: Option<&toml::Value>,
+) -> anyhow::Result<HashMap<String, String>> {
+    match v {
+        Some(value) => value
+            .as_table()
+            .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?
+            .iter()
+            .map(|(key, value)| {
+                let prompt_str = value
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
+                Ok((key.clone(), prompt_str.to_string()))
+            })
+            .collect::<Result<HashMap<_, _>, _>>(),
+        None => Ok(HashMap::new()),
+    }
 }
