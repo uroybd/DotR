@@ -136,12 +136,17 @@ impl Config {
         table
     }
 
-    pub fn import_package(
-        &mut self,
-        args: &ImportArgs,
-        ctx: &Context,
-        profile_name: &Option<String>,
-    ) -> Result<(), anyhow::Error> {
+    pub fn import_package(&mut self, args: &ImportArgs, ctx: &Context) -> anyhow::Result<()> {
+        let profile_name = args.profile.clone();
+        if profile_name.is_none() {
+            anyhow::bail!("Profile name must be provided for import");
+        }
+        let profile_name = profile_name.unwrap();
+        let profile = self.profiles.get_mut(&profile_name);
+        if profile.is_none() {
+            anyhow::bail!("Profile '{}' not found", profile_name);
+        }
+        let profile = profile.unwrap();
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
@@ -149,22 +154,16 @@ impl Config {
         // Create default UpdateArgs for import backup
         let backup_args = crate::cli::UpdateArgs {
             packages: None,
-            profile: None,
+            profile: Some(profile_name.clone()),
             ignore_errors: false,
             clean: false,
         };
         package.backup(ctx, &backup_args)?;
-        if let Some(p_name) = profile_name {
-            let profile = self.profiles.entry(p_name.clone()).or_insert_with(|| {
-                cprintln(
-                    &format!("Profile '{}' not found, creating new", p_name),
-                    &LogLevel::WARNING,
-                );
-                Profile::new(p_name)
-            });
-            profile.dependencies.push(pkg_name.clone());
-            package.skip = true;
-            package.targets.insert(p_name.clone(), package.dest.clone());
+        profile.dependencies.push(pkg_name.clone());
+        if profile_name != "default" {
+            package
+                .targets
+                .insert(profile_name.clone(), package.dest.clone());
         }
         self.packages.insert(pkg_name.clone(), package);
         self.save(&ctx.working_dir)?;
@@ -291,25 +290,49 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_profile_details(
-        &self,
+    pub fn set_profile_context(
+        &mut self,
         pname: &Option<String>,
-        vars: &Table,
-    ) -> (Option<String>, Option<Profile>) {
+        ctx: &mut Context,
+        create_if_missing: bool,
+    ) -> anyhow::Result<()> {
         let mut profile_name = pname.clone();
-        if profile_name.is_none()
-            && let Ok(env_p_name) = vars
+        if profile_name.is_none() {
+            let vars = &ctx.get_context_variables();
+            if let Ok(env_p_name) = vars
                 .get("DOTR_PROFILE")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
-        {
-            profile_name = Some(env_p_name.to_string());
+            {
+                profile_name = Some(env_p_name.to_string());
+            } else {
+                profile_name = Some("default".to_string());
+            }
         }
-        let profile = match &profile_name {
-            Some(name) => self.profiles.get(name).cloned(),
-            None => None,
-        };
-        (profile_name, profile)
+        match &profile_name {
+            Some(name) => {
+                let profile = self.profiles.get_mut(name);
+                if let Some(prof) = profile {
+                    ctx.set_profile(Some(prof.clone()));
+                } else if !create_if_missing {
+                    anyhow::bail!("Profile {} not found", name);
+                } else {
+                    let profile = self.profiles.entry(name.clone()).or_insert_with(|| {
+                        cprintln(
+                            &format!("Profile '{}' not found, creating new", name),
+                            &LogLevel::WARNING,
+                        );
+                        Profile::new(name)
+                    });
+                    ctx.set_profile(Some(profile.clone()));
+                    self.save(&ctx.working_dir)?;
+                }
+            }
+            None => {
+                anyhow::bail!("Profile name must be provided");
+            }
+        }
+        Ok(())
     }
 
     pub fn init(cwd: &Path) -> Result<Self, anyhow::Error> {
@@ -335,11 +358,13 @@ impl Config {
     }
 
     pub fn new() -> Self {
+        let mut profiles: HashMap<String, Profile> = HashMap::new();
+        profiles.insert("default".to_string(), Profile::new("default"));
         Self {
             banner: true,
             packages: HashMap::new(),
             variables: Table::new(),
-            profiles: HashMap::new(),
+            profiles,
             prompts: HashMap::new(),
         }
     }
