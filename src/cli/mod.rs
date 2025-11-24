@@ -5,7 +5,6 @@ use clap::{Args, Parser, Subcommand};
 use crate::{
     config::{self, Config},
     context::Context,
-    profile::Profile,
 };
 
 #[derive(Debug, Parser)]
@@ -144,47 +143,59 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             // Start with environment variables from Context::new()
             let mut ctx = Context::new(&working_dir)?;
             ctx.extend_variables(conf.variables.clone());
-            let context_vars = ctx.get_context_variables();
 
             // Merge config variables, which override environment variables
             match args.command {
                 Some(Command::Import(args)) => {
-                    let (profile_name, profile) =
-                        conf.get_profile_details(&args.profile, &context_vars);
-                    ctx.set_profile(profile);
-                    conf.import_package(&args, &ctx, &profile_name)?;
+                    if conf
+                        .set_profile_context(&args.profile, &mut ctx, true)
+                        .is_err()
+                    {
+                        anyhow::bail!(
+                            "Profile not found in configuration, and could not be created",
+                        );
+                    }
+                    conf.import_package(&args, &ctx)?;
                 }
                 Some(Command::Deploy(args)) => {
-                    let (profile_name, profile) =
-                        conf.get_profile_details(&args.profile, &context_vars);
-                    validate_profile_exists(&profile_name, &profile)?;
-                    ctx.set_profile(profile);
+                    if conf
+                        .set_profile_context(&args.profile, &mut ctx, false)
+                        .is_err()
+                    {
+                        anyhow::bail!("Profile not found in configuration");
+                    }
 
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.deploy_packages(&ctx, &args)?;
                 }
                 Some(Command::Update(args)) => {
-                    let (profile_name, profile) =
-                        conf.get_profile_details(&args.profile, &context_vars);
-                    validate_profile_exists(&profile_name, &profile)?;
-                    ctx.set_profile(profile);
+                    if conf
+                        .set_profile_context(&args.profile, &mut ctx, false)
+                        .is_err()
+                    {
+                        anyhow::bail!("Profile not found in configuration");
+                    }
 
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.backup_packages(&ctx, &args)?;
                 }
                 Some(Command::Diff(args)) => {
-                    let (profile_name, profile) =
-                        conf.get_profile_details(&args.profile, &context_vars);
-                    validate_profile_exists(&profile_name, &profile)?;
-                    ctx.set_profile(profile);
+                    if conf
+                        .set_profile_context(&args.profile, &mut ctx, false)
+                        .is_err()
+                    {
+                        anyhow::bail!("Profile not found in configuration");
+                    }
                     ctx.get_prompted_variables(&conf, &args.packages)?;
                     conf.diff_packages(&ctx, &args)?;
                 }
                 Some(Command::PrintVars(args)) => {
-                    let (profile_name, profile) =
-                        conf.get_profile_details(&args.profile, &context_vars);
-                    validate_profile_exists(&profile_name, &profile)?;
-                    ctx.set_profile(profile);
+                    if conf
+                        .set_profile_context(&args.profile, &mut ctx, false)
+                        .is_err()
+                    {
+                        anyhow::bail!("Profile not found in configuration");
+                    }
                     ctx.print_variables();
                 }
                 _ => {
@@ -192,19 +203,6 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                 }
             }
         }
-    }
-    Ok(())
-}
-
-fn validate_profile_exists(
-    profile_name: &Option<String>,
-    profile: &Option<Profile>,
-) -> Result<(), anyhow::Error> {
-    if profile_name.is_some() && profile.is_none() {
-        anyhow::bail!(
-            "Profile '{}' not found in configuration",
-            profile_name.as_ref().unwrap()
-        );
     }
     Ok(())
 }

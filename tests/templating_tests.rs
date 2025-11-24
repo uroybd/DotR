@@ -420,6 +420,12 @@ fn test_mixed_template_and_regular_files() {
         ignore: Vec::new(),
     };
     config.packages.insert("f_templated".to_string(), package);
+    config
+        .profiles
+        .get_mut("default")
+        .unwrap()
+        .dependencies
+        .push("f_templated".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy all
