@@ -183,10 +183,18 @@ impl Package {
         action: &str,
         variables: &Table,
         working_dir: &Path,
+        dry_run: bool,
     ) -> anyhow::Result<()> {
         let compiled_action = compile_string(action, variables)?;
         // Get SHELL environment variable or default to /bin/sh
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+        if dry_run {
+            cprintln(
+                &format!("(Dry Run) Would execute action: {}", compiled_action),
+                &LogLevel::INFO,
+            );
+            return Ok(());
+        }
         let status = std::process::Command::new(shell)
             .arg("-c")
             .arg(compiled_action)
@@ -204,18 +212,18 @@ impl Package {
         Ok(())
     }
 
-    pub fn execute_pre_actions(&self, ctx: &Context) -> anyhow::Result<()> {
+    pub fn execute_pre_actions(&self, ctx: &Context, dry_run: bool) -> anyhow::Result<()> {
         let vars = self.get_context_variables(ctx);
         for action in &self.pre_actions {
-            self.execute_action(action, &vars, &ctx.working_dir)?;
+            self.execute_action(action, &vars, &ctx.working_dir, dry_run)?;
         }
         Ok(())
     }
 
-    pub fn execute_post_actions(&self, ctx: &Context) -> anyhow::Result<()> {
+    pub fn execute_post_actions(&self, ctx: &Context, dry_run: bool) -> anyhow::Result<()> {
         let vars = self.get_context_variables(ctx);
         for action in &self.post_actions {
-            self.execute_action(action, &vars, &ctx.working_dir)?;
+            self.execute_action(action, &vars, &ctx.working_dir, dry_run)?;
         }
         Ok(())
     }
@@ -256,21 +264,38 @@ impl Package {
                 }
                 let dest_path = copy_to.clone().join(relative_path);
                 if entry.path().is_dir() {
-                    std::fs::create_dir_all(&dest_path)?;
-                } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
-                    if let Some(parent) = dest_path.parent() {
-                        std::fs::create_dir_all(parent)?;
+                    if !args.dry_run {
+                        std::fs::create_dir_all(&dest_path)?;
                     }
-                    std::fs::copy(entry.path(), &dest_path)?;
+                    all_copied_paths.push(dest_path);
+                } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
+                    if !args.dry_run {
+                        if let Some(parent) = dest_path.parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        std::fs::copy(entry.path(), &dest_path)?;
+                        println!(
+                            "=> Backed up {} -> {}",
+                            relative_path.display(),
+                            dest_path.display()
+                        );
+                    }
+                    all_copied_paths.push(dest_path);
                 }
-                all_copied_paths.push(dest_path);
             }
             if args.clean {
                 // Remove any files in copy_to that were not copied in this operation
-                clean(&copy_to, &all_copied_paths, &self.ignore)?;
+                clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
         } else {
-            std::fs::copy(&copy_from, &copy_to)?;
+            if !args.dry_run {
+                std::fs::copy(&copy_from, &copy_to)?;
+            }
+            println!(
+                "=> Backed up {} -> {}",
+                copy_from.display(),
+                copy_to.display()
+            );
         }
         Ok(BackupDeployResult::Success)
     }
@@ -370,6 +395,7 @@ impl Package {
         dest: &PathBuf,
         ctx: &Context,
         backup: bool,
+        dry_run: bool,
     ) -> Result<BackupDeployResult, anyhow::Error> {
         if let Ok(src_content) = std::fs::read_to_string(src) {
             let compiled_content = if is_templated_str(&src_content) {
@@ -390,20 +416,23 @@ impl Package {
             if !should_copy {
                 return Ok(BackupDeployResult::Skipped);
             }
-            if backup && dest.exists() {
-                let backup_path = create_backup_path(dest);
-                std::fs::copy(dest, &backup_path)?;
+            if !dry_run {
+                if backup && dest.exists() {
+                    let backup_path = create_backup_path(dest);
+                    std::fs::copy(dest, &backup_path)?;
+                }
+                std::fs::write(dest, compiled_content)?;
             }
-            std::fs::write(dest, compiled_content)?;
         } else {
             // It can be a binary file, copy as-is and return Ok
-            if backup && dest.exists() {
-                let backup_path = create_backup_path(dest);
-                std::fs::copy(dest, &backup_path)?;
+            if !dry_run {
+                if backup && dest.exists() {
+                    let backup_path = create_backup_path(dest);
+                    std::fs::copy(dest, &backup_path)?;
+                }
+                std::fs::copy(src, dest)?;
             }
-            std::fs::copy(src, dest)?;
         }
-        cprintln(&format!("Deployed to {}", dest.display()), &LogLevel::INFO);
         Ok(BackupDeployResult::Success)
     }
 
@@ -413,7 +442,7 @@ impl Package {
         ctx: &Context,
         args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
-        self.execute_pre_actions(ctx)?;
+        self.execute_pre_actions(ctx, args.dry_run)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = self.resolve_dest(ctx);
         let mut result = BackupDeployResult::Skipped;
@@ -427,33 +456,43 @@ impl Package {
                     continue;
                 }
                 let dest_path = copy_to.join(relative_path);
-                if entry.path().is_dir() {
+                if entry.path().is_dir() && !args.dry_run {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
-                    let dep_result =
-                        self.deploy_file(&entry.path().to_path_buf(), &dest_path, ctx, true)?;
+                    let dep_result = self.deploy_file(
+                        &entry.path().to_path_buf(),
+                        &dest_path,
+                        ctx,
+                        true,
+                        args.dry_run,
+                    )?;
                     if let BackupDeployResult::Success = dep_result {
                         result = BackupDeployResult::Success;
+                        println!(
+                            "=> Deployed {} -> {}",
+                            relative_path.display(),
+                            dest_path.display()
+                        );
                     }
                 }
                 all_deployed_paths.push(dest_path);
             }
             if args.clean {
                 // Remove any files in copy_to that were not deployed in this operation
-                clean(&copy_to, &all_deployed_paths, &self.ignore)?;
+                clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
         } else {
-            let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true)?;
+            let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true, args.dry_run)?;
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;
+                println!("=> Deployed {} -> {}", self.src, copy_to.display());
             }
         }
-
         cprintln(
             &format!("Package '{}' deployed", self.name),
             &LogLevel::INFO,
         );
-        self.execute_post_actions(ctx)?;
+        self.execute_post_actions(ctx, args.dry_run)?;
         Ok(result)
     }
 
@@ -585,7 +624,12 @@ pub fn print_with_color(s: &str, color_code: &str) {
     println!("\x1b[{}m{}\x1b[0m", color_code, s);
 }
 
-pub fn clean(operation_path: &PathBuf, keep: &[PathBuf], ignore: &[String]) -> anyhow::Result<()> {
+pub fn clean(
+    operation_path: &PathBuf,
+    keep: &[PathBuf],
+    ignore: &[String],
+    dry_run: bool,
+) -> anyhow::Result<()> {
     let mut dirs = vec![];
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;
@@ -602,7 +646,14 @@ pub fn clean(operation_path: &PathBuf, keep: &[PathBuf], ignore: &[String]) -> a
                 if path.extension() == Some(OsStr::new(BACKUP_EXT)) {
                     continue; // Skip backup files
                 }
-                std::fs::remove_file(&path)?;
+                if dry_run {
+                    cprintln(
+                        &format!("(Dry Run) Would remove file: {}", path.display()),
+                        &LogLevel::INFO,
+                    );
+                } else {
+                    std::fs::remove_file(&path)?;
+                }
             } else if path.is_dir() {
                 dirs.push(path);
             }
@@ -612,6 +663,13 @@ pub fn clean(operation_path: &PathBuf, keep: &[PathBuf], ignore: &[String]) -> a
     dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
     for dir in dirs {
         if !dir.exists() {
+            continue;
+        }
+        if dry_run {
+            cprintln(
+                &format!("(Dry Run) Would remove directory: {}", dir.display()),
+                &LogLevel::INFO,
+            );
             continue;
         }
         if dir.read_dir()?.next().is_none() {

@@ -77,6 +77,9 @@ pub struct UpdateArgs {
 
     #[arg(long, default_value_t = false)]
     pub clean: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -93,6 +96,9 @@ pub struct DeployArgs {
 
     #[arg(long, default_value_t = false)]
     pub clean: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
 }
 
 const BANNER: &str = r#"
