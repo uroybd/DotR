@@ -187,12 +187,7 @@ impl Config {
                 }
             }
         } else {
-            // Insert to packages if skip is false
-            for (name, pkg) in self.packages.iter() {
-                if !pkg.skip {
-                    packages.insert(name.clone(), pkg.clone());
-                }
-            }
+            anyhow::bail!("No packages specified and no profile set in context");
         }
         // Now resolve packages dependencies
         let mut dependencies: HashMap<String, Package> = HashMap::new();
