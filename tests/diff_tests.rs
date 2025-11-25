@@ -49,6 +49,7 @@ impl TestFixture {
             profile: None,
             ignore_errors: false,
             clean: false,
+            dry_run: false,
         }))))
         .expect("Deploy failed");
     }

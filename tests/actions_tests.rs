@@ -45,6 +45,7 @@ impl TestFixture {
             profile: None,
             ignore_errors: false,
             clean: false,
+            dry_run: false,
         }))))
         .expect("Deploy failed");
     }
@@ -626,6 +627,7 @@ fn test_pre_action_failure() {
         profile: None,
         ignore_errors: false,
         clean: false,
+        dry_run: false,
     }))));
 
     assert!(result.is_err(), "Deploy should fail when pre-action fails");
@@ -669,6 +671,7 @@ fn test_post_action_failure() {
         profile: None,
         ignore_errors: false,
         clean: false,
+        dry_run: false,
     }))));
 
     assert!(result.is_err(), "Deploy should fail when post-action fails");
@@ -708,6 +711,7 @@ fn test_action_with_nonexistent_command() {
         profile: None,
         ignore_errors: false,
         clean: false,
+        dry_run: false,
     }))));
 
     assert!(
@@ -750,6 +754,7 @@ fn test_action_failure_with_error_message() {
         profile: None,
         ignore_errors: false,
         clean: false,
+        dry_run: false,
     }))));
 
     assert!(

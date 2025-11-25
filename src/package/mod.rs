@@ -470,7 +470,7 @@ impl Package {
                         result = BackupDeployResult::Success;
                         println!(
                             "=> Deployed {} -> {}",
-                            relative_path.display(),
+                            relative_path.path().display(),
                             dest_path.display()
                         );
                     }
