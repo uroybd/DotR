@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{DeployArgs, InitArgs, run_cli},
     config::Config,
 };
@@ -20,15 +20,16 @@ impl TestFixture {
         }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
 
         // Set SHELL to /bin/sh in config for consistent test execution
         let mut config = self.get_config();
@@ -40,13 +41,15 @@ impl TestFixture {
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Deploy failed");
     }
 
@@ -79,7 +82,7 @@ fn test_pre_action_basic() {
 
     // Create package with pre_action that creates a marker file
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_pre_action_test".to_string(),
         src: "dotfiles/f_pre_action_test".to_string(),
         dest: "src/.pre_action_test".to_string(),
@@ -128,7 +131,7 @@ fn test_post_action_basic() {
 
     // Create package with post_action that creates a marker file
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_post_action_test".to_string(),
         src: "dotfiles/f_post_action_test".to_string(),
         dest: "src/.post_action_test".to_string(),
@@ -177,7 +180,7 @@ fn test_pre_and_post_actions_together() {
 
     // Create package with both pre and post actions
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_both_actions_test".to_string(),
         src: "dotfiles/f_both_actions_test".to_string(),
         dest: "src/.both_actions_test".to_string(),
@@ -239,7 +242,7 @@ fn test_multiple_pre_actions() {
 
     // Create package with multiple pre-actions
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_multi_pre_test".to_string(),
         src: "dotfiles/f_multi_pre_test".to_string(),
         dest: "src/.multi_pre_test".to_string(),
@@ -306,7 +309,7 @@ fn test_multiple_post_actions() {
 
     // Create package with multiple post-actions
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_multi_post_test".to_string(),
         src: "dotfiles/f_multi_post_test".to_string(),
         dest: "src/.multi_post_test".to_string(),
@@ -379,7 +382,7 @@ fn test_actions_with_variables() {
         toml::Value::String("variable_value".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_action_var_test".to_string(),
         src: "dotfiles/f_action_var_test".to_string(),
         dest: "src/.action_var_test".to_string(),
@@ -416,7 +419,7 @@ fn test_actions_persist_after_save() {
 
     // Create package with actions
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "test_persist".to_string(),
         src: "dotfiles/test".to_string(),
         dest: "src/.test".to_string(),
@@ -462,7 +465,7 @@ fn test_actions_execution_order() {
 
     // Create package with actions that write to a log file
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_order_test".to_string(),
         src: "dotfiles/f_order_test".to_string(),
         dest: "src/.order_test".to_string(),
@@ -514,7 +517,7 @@ fn test_empty_actions_dont_fail() {
 
     // Create package with no actions
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_no_actions_test".to_string(),
         src: "dotfiles/f_no_actions_test".to_string(),
         dest: "src/.no_actions_test".to_string(),
@@ -557,7 +560,7 @@ fn test_actions_with_complex_commands() {
 
     // Create package with complex shell commands
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_complex_test".to_string(),
         src: "dotfiles/f_complex_test".to_string(),
         dest: "src/.complex_test".to_string(),
@@ -605,7 +608,7 @@ fn test_pre_action_failure() {
 
     // Create package with a failing pre-action
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_pre_fail".to_string(),
         src: "dotfiles/f_pre_fail".to_string(),
         dest: "src/.pre_fail".to_string(),
@@ -622,13 +625,15 @@ fn test_pre_action_failure() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail due to pre-action failure
-    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-        packages: Some(vec!["f_pre_fail".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: false,
-        dry_run: false,
-    }))));
+    let result = run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_pre_fail".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+            dry_run: false,
+        }))),
+    );
 
     assert!(result.is_err(), "Deploy should fail when pre-action fails");
 }
@@ -645,7 +650,7 @@ fn test_post_action_failure() {
 
     // Create package with a failing post-action
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_post_fail".to_string(),
         src: "dotfiles/f_post_fail".to_string(),
         dest: "src/.post_fail".to_string(),
@@ -666,13 +671,15 @@ fn test_post_action_failure() {
         .expect("Failed to create file");
 
     // Deploy should fail due to post-action failure
-    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-        packages: Some(vec!["f_post_fail".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: false,
-        dry_run: false,
-    }))));
+    let result = run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_post_fail".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+            dry_run: false,
+        }))),
+    );
 
     assert!(result.is_err(), "Deploy should fail when post-action fails");
 }
@@ -689,7 +696,7 @@ fn test_action_with_nonexistent_command() {
 
     // Create package with a non-existent command
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_bad_cmd".to_string(),
         src: "dotfiles/f_bad_cmd".to_string(),
         dest: "src/.bad_cmd".to_string(),
@@ -706,13 +713,15 @@ fn test_action_with_nonexistent_command() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail due to non-existent command
-    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-        packages: Some(vec!["f_bad_cmd".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: false,
-        dry_run: false,
-    }))));
+    let result = run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_bad_cmd".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+            dry_run: false,
+        }))),
+    );
 
     assert!(
         result.is_err(),
@@ -732,7 +741,7 @@ fn test_action_failure_with_error_message() {
 
     // Create package with an action that fails with error message
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_err_msg".to_string(),
         src: "dotfiles/f_err_msg".to_string(),
         dest: "src/.err_msg".to_string(),
@@ -749,13 +758,15 @@ fn test_action_failure_with_error_message() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy should fail with exit code 42
-    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-        packages: Some(vec!["f_err_msg".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: false,
-        dry_run: false,
-    }))));
+    let result = run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_err_msg".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+            dry_run: false,
+        }))),
+    );
 
     assert!(
         result.is_err(),

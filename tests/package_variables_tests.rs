@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{DeployArgs, InitArgs, run_cli},
     config::Config,
 };
@@ -20,25 +20,28 @@ impl TestFixture {
         }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Deploy failed");
     }
 
@@ -74,7 +77,7 @@ fn test_package_variables_basic() {
         toml::Value::String("package_value".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_pkg_var_test".to_string(),
         src: "dotfiles/f_pkg_var_test".to_string(),
         dest: "src/.pkg_var_test".to_string(),
@@ -139,7 +142,7 @@ fn test_package_variables_override_config_variables() {
         toml::Value::String("package_value".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_override_test".to_string(),
         src: "dotfiles/f_override_test".to_string(),
         dest: "src/.override_test".to_string(),
@@ -199,7 +202,7 @@ MY_VAR = "user_value"
         toml::Value::String("package_value".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_user_override_test".to_string(),
         src: "dotfiles/f_user_override_test".to_string(),
         dest: "src/.user_override_test".to_string(),
@@ -253,7 +256,7 @@ fn test_package_variables_with_nested_structures() {
     db_config.insert("port".to_string(), toml::Value::Integer(5432));
     pkg_vars.insert("database".to_string(), toml::Value::Table(db_config));
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_nested_test".to_string(),
         src: "dotfiles/f_nested_test".to_string(),
         dest: "src/.nested_test".to_string(),
@@ -302,7 +305,7 @@ fn test_package_variables_persist_after_save() {
         toml::Value::String("value2".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "test_package".to_string(),
         src: "dotfiles/test".to_string(),
         dest: "src/.test".to_string(),
@@ -373,7 +376,7 @@ TEST_VAR = "user_value"
         toml::Value::String("package_value".to_string()),
     );
 
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_priority_test".to_string(),
         src: "dotfiles/f_priority_test".to_string(),
         dest: "src/.priority_test".to_string(),
@@ -429,7 +432,7 @@ fn test_multiple_packages_with_different_variables() {
         toml::Value::String("value1".to_string()),
     );
 
-    let package1 = dotr::package::Package {
+    let package1 = dotr_dear::package::Package {
         name: "f_pkg1".to_string(),
         src: "dotfiles/f_pkg1".to_string(),
         dest: "src/.pkg1".to_string(),
@@ -450,7 +453,7 @@ fn test_multiple_packages_with_different_variables() {
         toml::Value::String("value2".to_string()),
     );
 
-    let package2 = dotr::package::Package {
+    let package2 = dotr_dear::package::Package {
         name: "f_pkg2".to_string(),
         src: "dotfiles/f_pkg2".to_string(),
         dest: "src/.pkg2".to_string(),

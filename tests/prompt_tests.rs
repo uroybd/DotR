@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{InitArgs, run_cli},
     config::Config,
     context::Context,
@@ -21,15 +21,16 @@ impl TestFixture {
         Self { cwd }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
     }
 
     fn get_config(&self) -> Config {
@@ -417,7 +418,7 @@ fn test_package_level_prompts() {
 
     // Add package with prompts
     let mut config = fixture.get_config();
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -459,7 +460,7 @@ fn test_package_multiple_prompts() {
 
     // Add package with multiple prompts
     let mut config = fixture.get_config();
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -500,7 +501,7 @@ fn test_profile_level_prompts() {
 
     // Add profile with prompts
     let mut config = fixture.get_config();
-    let mut profile = dotr::profile::Profile {
+    let mut profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],
@@ -530,7 +531,7 @@ fn test_profile_multiple_prompts() {
 
     // Add profile with multiple prompts
     let mut config = fixture.get_config();
-    let mut profile = dotr::profile::Profile {
+    let mut profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],
@@ -567,7 +568,7 @@ fn test_package_and_profile_prompts_together() {
 
     // Add package with prompts
     let mut config = fixture.get_config();
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -587,7 +588,7 @@ fn test_package_and_profile_prompts_together() {
     config.packages.insert("f_test".to_string(), package);
 
     // Add profile with prompts
-    let mut profile = dotr::profile::Profile {
+    let mut profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],
@@ -622,7 +623,7 @@ fn test_package_prompts_do_not_interfere_with_variables() {
 
     // Add package with both prompts and variables
     let mut config = fixture.get_config();
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -660,7 +661,7 @@ fn test_profile_prompts_do_not_interfere_with_variables() {
 
     // Add profile with both prompts and variables
     let mut config = fixture.get_config();
-    let mut profile = dotr::profile::Profile {
+    let mut profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],
@@ -696,7 +697,7 @@ fn test_empty_package_prompts() {
 
     // Add package without prompts
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -725,7 +726,7 @@ fn test_empty_profile_prompts() {
 
     // Add profile without prompts
     let mut config = fixture.get_config();
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],
@@ -758,7 +759,7 @@ fn test_three_level_prompts_hierarchy() {
     );
 
     // Add package with prompt
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
@@ -778,7 +779,7 @@ fn test_three_level_prompts_hierarchy() {
     config.packages.insert("f_test".to_string(), package);
 
     // Add profile with prompt
-    let mut profile = dotr::profile::Profile {
+    let mut profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec![],

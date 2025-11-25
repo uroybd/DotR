@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use dotr::cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli};
+use dotr_dear::cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli};
 
 mod common;
 

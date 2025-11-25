@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
     config::Config,
     package::get_pkg_name_and_rel_path,
@@ -22,45 +22,52 @@ impl TestFixture {
         }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
     }
 
     fn import(&self, path: &str) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-            path: path.to_string(),
-            name: None,
-            profile: None,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+                path: path.to_string(),
+                name: None,
+                profile: None,
+            }))),
+        )
         .expect("Import failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Update failed");
     }
 
@@ -152,7 +159,7 @@ fn test_template_deployment_with_variables() {
 
     // Manually add package to config
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_bashrc_template".to_string(),
         src: "dotfiles/f_bashrc_template".to_string(),
         dest: "src/.bashrc_output".to_string(),
@@ -218,7 +225,7 @@ fn test_template_with_custom_variables() {
 
     // Add package manually
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_config_template".to_string(),
         src: "dotfiles/f_config_template".to_string(),
         dest: "src/.myconfig".to_string(),
@@ -280,7 +287,7 @@ fn test_template_not_backed_up_on_update() {
 
     // Add package
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_template_test".to_string(),
         src: "dotfiles/f_template_test".to_string(),
         dest: "src/.template_test".to_string(),
@@ -346,7 +353,7 @@ fn test_template_directory_deployment() {
 
     // Add package
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "d_config_dir".to_string(),
         src: "dotfiles/d_config_dir".to_string(),
         dest: "src/.config_output".to_string(),
@@ -408,7 +415,7 @@ fn test_mixed_template_and_regular_files() {
 
     // Add templated package
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_templated".to_string(),
         src: "dotfiles/f_templated".to_string(),
         dest: "src/.templated".to_string(),
@@ -490,7 +497,7 @@ fn test_template_with_tera_statements() {
 
     // Add package
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_advanced_template".to_string(),
         src: "dotfiles/f_advanced_template".to_string(),
         dest: "src/.advanced".to_string(),

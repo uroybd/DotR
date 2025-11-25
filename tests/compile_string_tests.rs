@@ -1,4 +1,4 @@
-use dotr::package::compile_string;
+use dotr_dear::package::compile_string;
 use toml::Table;
 
 #[test]

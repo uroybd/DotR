@@ -1,5 +1,5 @@
 use clap::Parser;
-use dotr::{
+use dotr_dear::{
     cli::{Cli, run_cli},
     utils::{LogLevel, cprintln},
 };

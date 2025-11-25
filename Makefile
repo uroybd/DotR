@@ -16,7 +16,7 @@ help:
 	@echo "  BUMP_TYPE=<patch|minor|major>  - Override version bump type"
 
 release:
-	cargo release $(BUMP_TYPE) --execute --no-publish
+	cargo release $(BUMP_TYPE) --execute
 
 release-minor:
 	$(MAKE) release BUMP_TYPE=minor

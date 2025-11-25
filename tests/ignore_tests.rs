@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
     config::Config,
 };
@@ -20,45 +20,52 @@ impl TestFixture {
         Self { cwd }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
     }
 
     fn import(&self, path: &str) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-            path: path.to_string(),
-            name: None,
-            profile: None,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+                path: path.to_string(),
+                name: None,
+                profile: None,
+            }))),
+        )
         .expect("Import failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Update failed");
     }
 

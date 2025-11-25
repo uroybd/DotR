@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
     context::Context,
@@ -33,45 +33,52 @@ impl TestFixture {
         Self { cwd }
     }
 
-    fn get_cli(&self, command: Option<dotr::cli::Command>) -> dotr::cli::Cli {
-        dotr::cli::Cli {
+    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
+        dotr_dear::cli::Cli {
             command,
             working_dir: Some(PLAYGROUND_DIR.to_string()),
         }
     }
 
     fn init(&self) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Init(InitArgs {})))).expect("Init failed");
+        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
+            .expect("Init failed");
     }
 
     fn import(&self, path: &str) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-            path: path.to_string(),
-            name: None,
-            profile: None,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+                path: path.to_string(),
+                name: None,
+                profile: None,
+            }))),
+        )
         .expect("Import failed");
     }
 
     fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Deploy failed");
     }
 
     fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(self.get_cli(Some(dotr::cli::Command::Update(UpdateArgs {
-            packages,
-            profile: None,
-            ignore_errors: false,
-            clean: false,
-            dry_run: false,
-        }))))
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: false,
+                dry_run: false,
+            }))),
+        )
         .expect("Update failed");
     }
 
@@ -370,13 +377,15 @@ fn test_deploy_nonexistent_package() {
     fixture.write_file("src/nvim/init.lua", "-- Modified init.lua\n");
 
     // Try to deploy a non-existent package - should fail
-    let result = run_cli(fixture.get_cli(Some(dotr::cli::Command::Deploy(DeployArgs {
-        packages: Some(vec!["nonexistent_package".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: false,
-        dry_run: false,
-    }))));
+    let result = run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["nonexistent_package".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: false,
+            dry_run: false,
+        }))),
+    );
 
     assert!(
         result.is_err(),
@@ -681,7 +690,7 @@ fn test_print_vars_empty() {
 
     // Print vars should show environment variables including HOME
     let _ = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
+        fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
     );
@@ -717,7 +726,7 @@ fn test_print_vars_with_custom_variables() {
 
     // Print vars should show custom variables
     let _ = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
+        fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
     );
@@ -1154,7 +1163,7 @@ fn test_nested_variables_print() {
 
     // Test that print-vars works with nested variables
     let _ = run_cli(
-        fixture.get_cli(Some(dotr::cli::Command::PrintVars(PrintVarsArgs {
+        fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
     );
@@ -1227,11 +1236,13 @@ fn test_import_with_custom_name() {
     fixture.init();
 
     // Import with custom name
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-        path: BASHRC_PATH.to_string(),
-        name: Some("custom_bashrc".to_string()),
-        profile: None,
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+            path: BASHRC_PATH.to_string(),
+            name: Some("custom_bashrc".to_string()),
+            profile: None,
+        }))),
+    )
     .expect("Import with custom name failed");
 
     let config = fixture.get_config();
@@ -1253,11 +1264,13 @@ fn test_import_directory_with_custom_name() {
     fixture.init();
 
     // Import directory with custom name
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-        path: NVIM_PATH.to_string(),
-        name: Some("my_nvim_config".to_string()),
-        profile: None,
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+            path: NVIM_PATH.to_string(),
+            name: Some("my_nvim_config".to_string()),
+            profile: None,
+        }))),
+    )
     .expect("Import directory with custom name failed");
 
     let config = fixture.get_config();
@@ -1279,11 +1292,13 @@ fn test_custom_name_replaces_special_characters() {
     fixture.init();
 
     // Import with custom name containing special characters
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-        path: BASHRC_PATH.to_string(),
-        name: Some("my-config.v2".to_string()),
-        profile: None,
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+            path: BASHRC_PATH.to_string(),
+            name: Some("my-config.v2".to_string()),
+            profile: None,
+        }))),
+    )
     .expect("Import with special chars in name failed");
 
     let config = fixture.get_config();
@@ -1301,11 +1316,13 @@ fn test_custom_name_with_profile() {
     fixture.init();
 
     // Import with custom name and profile
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-        path: BASHRC_PATH.to_string(),
-        name: Some("work_bashrc".to_string()),
-        profile: Some("work".to_string()),
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+            path: BASHRC_PATH.to_string(),
+            name: Some("work_bashrc".to_string()),
+            profile: Some("work".to_string()),
+        }))),
+    )
     .expect("Import with custom name and profile failed");
 
     let config = fixture.get_config();
@@ -1330,11 +1347,13 @@ fn test_deploy_package_with_custom_name() {
     fixture.init();
 
     // Import with custom name
-    run_cli(fixture.get_cli(Some(dotr::cli::Command::Import(ImportArgs {
-        path: BASHRC_PATH.to_string(),
-        name: Some("mybash".to_string()),
-        profile: None,
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
+            path: BASHRC_PATH.to_string(),
+            name: Some("mybash".to_string()),
+            profile: None,
+        }))),
+    )
     .expect("Import failed");
 
     // Modify file to trigger deployment

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use dotr::{
+use dotr_dear::{
     cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
     config::Config,
     package::Package,
@@ -158,7 +158,7 @@ fn test_deploy_creates_files() {
     // Add package to config
     let mut config = fixture.get_config();
 
-    let test_package = dotr::package::Package {
+    let test_package = dotr_dear::package::Package {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: fixture
@@ -201,7 +201,7 @@ fn test_deploy_with_profile() {
     // Create package and profile
     let mut config = fixture.get_config();
 
-    let mut package = dotr::package::Package {
+    let mut package = dotr_dear::package::Package {
         name: "f_app".to_string(),
         src: "dotfiles/f_app".to_string(),
         dest: fixture
@@ -233,7 +233,7 @@ fn test_deploy_with_profile() {
         .dependencies
         .push("f_app".to_string());
 
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_app".to_string()],
@@ -267,7 +267,7 @@ fn test_deploy_specific_packages() {
     // Create two packages
     let mut config = fixture.get_config();
 
-    let pkg1 = dotr::package::Package {
+    let pkg1 = dotr_dear::package::Package {
         name: "f_pkg1".to_string(),
         src: "dotfiles/f_pkg1".to_string(),
         dest: fixture.cwd.join("dest1").to_str().unwrap().to_string(),
@@ -281,7 +281,7 @@ fn test_deploy_specific_packages() {
         ignore: Vec::new(),
     };
 
-    let pkg2 = dotr::package::Package {
+    let pkg2 = dotr_dear::package::Package {
         name: "f_pkg2".to_string(),
         src: "dotfiles/f_pkg2".to_string(),
         dest: fixture.cwd.join("dest2").to_str().unwrap().to_string(),
@@ -332,7 +332,7 @@ fn test_update_backs_up_files() {
 
     // Create a package
     let mut config = fixture.get_config();
-    let pkg = dotr::package::Package {
+    let pkg = dotr_dear::package::Package {
         name: "f_update".to_string(),
         src: "dotfiles/f_update".to_string(),
         dest: fixture
@@ -396,7 +396,7 @@ fn test_print_vars_with_profile() {
 
     // Create profile with variables
     let mut config = fixture.get_config();
-    let mut profile = dotr::profile::Profile::new("dev");
+    let mut profile = dotr_dear::profile::Profile::new("dev");
     profile.variables.insert(
         "PROFILE_VAR".to_string(),
         toml::Value::String("dev_value".to_string()),
@@ -470,7 +470,7 @@ fn test_skip_flag_prevents_deployment() {
 
     // Create package with skip flag
     let mut config = fixture.get_config();
-    let pkg = dotr::package::Package {
+    let pkg = dotr_dear::package::Package {
         name: "f_skip".to_string(),
         src: "dotfiles/f_skip".to_string(),
         dest: fixture.cwd.join("skip_dest").to_str().unwrap().to_string(),
@@ -509,7 +509,7 @@ fn test_profile_dependencies_deployment() {
     // Create packages and profile
     let mut config = fixture.get_config();
 
-    let pkg1 = dotr::package::Package {
+    let pkg1 = dotr_dear::package::Package {
         name: "f_dep1".to_string(),
         src: "dotfiles/f_dep1".to_string(),
         dest: fixture.cwd.join("dep1_dest").to_str().unwrap().to_string(),
@@ -523,7 +523,7 @@ fn test_profile_dependencies_deployment() {
         ignore: Vec::new(),
     };
 
-    let pkg2 = dotr::package::Package {
+    let pkg2 = dotr_dear::package::Package {
         name: "f_dep2".to_string(),
         src: "dotfiles/f_dep2".to_string(),
         dest: fixture.cwd.join("dep2_dest").to_str().unwrap().to_string(),
@@ -553,7 +553,7 @@ fn test_profile_dependencies_deployment() {
         .push("f_dep2".to_string());
 
     // Profile with only dep1 as dependency
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "minimal".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_dep1".to_string()],
@@ -802,7 +802,7 @@ fn test_package_with_missing_dependency_fails() {
 
     // Create package with nonexistent dependency
     let mut config = fixture.get_config();
-    let pkg = dotr::package::Package {
+    let pkg = dotr_dear::package::Package {
         name: "test_pkg".to_string(),
         src: "dotfiles/test_pkg".to_string(),
         dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
@@ -849,7 +849,7 @@ fn test_deploy_missing_source_fails() {
 
     // Create package but don't create source files
     let mut config = fixture.get_config();
-    let pkg = dotr::package::Package {
+    let pkg = dotr_dear::package::Package {
         name: "missing_src".to_string(),
         src: "dotfiles/missing_src".to_string(),
         dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
@@ -922,7 +922,7 @@ fn test_import_preserves_tilde_path() {
     // We test this at the utility level rather than end-to-end to avoid creating files in real home
 
     let path_with_tilde = "~/.config/nvim";
-    let normalized = dotr::utils::normalize_home_path(path_with_tilde);
+    let normalized = dotr_dear::utils::normalize_home_path(path_with_tilde);
 
     assert_eq!(
         normalized, path_with_tilde,
@@ -937,7 +937,7 @@ fn test_import_preserves_tilde_path() {
     ];
 
     for path in paths {
-        let normalized = dotr::utils::normalize_home_path(path);
+        let normalized = dotr_dear::utils::normalize_home_path(path);
         assert_eq!(normalized, path, "Tilde path {} should be preserved", path);
     }
 }
@@ -975,7 +975,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
     // Test 2: Verify utility function correctly normalizes home paths
     let home = std::env::home_dir().expect("Should have home dir");
     let mock_home_path = format!("{}/test/path", home.to_string_lossy());
-    let normalized = dotr::utils::normalize_home_path(&mock_home_path);
+    let normalized = dotr_dear::utils::normalize_home_path(&mock_home_path);
     assert!(
         normalized.starts_with('~'),
         "Path in home directory should be normalized to ~, got: {}",
@@ -997,7 +997,7 @@ fn test_dotr_profile_env_var_deploy() {
 
     // Create package and profile
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_profile_test".to_string(),
         src: "dotfiles/f_profile_test".to_string(),
         dest: "src/.profile_test".to_string(),
@@ -1011,7 +1011,7 @@ fn test_dotr_profile_env_var_deploy() {
         ignore: Vec::new(),
     };
 
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "testenv".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_profile_test".to_string()],
@@ -1053,7 +1053,7 @@ fn test_dotr_profile_env_var_update() {
 
     let mut config = fixture.get_config();
     let dest_path = fixture.cwd.join("dest/.env_update");
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_env_update".to_string(),
         src: "dotfiles/f_env_update".to_string(),
         dest: dest_path.to_str().unwrap().to_string(),
@@ -1067,7 +1067,7 @@ fn test_dotr_profile_env_var_update() {
         ignore: Vec::new(),
     };
 
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "updateenv".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_env_update".to_string()],
@@ -1128,7 +1128,7 @@ fn test_dotr_profile_env_var_print_vars() {
         toml::Value::String("from_env_profile".to_string()),
     );
 
-    let profile = dotr::profile::Profile {
+    let profile = dotr_dear::profile::Profile {
         name: "printenv".to_string(),
         variables: profile_vars,
         dependencies: vec![],
@@ -1159,7 +1159,7 @@ fn test_cli_profile_overrides_env_var() {
     fixture.write_file("dotfiles/f_override/override.txt", "content");
 
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_override".to_string(),
         src: "dotfiles/f_override".to_string(),
         dest: "src/.override".to_string(),
@@ -1173,14 +1173,14 @@ fn test_cli_profile_overrides_env_var() {
         ignore: Vec::new(),
     };
 
-    let profile1 = dotr::profile::Profile {
+    let profile1 = dotr_dear::profile::Profile {
         name: "envprofile".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
         prompts: HashMap::new(),
     };
 
-    let profile2 = dotr::profile::Profile {
+    let profile2 = dotr_dear::profile::Profile {
         name: "cliprofile".to_string(),
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
@@ -1225,7 +1225,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
     fixture.write_file("dotfiles/f_invalid_env/test.txt", "content");
 
     let mut config = fixture.get_config();
-    let package = dotr::package::Package {
+    let package = dotr_dear::package::Package {
         name: "f_invalid_env".to_string(),
         src: "dotfiles/f_invalid_env".to_string(),
         dest: "src/.invalid_env".to_string(),
