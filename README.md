@@ -70,6 +70,7 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - **Granular file deployment** - only deploys files when content has changed
 - **Granular backups** - creates per-file backups (`.dotrbak`) instead of directory backups
 - **Diff command** to preview changes before deployment
+- **Dry run mode** - preview deploy and update operations without making any changes
 - Selective package deployment and updates
 - Profile-based deployments for different machines/environments
 - Directory structure preservation
@@ -100,6 +101,9 @@ dotr deploy --profile work
 
 # Deploy specific packages
 dotr deploy --packages nvim,tmux
+
+# Dry run to preview what would be deployed without making changes
+dotr deploy --dry-run
 ```
 
 4. **Check differences** before deploying:
@@ -120,6 +124,9 @@ dotr update
 
 # Update with a profile
 dotr update --profile work
+
+# Dry run to preview what would be updated without making changes
+dotr update --dry-run
 ```
 
 ## Variables Example
@@ -227,6 +234,26 @@ Shows line-by-line differences with color coding (+ green for additions, - red f
 
 📖 **[Learn more about Diff](https://github.com/uroybd/DotR/wiki/Diff)**
 
+## Dry Run Mode
+
+```bash
+# Preview deploy without making any changes
+dotr deploy --dry-run
+
+# Preview update without making any changes
+dotr update --dry-run
+
+# Combine with other options
+dotr deploy --dry-run --profile work --packages nvim,bashrc
+dotr update --dry-run --clean
+```
+
+Dry run mode shows what would happen during deploy or update operations without:
+- Creating or modifying any files
+- Creating backups
+- Executing pre/post actions
+- Removing files (when using --clean)
+
 ## Installation
 
 ### Homebrew (macOS and Linux)
@@ -286,4 +313,5 @@ Options:
 - [x] Diff command (preview changes)
 - [x] Granular copying and backups
 - [x] Interactive prompts (config/package/profile level)
+- [x] Dry run mode (preview deploy/update without changes)
 - [ ] Symlinking config
