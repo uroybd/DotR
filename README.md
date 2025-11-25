@@ -265,6 +265,12 @@ brew tap uroybd/tap
 brew install dotr
 ```
 
+### Cargo
+
+```bash
+cargo install dotr-dear
+```
+
 ### From Source
 ```bash
 cargo install --git https://github.com/uroybd/DotR
