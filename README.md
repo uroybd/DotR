@@ -6,6 +6,9 @@
 
 A dotfiles manager that is as dear as a daughter.
 
+> [!WARNING]
+> This is still in beta. The schema is evolving, performance is sub-par. Use it with caution.
+
 ## Documentation
 
 For detailed documentation, guides, and examples, visit the [DotR Wiki](https://github.com/uroybd/DotR/wiki).
@@ -223,10 +226,6 @@ dotr diff --profile work
 Shows line-by-line differences with color coding (+ green for additions, - red for deletions).
 
 📖 **[Learn more about Diff](https://github.com/uroybd/DotR/wiki/Diff)**
-
-## WARNING!
-
-This is still pre-alpha. The schema is evolving, performance is sub-par. Use it with caution.
 
 ## Installation
 

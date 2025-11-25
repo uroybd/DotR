@@ -47,7 +47,7 @@ impl Config {
 
     pub fn save(&self, cwd: &Path) -> anyhow::Result<()> {
         let table = self.to_table();
-        let config_content = table.to_string();
+        let config_content = toml::to_string_pretty(&table)?;
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
