@@ -32,13 +32,21 @@ pub struct InitArgs {}
 
 #[derive(Debug, Args)]
 #[command(name = "print-vars", about = "Print all user variables.")]
+#[derive(Default)]
 pub struct PrintVarsArgs {
     #[arg(short, long)]
     pub profile: Option<String>,
 }
 
+impl PrintVarsArgs {
+    pub fn new(profile: Option<String>) -> Self {
+        Self { profile }
+    }
+}
+
 #[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
+#[derive(Default)]
 pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
@@ -48,6 +56,16 @@ pub struct ImportArgs {
 
     #[arg(short, long)]
     pub profile: Option<String>,
+}
+
+impl ImportArgs {
+    pub fn new(path: String, name: Option<String>, profile: Option<String>) -> Self {
+        Self {
+            path,
+            name,
+            profile,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -65,6 +83,7 @@ pub struct DiffArgs {
 
 #[derive(Debug, Args)]
 #[command(name = "update", about = "Update dotfiles from deployed versions.")]
+#[derive(Default)]
 pub struct UpdateArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
@@ -77,10 +96,32 @@ pub struct UpdateArgs {
 
     #[arg(long, default_value_t = false)]
     pub clean: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+}
+
+impl UpdateArgs {
+    pub fn new(
+        packages: Option<Vec<String>>,
+        profile: Option<String>,
+        ignore_errors: bool,
+        clean: bool,
+        dry_run: bool,
+    ) -> Self {
+        Self {
+            packages,
+            profile,
+            ignore_errors,
+            clean,
+            dry_run,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
 #[command(name = "deploy", about = "Deploy dotfiles from repository.")]
+#[derive(Default)]
 pub struct DeployArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
@@ -93,6 +134,27 @@ pub struct DeployArgs {
 
     #[arg(long, default_value_t = false)]
     pub clean: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+}
+
+impl DeployArgs {
+    pub fn new(
+        packages: Option<Vec<String>>,
+        profile: Option<String>,
+        ignore_errors: bool,
+        clean: bool,
+        dry_run: bool,
+    ) -> Self {
+        Self {
+            packages,
+            profile,
+            ignore_errors,
+            clean,
+            dry_run,
+        }
+    }
 }
 
 const BANNER: &str = r#"

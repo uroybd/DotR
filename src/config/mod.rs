@@ -152,6 +152,7 @@ impl Config {
             profile: Some(profile_name.clone()),
             ignore_errors: false,
             clean: false,
+            dry_run: false,
         };
         package.backup(ctx, &backup_args)?;
         profile.dependencies.push(pkg_name.clone());
