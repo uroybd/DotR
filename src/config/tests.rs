@@ -72,6 +72,24 @@ mod profile_context_tests {
     }
 
     #[test]
+    fn test_set_profile_context_always_create_missing_default_profile() {
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = Config::new();
+        let mut ctx = Context::new(&temp_dir).unwrap();
+
+        let result = config.set_profile_context(&Some("default".to_string()), &mut ctx, false);
+
+        assert!(result.is_ok());
+        assert!(config.profiles.contains_key("default"));
+        assert!(ctx.profile.is_some());
+        assert_eq!(ctx.profile.unwrap().name, "default");
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
     fn test_set_profile_context_creates_missing_profile() {
         let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp_dir).unwrap();

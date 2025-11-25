@@ -298,7 +298,7 @@ impl Config {
                 let profile = self.profiles.get_mut(name);
                 if let Some(prof) = profile {
                     ctx.set_profile(Some(prof.clone()));
-                } else if !create_if_missing {
+                } else if !create_if_missing && name != "default" {
                     anyhow::bail!("Profile {} not found", name);
                 } else {
                     let profile = self.profiles.entry(name.clone()).or_insert_with(|| {
