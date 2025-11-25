@@ -38,12 +38,6 @@ pub struct PrintVarsArgs {
     pub profile: Option<String>,
 }
 
-impl PrintVarsArgs {
-    pub fn new(profile: Option<String>) -> Self {
-        Self { profile }
-    }
-}
-
 #[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
 #[derive(Default)]
@@ -56,16 +50,6 @@ pub struct ImportArgs {
 
     #[arg(short, long)]
     pub profile: Option<String>,
-}
-
-impl ImportArgs {
-    pub fn new(path: String, name: Option<String>, profile: Option<String>) -> Self {
-        Self {
-            path,
-            name,
-            profile,
-        }
-    }
 }
 
 #[derive(Debug, Args)]
@@ -101,24 +85,6 @@ pub struct UpdateArgs {
     pub dry_run: bool,
 }
 
-impl UpdateArgs {
-    pub fn new(
-        packages: Option<Vec<String>>,
-        profile: Option<String>,
-        ignore_errors: bool,
-        clean: bool,
-        dry_run: bool,
-    ) -> Self {
-        Self {
-            packages,
-            profile,
-            ignore_errors,
-            clean,
-            dry_run,
-        }
-    }
-}
-
 #[derive(Debug, Args)]
 #[command(name = "deploy", about = "Deploy dotfiles from repository.")]
 #[derive(Default)]
@@ -139,24 +105,6 @@ pub struct DeployArgs {
     pub dry_run: bool,
 }
 
-impl DeployArgs {
-    pub fn new(
-        packages: Option<Vec<String>>,
-        profile: Option<String>,
-        ignore_errors: bool,
-        clean: bool,
-        dry_run: bool,
-    ) -> Self {
-        Self {
-            packages,
-            profile,
-            ignore_errors,
-            clean,
-            dry_run,
-        }
-    }
-}
-
 const BANNER: &str = r#"
 ██████╗  ██████╗ ████████╗██████╗ 
 ██╔══██╗██╔═══██╗╚══██╔══╝██╔══██╗
@@ -173,14 +121,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
     }
 
     if !working_dir.exists() {
-        if matches!(args.command, Some(Command::Init(_))) {
-            std::fs::create_dir_all(&working_dir)?;
-        } else {
-            anyhow::bail!("The specified working directory does not exist");
-        }
-    } else {
-        working_dir = working_dir.canonicalize()?;
+        anyhow::bail!("The specified working directory does not exist");
     }
+    working_dir = working_dir.canonicalize()?;
 
     // Print working directory
     // Print full working directory path

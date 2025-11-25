@@ -31,8 +31,7 @@ impl TestFixture {
     fn import(&self, path: &str) {
         run_cli(self.get_cli(Some(Command::Import(ImportArgs {
             path: path.to_string(),
-            name: None,
-            profile: None,
+            ..Default::default()
         }))))
         .expect("Import failed");
     }

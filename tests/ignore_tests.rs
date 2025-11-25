@@ -36,8 +36,7 @@ impl TestFixture {
         run_cli(
             self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
                 path: path.to_string(),
-                name: None,
-                profile: None,
+                ..Default::default()
             }))),
         )
         .expect("Import failed");
