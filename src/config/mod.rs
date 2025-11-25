@@ -280,41 +280,40 @@ impl Config {
         ctx: &mut Context,
         create_if_missing: bool,
     ) -> anyhow::Result<()> {
-        let mut profile_name = pname.clone();
-        if profile_name.is_none() {
-            let vars = &ctx.get_context_variables();
-            if let Ok(env_p_name) = vars
-                .get("DOTR_PROFILE")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
-            {
-                profile_name = Some(env_p_name.to_string());
-            } else {
-                profile_name = Some("default".to_string());
-            }
-        }
-        match &profile_name {
-            Some(name) => {
-                let profile = self.profiles.get_mut(name);
-                if let Some(prof) = profile {
-                    ctx.set_profile(Some(prof.clone()));
-                } else if !create_if_missing && name != "default" {
-                    anyhow::bail!("Profile {} not found", name);
+        let profile_name = match pname {
+            Some(name) => name.clone(),
+            None => {
+                let vars = &ctx.get_context_variables();
+                if let Ok(env_p_name) = vars
+                    .get("DOTR_PROFILE")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
+                {
+                    env_p_name.to_string()
                 } else {
-                    let profile = self.profiles.entry(name.clone()).or_insert_with(|| {
-                        cprintln(
-                            &format!("Profile '{}' not found, creating new", name),
-                            &LogLevel::WARNING,
-                        );
-                        Profile::new(name)
-                    });
-                    ctx.set_profile(Some(profile.clone()));
-                    self.save(&ctx.working_dir)?;
+                    "default".to_string()
                 }
             }
-            None => {
-                anyhow::bail!("Profile name must be provided");
-            }
+        };
+
+        let profile = self.profiles.get_mut(&profile_name);
+        if let Some(prof) = profile {
+            ctx.set_profile(Some(prof.clone()));
+        } else if !create_if_missing && profile_name != "default" {
+            anyhow::bail!("Profile {} not found", profile_name);
+        } else {
+            let profile = self
+                .profiles
+                .entry(profile_name.clone())
+                .or_insert_with(|| {
+                    cprintln(
+                        &format!("Profile '{}' not found, creating new", profile_name),
+                        &LogLevel::WARNING,
+                    );
+                    Profile::new(&profile_name)
+                });
+            ctx.set_profile(Some(profile.clone()));
+            self.save(&ctx.working_dir)?;
         }
         Ok(())
     }
