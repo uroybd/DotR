@@ -11,11 +11,7 @@ mod package_name_tests {
         let test_file = temp_dir.join("test.conf");
         std::fs::write(&test_file, "test").unwrap();
 
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
+        let args = ImportArgs::new(test_file.to_str().unwrap().to_string(), None, None);
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
@@ -32,13 +28,7 @@ mod package_name_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
         let test_file = temp_dir.join("bashrc");
         std::fs::write(&test_file, "test").unwrap();
-
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
-
+        let args = ImportArgs::new(test_file.to_str().unwrap().to_string(), None, None);
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
         assert_eq!(pkg_name, "f_bashrc");
@@ -54,11 +44,7 @@ mod package_name_tests {
         let test_file = temp_dir.join(".bashrc");
         std::fs::write(&test_file, "test").unwrap();
 
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
+        let args = ImportArgs::new(test_file.to_str().unwrap().to_string(), None, None);
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
@@ -96,11 +82,11 @@ mod package_name_tests {
         let test_file = temp_dir.join("init.lua");
         std::fs::write(&test_file, "test").unwrap();
 
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: Some("starship".to_string()),
-            profile: None,
-        };
+        let args = ImportArgs::new(
+            test_file.to_str().unwrap().to_string(),
+            Some("starship".to_string()),
+            None,
+        );
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
@@ -161,11 +147,7 @@ mod package_name_tests {
         let test_file = temp_dir.join(".bashrc.template");
         std::fs::write(&test_file, "test").unwrap();
 
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
+        let args = ImportArgs::new(test_file.to_str().unwrap().to_string(), None, None);
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
@@ -205,11 +187,7 @@ mod package_name_tests {
         let test_file = temp_dir.join(".config.yml");
         std::fs::write(&test_file, "test").unwrap();
 
-        let args = ImportArgs {
-            path: test_file.to_str().unwrap().to_string(),
-            name: None,
-            profile: None,
-        };
+        let args = ImportArgs::new(test_file.to_str().unwrap().to_string(), None, None);
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
 
