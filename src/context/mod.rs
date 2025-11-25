@@ -52,6 +52,21 @@ impl Context {
         conf: &Config,
         packages: &Option<Vec<String>>,
     ) -> Result<Table, anyhow::Error> {
+        self.get_prompted_variables_with_io(
+            conf,
+            packages,
+            &mut std::io::stdin().lock(),
+            &mut std::io::stdout(),
+        )
+    }
+
+    pub(crate) fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
+        &mut self,
+        conf: &Config,
+        packages: &Option<Vec<String>>,
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<Table, anyhow::Error> {
         // First, get the user variables
         let mut prompted_vars = self.user_variables.clone();
         // Now, get the prompts from config
@@ -75,11 +90,7 @@ impl Context {
         let mut dirty = false;
         for (key, prompt) in prompts.iter() {
             if !prompted_vars.contains_key(key) {
-                match get_prompted_variables(
-                    prompt,
-                    &mut std::io::stdin().lock(),
-                    &mut std::io::stdout(),
-                ) {
+                match get_prompted_variables(prompt, &mut *reader, &mut *writer) {
                     Ok(input) => {
                         prompted_vars.insert(key.clone(), toml::Value::String(input));
                         dirty = true;

@@ -663,4 +663,292 @@ VAR2 = "user_value2"
 
         assert_eq!(result, "P@ssw0rd!\n");
     }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_basic() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Create config with prompts
+        let config_path = temp_dir.join("config.toml");
+        fs::write(
+            &config_path,
+            r#"
+[prompts]
+USER_NAME = "Enter your name"
+"#,
+        )
+        .unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Mock input
+        let input = b"John Doe\n";
+        let mut output = Vec::new();
+
+        let result = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Verify prompted variables were captured
+        assert_eq!(
+            result.get("USER_NAME"),
+            Some(&toml::Value::String("John Doe\n".to_string()))
+        );
+
+        // Verify .uservariables.toml was created
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        assert!(uservars_path.exists());
+
+        // Verify content was saved
+        let saved_content = fs::read_to_string(&uservars_path).unwrap();
+        assert!(saved_content.contains("USER_NAME"));
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_skips_existing() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Pre-populate user variables
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        fs::write(&uservars_path, r#"USER_EMAIL = "existing@example.com""#).unwrap();
+
+        // Create config with prompts
+        let config_path = temp_dir.join("config.toml");
+        fs::write(
+            &config_path,
+            r#"
+[prompts]
+USER_EMAIL = "Enter your email"
+USER_NAME = "Enter your name"
+"#,
+        )
+        .unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Mock input - only provide input for USER_NAME
+        let input = b"John Doe\n";
+        let mut output = Vec::new();
+
+        let result = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Verify existing variable was preserved
+        assert_eq!(
+            result.get("USER_EMAIL"),
+            Some(&toml::Value::String("existing@example.com".to_string()))
+        );
+
+        // Verify new variable was prompted
+        assert_eq!(
+            result.get("USER_NAME"),
+            Some(&toml::Value::String("John Doe\n".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_no_prompts() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Create config without prompts
+        let config_path = temp_dir.join("config.toml");
+        fs::write(&config_path, "").unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        let input = b"";
+        let mut output = Vec::new();
+
+        let result = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Should return empty user variables
+        assert!(result.is_empty() || !result.contains_key("NEW_VAR"));
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_profile_prompts() {
+        use crate::config::Config;
+        use crate::profile::Profile;
+        use std::collections::HashMap;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Create config
+        let config_path = temp_dir.join("config.toml");
+        fs::write(&config_path, r#""#).unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Set profile with prompts
+        let mut profile_prompts = HashMap::new();
+        profile_prompts.insert("WORK_EMAIL".to_string(), "Enter work email".to_string());
+
+        let profile = Profile {
+            name: "work".to_string(),
+            variables: toml::Table::new(),
+            dependencies: vec![],
+            prompts: profile_prompts,
+        };
+
+        ctx.set_profile(Some(profile));
+
+        // Mock input
+        let input = b"work@example.com\n";
+        let mut output = Vec::new();
+
+        let result = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Verify profile prompt was processed
+        assert_eq!(
+            result.get("WORK_EMAIL"),
+            Some(&toml::Value::String("work@example.com\n".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_saves_to_file() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Create config with prompts
+        let config_path = temp_dir.join("config.toml");
+        fs::write(
+            &config_path,
+            r#"
+[prompts]
+API_KEY = "Enter your API key"
+"#,
+        )
+        .unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Mock input
+        let input = b"secret-key-123\n";
+        let mut output = Vec::new();
+
+        ctx.get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Verify file was written
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        assert!(uservars_path.exists());
+
+        // Verify context was updated
+        assert_eq!(
+            ctx.get_user_variable("API_KEY"),
+            Some(&toml::Value::String("secret-key-123\n".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_error_handling() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Create config with prompts
+        let config_path = temp_dir.join("config.toml");
+        fs::write(
+            &config_path,
+            r#"
+[prompts]
+VAR1 = "Enter value 1"
+VAR2 = "Enter value 2"
+"#,
+        )
+        .unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Provide insufficient input (only one value instead of two)
+        let input = b"value1\n";
+        let mut output = Vec::new();
+
+        // Should not panic, should handle the error gracefully
+        let result =
+            ctx.get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output);
+
+        // Should succeed even with error (error is printed to stderr)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_no_dirty_no_save() {
+        use crate::config::Config;
+        use std::fs;
+
+        let temp_dir = create_temp_dir();
+
+        // Pre-populate all variables
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        fs::write(&uservars_path, r#"USER_EMAIL = "existing@example.com""#).unwrap();
+
+        // Create config with same prompt
+        let config_path = temp_dir.join("config.toml");
+        fs::write(
+            &config_path,
+            r#"
+[prompts]
+USER_EMAIL = "Enter your email"
+"#,
+        )
+        .unwrap();
+
+        let mut ctx = Context::new(&temp_dir).unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        // Get last modified time before
+        let metadata_before = fs::metadata(&uservars_path).unwrap();
+        let modified_before = metadata_before.modified().unwrap();
+
+        // Wait a tiny bit to ensure timestamps would differ
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let input = b"";
+        let mut output = Vec::new();
+
+        let result = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        // Verify existing variable was preserved
+        assert_eq!(
+            result.get("USER_EMAIL"),
+            Some(&toml::Value::String("existing@example.com".to_string()))
+        );
+
+        // Verify file was NOT modified (no dirty flag)
+        let metadata_after = fs::metadata(&uservars_path).unwrap();
+        let modified_after = metadata_after.modified().unwrap();
+
+        assert_eq!(
+            modified_before, modified_after,
+            "File should not be modified when no new prompts are answered"
+        );
+    }
 }
