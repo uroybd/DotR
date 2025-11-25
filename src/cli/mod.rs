@@ -30,17 +30,15 @@ pub enum Command {
 #[command(name = "init", about = "Intialize dotfiles repository.")]
 pub struct InitArgs {}
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 #[command(name = "print-vars", about = "Print all user variables.")]
-#[derive(Default)]
 pub struct PrintVarsArgs {
     #[arg(short, long)]
     pub profile: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
-#[derive(Default)]
 pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
@@ -52,7 +50,7 @@ pub struct ImportArgs {
     pub profile: Option<String>,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 #[command(name = "diff", about = "Show differences between dotfiles.")]
 pub struct DiffArgs {
     #[arg(num_args(0..), short, long)]
@@ -65,9 +63,8 @@ pub struct DiffArgs {
     pub ignore_errors: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 #[command(name = "update", about = "Update dotfiles from deployed versions.")]
-#[derive(Default)]
 pub struct UpdateArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
@@ -85,9 +82,8 @@ pub struct UpdateArgs {
     pub dry_run: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 #[command(name = "deploy", about = "Deploy dotfiles from repository.")]
-#[derive(Default)]
 pub struct DeployArgs {
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,

@@ -14,19 +14,13 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Config {
     pub banner: bool,
     pub packages: HashMap<String, Package>,
     pub profiles: HashMap<String, Profile>,
     pub variables: Table,
     pub prompts: HashMap<String, String>, // The key of variable, and the value is the prompt message
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 pub(crate) enum OpType {
@@ -172,7 +166,7 @@ impl Config {
         &self,
         ctx: &Context,
         names: &Option<Vec<String>>,
-    ) -> Result<HashMap<String, Package>, anyhow::Error> {
+    ) -> anyhow::Result<HashMap<String, Package>> {
         let mut packages: HashMap<String, Package> = HashMap::new();
         if let Some(pkg_names) = names {
             for name in pkg_names {
@@ -189,11 +183,7 @@ impl Config {
                         packages.insert(dep.clone(), pkg.clone());
                     }
                 } else {
-                    return Err(anyhow::anyhow!(
-                        "Package '{}' not found for profile '{}'",
-                        dep,
-                        profile.name
-                    ));
+                    anyhow::bail!("Package '{}' not found for profile '{}'", dep, profile.name);
                 }
             }
         } else {
