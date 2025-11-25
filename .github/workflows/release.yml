@@ -20,7 +20,7 @@ jobs:
             os: macos-latest
             name: dotr-aarch64-apple-darwin.tar.gz
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-15-intel
             name: dotr-x86_64-apple-darwin.tar.gz
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
@@ -89,21 +89,21 @@ jobs:
         with:
           repository: uroybd/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          
+
       - name: Update formula with multi-arch support
         run: |
           VERSION="${{ github.ref_name }}"
           VERSION_NUM="${VERSION#v}"
-          
+
           # Calculate checksums
           curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-aarch64-apple-darwin.tar.gz" -o arm64.tar.gz
           curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-apple-darwin.tar.gz" -o intel.tar.gz
           curl -sL "https://github.com/uroybd/DotR/releases/download/${VERSION}/dotr-x86_64-unknown-linux-gnu.tar.gz" -o linux.tar.gz
-          
+
           ARM64_SHA=$(shasum -a 256 arm64.tar.gz | awk '{print $1}')
           INTEL_SHA=$(shasum -a 256 intel.tar.gz | awk '{print $1}')
           LINUX_SHA=$(shasum -a 256 linux.tar.gz | awk '{print $1}')
-          
+
           # Update formula
           cat > Formula/dotr.rb << EOF
           class Dotr < Formula
@@ -138,7 +138,7 @@ jobs:
             end
           end
           EOF
-          
+
           # Commit and push
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
