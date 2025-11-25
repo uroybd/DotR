@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::Write,
+    io::{self},
     path::{Path, PathBuf},
 };
 
@@ -72,16 +72,26 @@ impl Context {
         }
         // Then check for prompted variables and add them if they don't exist in user variables
         // prompt for their values
+        let mut dirty = false;
         for (key, prompt) in prompts.iter() {
             if !prompted_vars.contains_key(key) {
-                // Prompt the user for input
-                print!("{}\n>>> ", prompt);
-                std::io::stdout().flush()?;
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input)?;
-                let input = input.trim().to_string();
-                prompted_vars.insert(key.clone(), toml::Value::String(input));
+                match get_prompted_variables(
+                    prompt,
+                    &mut std::io::stdin().lock(),
+                    &mut std::io::stdout(),
+                ) {
+                    Ok(input) => {
+                        prompted_vars.insert(key.clone(), toml::Value::String(input));
+                        dirty = true;
+                    }
+                    Err(e) => {
+                        eprintln!("Error getting prompted variable '{}': {}", key, e);
+                    }
+                }
             }
+        }
+        if !dirty {
+            return Ok(prompted_vars);
         }
         // Save prompted variables back to .uservariables.toml
         let path = self.working_dir.join(".uservariables.toml");
@@ -210,4 +220,17 @@ pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
             println!("{}{} = {:?}", indent, key, value);
         }
     }
+}
+
+fn get_prompted_variables<R: io::BufRead, W: io::Write>(
+    prompt: &str,
+    mut reader: R,
+    mut writer: W,
+) -> anyhow::Result<String> {
+    // Prompt the user for input
+    writer.write_all(format!("{}\n>>> ", prompt).as_bytes())?;
+    writer.flush()?;
+    let mut input = String::new();
+    reader.read_line(&mut input)?;
+    Ok(input)
 }

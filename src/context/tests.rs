@@ -612,4 +612,55 @@ VAR2 = "user_value2"
         ctx.print_variables();
         // No assertion - just testing that it doesn't panic
     }
+
+    #[test]
+    fn test_get_prompted_variables_function() {
+        // Test the get_prompted_variables helper function with mock input
+        let prompt = "Enter your name";
+        let input = b"John Doe\n";
+        let mut output = Vec::new();
+
+        let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
+
+        assert_eq!(result, "John Doe\n");
+        let output_str = String::from_utf8(output).unwrap();
+        assert!(output_str.contains("Enter your name"));
+        assert!(output_str.contains(">>>"));
+    }
+
+    #[test]
+    fn test_get_prompted_variables_function_empty_input() {
+        let prompt = "Enter value";
+        let input = b"\n";
+        let mut output = Vec::new();
+
+        let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
+
+        assert_eq!(result, "\n");
+    }
+
+    #[test]
+    fn test_get_prompted_variables_function_multiline_prompt() {
+        let prompt = "Enter your API key\n(Found in settings)";
+        let input = b"secret-key-123\n";
+        let mut output = Vec::new();
+
+        let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
+
+        assert_eq!(result, "secret-key-123\n");
+        let output_str = String::from_utf8(output).unwrap();
+        assert!(output_str.contains("Enter your API key"));
+        assert!(output_str.contains("(Found in settings)"));
+    }
+
+    #[test]
+    fn test_get_prompted_variables_function_special_chars() {
+        let prompt = "Enter password (min 8 chars)";
+        let input = b"P@ssw0rd!\n";
+        let mut output = Vec::new();
+
+        let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
+
+        assert_eq!(result, "P@ssw0rd!\n");
+    }
 }
