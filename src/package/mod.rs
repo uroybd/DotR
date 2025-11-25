@@ -432,6 +432,11 @@ impl Package {
                 }
                 std::fs::copy(src, dest)?;
             }
+            println!(
+                "=> Deployed binary file {} -> {}",
+                src.display(),
+                dest.display()
+            );
         }
         Ok(BackupDeployResult::Success)
     }
@@ -470,7 +475,7 @@ impl Package {
                         result = BackupDeployResult::Success;
                         println!(
                             "=> Deployed {} -> {}",
-                            relative_path.path().display(),
+                            relative_path.display(),
                             dest_path.display()
                         );
                     }
