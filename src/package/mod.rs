@@ -588,12 +588,6 @@ fn create_backup_path(path: &Path) -> PathBuf {
     PathBuf::from(backup_path)
 }
 
-/// Compile a template file at the given path using Tera templating engine with the provided context. and return the rendered content as a String.
-pub fn compile_template(path: &Path, context: &Table) -> anyhow::Result<String> {
-    let template_content = std::fs::read_to_string(path)?;
-    compile_string(&template_content, context)
-}
-
 pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
     let ctx = tera::Context::from_serialize(context)?;
     Ok(tera::Tera::one_off(template_str, &ctx, false)?)
