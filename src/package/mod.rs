@@ -272,11 +272,7 @@ impl Package {
                             std::fs::create_dir_all(parent)?;
                         }
                         std::fs::copy(entry.path(), &dest_path)?;
-                        println!(
-                            "=> Backed up {} -> {}",
-                            relative_path.display(),
-                            dest_path.display()
-                        );
+                        println!("=> Backed up {}", entry.display());
                     }
                     all_copied_paths.push(dest_path);
                 }
@@ -289,11 +285,7 @@ impl Package {
             if !args.dry_run {
                 std::fs::copy(&copy_from, &copy_to)?;
             }
-            println!(
-                "=> Backed up {} -> {}",
-                copy_from.display(),
-                copy_to.display()
-            );
+            println!("=> Backed up {}", copy_from.display(),);
         }
         Ok(BackupDeployResult::Success)
     }
@@ -428,11 +420,6 @@ impl Package {
                 }
                 std::fs::copy(src, dest)?;
             }
-            println!(
-                "=> Deployed binary file {} -> {}",
-                src.display(),
-                dest.display()
-            );
         }
         Ok(BackupDeployResult::Success)
     }
@@ -469,11 +456,7 @@ impl Package {
                     )?;
                     if let BackupDeployResult::Success = dep_result {
                         result = BackupDeployResult::Success;
-                        println!(
-                            "=> Deployed {} -> {}",
-                            relative_path.display(),
-                            dest_path.display()
-                        );
+                        println!("=> Deployed {}", dest_path.display());
                     }
                 }
                 all_deployed_paths.push(dest_path);
@@ -486,7 +469,7 @@ impl Package {
             let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true, args.dry_run)?;
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;
-                println!("=> Deployed {} -> {}", self.src, copy_to.display());
+                println!("=> Deployed {}", copy_to.display());
             }
         }
         cprintln(
