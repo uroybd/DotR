@@ -1,8 +1,14 @@
 # DotR
 
 [![PR Check](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml/badge.svg)](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml)
+![Deps.rs Crate Dependencies (latest)](https://img.shields.io/deps-rs/dotr-dear/latest)
 [![codecov](https://codecov.io/gh/uroybd/DotR/branch/main/graph/badge.svg)](https://codecov.io/gh/uroybd/DotR)
 [![License](https://img.shields.io/github/license/uroybd/DotR)](LICENSE)
+
+---
+![GitHub Release](https://img.shields.io/github/v/release/uroybd/dotr)
+![Crates.io Total Downloads](https://img.shields.io/crates/d/dotr-dear)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/uroybd/dotr/total)
 
 A dotfiles manager that is as dear as a daughter.
 
