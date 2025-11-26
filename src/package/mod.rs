@@ -272,7 +272,7 @@ impl Package {
                             std::fs::create_dir_all(parent)?;
                         }
                         std::fs::copy(entry.path(), &dest_path)?;
-                        println!("=> Backed up {}", entry.display());
+                        println!("=> Backed up {}", entry.path().display());
                     }
                     all_copied_paths.push(dest_path);
                 }
