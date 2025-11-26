@@ -361,7 +361,7 @@ impl Config {
                     println!("    Dependencies: {:?}", profile.dependencies);
                     println!("    Variables: {:?}", profile.variables);
                     if !profile.prompts.is_empty() {
-                        println!("    Prompts: {:?}", profile.prompts);
+                        println!("    Prompts:");
                         for (var, prompt) in profile.prompts.iter() {
                             println!("      - {}: {}", var, prompt);
                         }
@@ -380,10 +380,7 @@ impl Config {
         self.save(&ctx.working_dir)?;
         cprintln(&format!("Profile '{}' added", args.name), &LogLevel::INFO);
         if args.set_as_current {
-            ctx.save_to_uservariables(
-                "DOTR_PROFILE",
-                toml::Value::String(profile.name.clone()),
-            )?;
+            ctx.save_to_uservariables("DOTR_PROFILE", toml::Value::String(profile.name.clone()))?;
             cprintln(
                 &format!("Setting profile '{}' as current", args.name),
                 &LogLevel::INFO,
