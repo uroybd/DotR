@@ -1,14 +1,14 @@
 # DotR
 
-[![PR Check](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml/badge.svg)](https://github.com/uroybd/DotR/actions/workflows/pr-check.yml)
+
+![Codecov](https://img.shields.io/codecov/c/github/uroybd/dotr?style=for-the-badge&label=Coverage&link=https%3A%2F%2Fapp.codecov.io%2Fgithub%2Furoybd%2FDotR&link=https%3A%2F%2Fapp.codecov.io%2Fgithub%2Furoybd%2FDotR)
 ![Deps.rs Crate Dependencies (latest)](https://img.shields.io/deps-rs/dotr-dear/latest)
-[![codecov](https://codecov.io/gh/uroybd/DotR/branch/main/graph/badge.svg)](https://codecov.io/gh/uroybd/DotR)
 [![License](https://img.shields.io/github/license/uroybd/DotR)](LICENSE)
 
 ---
-![GitHub Release](https://img.shields.io/github/v/release/uroybd/dotr)
-![Crates.io Total Downloads](https://img.shields.io/crates/d/dotr-dear?label=Crates.io%20downloads)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/uroybd/dotr/total?label=Github%20downloads)
+![GitHub Release](https://img.shields.io/github/v/release/uroybd/dotr?style=for-the-badge&link=https%3A%2F%2Fgithub.com%2Furoybd%2FDotR%2Freleases%2Flatest&link=https%3A%2F%2Fgithub.com%2Furoybd%2FDotR%2Freleases%2Flatest)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/uroybd/dotr/total?style=for-the-badge&label=Github%20Downloads)
+![Crates.io Total Downloads](https://img.shields.io/crates/d/dotr-dear?style=for-the-badge&label=Crates.io%20Downloads)
 
 A dotfiles manager that is as dear as a daughter.
 
