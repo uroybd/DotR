@@ -497,10 +497,6 @@ impl Package {
         Ok(result)
     }
 
-    pub fn is_dir(&self) -> bool {
-        self.name.starts_with("d_")
-    }
-
     pub fn package_is_templated(&self, cwd: &Path) -> bool {
         // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
@@ -522,7 +518,8 @@ impl Package {
                     return is_templated(&entry.path().to_path_buf());
                 }
             }
-        } else if src_path.is_file() {
+        }
+        if src_path.is_file() {
             return is_templated(&src_path);
         }
         false
