@@ -356,7 +356,7 @@ impl Config {
             cprintln("No profiles found.", &LogLevel::INFO);
         } else {
             for (name, profile) in self.profiles.iter() {
-                println!("{} ", name,);
+                println!("{} ", name);
                 if args.verbose {
                     println!("    Dependencies: {:?}", profile.dependencies);
                     println!("    Variables: {:?}", profile.variables);
