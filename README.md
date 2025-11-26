@@ -7,8 +7,8 @@
 
 ---
 ![GitHub Release](https://img.shields.io/github/v/release/uroybd/dotr)
-![Crates.io Total Downloads](https://img.shields.io/crates/d/dotr-dear)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/uroybd/dotr/total)
+![Crates.io Total Downloads](https://img.shields.io/crates/d/dotr-dear?label=Crates.io%20downloads)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/uroybd/dotr/total?label=Github%20downloads)
 
 A dotfiles manager that is as dear as a daughter.
 
