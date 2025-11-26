@@ -330,7 +330,7 @@ impl Config {
             cprintln("No packages found.", &LogLevel::INFO);
         } else {
             for (name, pkg) in packages.iter() {
-                println!("{} ", name,);
+                println!("{} ", name);
                 if args.verbose {
                     print!(
                         "    Source: {}\n    Destination: {}\n    skipped: {}\n",
