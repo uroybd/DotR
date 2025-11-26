@@ -2,8 +2,8 @@
 
 
 ![Codecov](https://img.shields.io/codecov/c/github/uroybd/dotr?style=for-the-badge&label=Coverage&link=https%3A%2F%2Fapp.codecov.io%2Fgithub%2Furoybd%2FDotR&link=https%3A%2F%2Fapp.codecov.io%2Fgithub%2Furoybd%2FDotR)
-![Deps.rs Crate Dependencies (latest)](https://img.shields.io/deps-rs/dotr-dear/latest)
-[![License](https://img.shields.io/github/license/uroybd/DotR)](LICENSE)
+![Deps.rs Crate Dependencies (latest)](https://img.shields.io/deps-rs/dotr-dear/latest?style=for-the-badge)
+![Crates.io License](https://img.shields.io/crates/l/dotr-dear?style=for-the-badge)
 
 ---
 ![GitHub Release](https://img.shields.io/github/v/release/uroybd/dotr?style=for-the-badge&link=https%3A%2F%2Fgithub.com%2Furoybd%2FDotR%2Freleases%2Flatest&link=https%3A%2F%2Fgithub.com%2Furoybd%2FDotR%2Freleases%2Flatest)
