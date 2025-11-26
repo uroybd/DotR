@@ -131,10 +131,7 @@ impl Config {
     }
 
     pub fn import_package(&mut self, args: &ImportArgs, ctx: &Context) -> anyhow::Result<()> {
-        let mut profile = ctx
-            .profile
-            .clone()
-            .ok_or_else(|| anyhow::anyhow!("Profile must be set in context for import"))?;
+        let mut profile = ctx.profile.clone();
         let profile_name = profile.name.clone();
         cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
@@ -176,18 +173,20 @@ impl Config {
                     return Err(anyhow::anyhow!("Package '{}' not found", name));
                 }
             }
-        } else if let Some(profile) = &ctx.profile {
-            for dep in &profile.dependencies {
+        } else {
+            for dep in &ctx.profile.dependencies {
                 if let Some(pkg) = self.packages.get(dep) {
                     if !pkg.skip {
                         packages.insert(dep.clone(), pkg.clone());
                     }
                 } else {
-                    anyhow::bail!("Package '{}' not found for profile '{}'", dep, profile.name);
+                    anyhow::bail!(
+                        "Package '{}' not found for profile '{}'",
+                        dep,
+                        ctx.profile.name
+                    );
                 }
             }
-        } else {
-            anyhow::bail!("No packages specified and no profile set in context");
         }
         // Now resolve packages dependencies
         let mut dependencies: HashMap<String, Package> = HashMap::new();
@@ -274,47 +273,20 @@ impl Config {
         Ok(())
     }
 
-    pub fn set_profile_context(
-        &mut self,
-        pname: &Option<String>,
-        ctx: &mut Context,
-        create_if_missing: bool,
-    ) -> anyhow::Result<()> {
-        let profile_name = match pname {
-            Some(name) => name.clone(),
-            None => {
-                let vars = &ctx.get_context_variables();
-                if let Ok(env_p_name) = vars
-                    .get("DOTR_PROFILE")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
-                {
-                    env_p_name.to_string()
-                } else {
-                    "default".to_string()
-                }
-            }
-        };
-
-        let profile = self.profiles.get_mut(&profile_name);
-        if let Some(prof) = profile {
-            ctx.set_profile(Some(prof.clone()));
-        } else if !create_if_missing && profile_name != "default" {
-            anyhow::bail!("Profile {} not found", profile_name);
-        } else {
-            let profile = self
-                .profiles
-                .entry(profile_name.clone())
-                .or_insert_with(|| {
-                    cprintln(
-                        &format!("Profile '{}' not found, creating new", profile_name),
-                        &LogLevel::WARNING,
-                    );
-                    Profile::new(&profile_name)
-                });
-            ctx.set_profile(Some(profile.clone()));
-            self.save(&ctx.working_dir)?;
-        }
+    pub fn update_profiles(&mut self, profile: &Profile, ctx: &Context) -> anyhow::Result<()> {
+        self.profiles
+            .entry(profile.name.clone())
+            .or_insert_with(|| {
+                cprintln(
+                    &format!(
+                        "Profile '{}' not found in configuration, creating empty profile",
+                        profile.name
+                    ),
+                    &LogLevel::WARNING,
+                );
+                profile.clone()
+            });
+        self.save(&ctx.working_dir)?;
         Ok(())
     }
 

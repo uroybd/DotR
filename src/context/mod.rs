@@ -16,7 +16,7 @@ pub struct Context {
     pub working_dir: PathBuf,
     variables: Table,
     user_variables: Table,
-    pub profile: Option<Profile>,
+    pub profile: Profile,
 }
 
 impl Context {
@@ -29,11 +29,7 @@ impl Context {
     }
 
     pub fn get_profile_variable(&self, key: &str) -> Option<&toml::Value> {
-        if let Some(profile) = &self.profile {
-            profile.variables.get(key)
-        } else {
-            None
-        }
+        self.profile.variables.get(key)
     }
 
     pub fn get_context_variable(&self, key: &str) -> Option<&toml::Value> {
@@ -43,7 +39,7 @@ impl Context {
         })
     }
 
-    pub fn set_profile(&mut self, profile: Option<Profile>) {
+    pub fn set_profile(&mut self, profile: Profile) {
         self.profile = profile;
     }
 
@@ -71,11 +67,9 @@ impl Context {
         let mut prompted_vars = self.user_variables.clone();
         // Now, get the prompts from config
         let mut prompts = conf.prompts.clone();
-        // If profile exists, merge its prompts too
-        if let Some(profile) = &self.profile {
-            for (key, prompt) in profile.prompts.iter() {
-                prompts.insert(key.clone(), prompt.clone());
-            }
+        // Merge profile prompts
+        for (key, prompt) in self.profile.prompts.iter() {
+            prompts.insert(key.clone(), prompt.clone());
         }
         if let Ok(filtered_packages) = conf.filter_packages(self, packages) {
             // For each package, merge its prompts too
@@ -129,19 +123,62 @@ impl Context {
         }
     }
 
-    pub fn new(working_dir: &Path) -> Result<Self, anyhow::Error> {
-        let mut variables = Table::new();
+    pub fn new(
+        working_dir: &Path,
+        conf: &Config,
+        profile_name: &Option<String>,
+        create_profile_if_missing: bool,
+    ) -> Result<Self, anyhow::Error> {
+        let mut variables = conf.variables.clone();
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
         }
         // User variables file must parse correctly if it exists
         let user_variables = Self::parse_uservariables(working_dir)?;
+        let mut all_variables = variables.clone();
+        all_variables.extend(user_variables.clone());
+        let profile = Self::get_profile_from_config(
+            conf,
+            profile_name,
+            create_profile_if_missing,
+            &all_variables,
+        )?;
         Ok(Self {
             working_dir: working_dir.to_path_buf(),
             variables,
             user_variables,
-            profile: None,
+            profile,
         })
+    }
+
+    pub fn get_profile_from_config(
+        conf: &Config,
+        pname: &Option<String>,
+        create_if_missing: bool,
+        variables: &Table,
+    ) -> anyhow::Result<Profile> {
+        let profile_name = match pname {
+            Some(name) => name.clone(),
+            None => {
+                if let Ok(env_p_name) = variables
+                    .get("DOTR_PROFILE")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
+                {
+                    env_p_name.to_string()
+                } else {
+                    "default".to_string()
+                }
+            }
+        };
+
+        let profile = conf.profiles.get(&profile_name);
+        if let Some(prof) = profile {
+            return Ok(prof.clone());
+        } else if !create_if_missing && profile_name != "default" {
+            anyhow::bail!("Profile {} not found", profile_name);
+        }
+        Ok(Profile::new(&profile_name))
     }
 
     pub fn get_variables(&self) -> &Table {
@@ -154,9 +191,7 @@ impl Context {
 
     pub fn get_context_variables(&self) -> Table {
         let mut context_vars = self.variables.clone();
-        if let Some(profile) = &self.profile {
-            context_vars.extend(profile.variables.clone());
-        }
+        context_vars.extend(self.profile.variables.clone());
         context_vars.extend(self.user_variables.clone());
         context_vars
     }

@@ -169,8 +169,7 @@ fn init_config(
         println!("{}", BANNER);
     }
     // Start with environment variables from Context::new()
-    let mut ctx = Context::new(working_dir)?;
-    ctx.extend_variables(conf.variables.clone());
-    conf.set_profile_context(profile, &mut ctx, create_if_missing)?;
+    let ctx = Context::new(working_dir, &conf, profile, create_if_missing)?;
+    conf.update_profiles(&ctx.profile, &ctx)?;
     Ok((conf, ctx))
 }

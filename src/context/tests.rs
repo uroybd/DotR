@@ -1,8 +1,9 @@
 #[cfg(test)]
 mod context_tests {
+    use crate::config::Config;
     use crate::context::{Context, print_variable};
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use toml::Table;
 
@@ -16,10 +17,19 @@ mod context_tests {
         temp_dir
     }
 
+    fn create_test_config(temp_dir: &Path) -> Config {
+        let config_path = temp_dir.join("config.toml");
+        if !config_path.exists() {
+            fs::write(&config_path, "").expect("Failed to create config.toml");
+        }
+        Config::from_path(temp_dir).expect("Failed to load config")
+    }
+
     #[test]
     fn test_context_new() {
         let temp_dir = create_temp_dir();
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(&ctx.working_dir, &temp_dir);
         assert!(
@@ -35,7 +45,8 @@ mod context_tests {
     #[test]
     fn test_context_contains_env_variables() {
         let temp_dir = create_temp_dir();
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // HOME should always be in environment
         assert!(
@@ -134,7 +145,9 @@ key = "secret-key"
     #[test]
     fn test_get_variable() {
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "TEST_VAR".to_string(),
@@ -156,7 +169,8 @@ key = "secret-key"
         fs::write(uservars_path, r#"USER_VAR = "user_value""#)
             .expect("Failed to write .uservariables.toml");
 
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(
             ctx.get_user_variable("USER_VAR"),
@@ -168,12 +182,14 @@ key = "secret-key"
     #[test]
     fn test_get_context_variable_priority() {
         let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(uservars_path, r#"PRIORITY_VAR = "user_value""#)
             .expect("Failed to write .uservariables.toml");
 
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         ctx.variables.insert(
             "PRIORITY_VAR".to_string(),
             toml::Value::String("config_value".to_string()),
@@ -189,7 +205,9 @@ key = "secret-key"
     #[test]
     fn test_get_context_variable_fallback_to_config() {
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "CONFIG_ONLY".to_string(),
@@ -206,7 +224,9 @@ key = "secret-key"
     #[test]
     fn test_get_variables() {
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         ctx.variables
             .insert("TEST".to_string(), toml::Value::String("value".to_string()));
@@ -219,12 +239,13 @@ key = "secret-key"
     #[test]
     fn test_get_user_variables() {
         let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(uservars_path, r#"USER_VAR = "value""#)
             .expect("Failed to write .uservariables.toml");
 
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(user_vars.len(), 1);
@@ -234,6 +255,7 @@ key = "secret-key"
     #[test]
     fn test_get_context_variables_merges_correctly() {
         let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -245,7 +267,8 @@ OVERRIDE_VAR = "user_override"
         )
         .expect("Failed to write .uservariables.toml");
 
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         ctx.variables.insert(
             "CONFIG_VAR".to_string(),
             toml::Value::String("config_value".to_string()),
@@ -271,7 +294,9 @@ OVERRIDE_VAR = "user_override"
     #[test]
     fn test_extend_variables() {
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         let mut new_vars = Table::new();
         new_vars.insert(
@@ -290,7 +315,9 @@ OVERRIDE_VAR = "user_override"
     #[test]
     fn test_extend_variables_overwrites() {
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "EXISTING".to_string(),
@@ -314,6 +341,7 @@ OVERRIDE_VAR = "user_override"
     #[test]
     fn test_context_with_complex_user_variables() {
         let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -339,7 +367,7 @@ value = 2
         )
         .expect("Failed to write .uservariables.toml");
 
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(
@@ -356,7 +384,8 @@ value = 2
     #[test]
     fn test_context_working_dir() {
         let temp_dir = create_temp_dir();
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(ctx.working_dir, temp_dir);
     }
@@ -364,7 +393,8 @@ value = 2
     #[test]
     fn test_context_debug_format() {
         let temp_dir = create_temp_dir();
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // Should have Debug implementation
         let debug_str = format!("{:?}", ctx);
@@ -376,14 +406,19 @@ value = 2
         let temp_dir1 = create_temp_dir();
         let temp_dir2 = create_temp_dir();
 
+        let config1 = create_test_config(&temp_dir1);
+        let config2 = create_test_config(&temp_dir2);
+
         fs::write(temp_dir1.join(".uservariables.toml"), r#"VAR = "dir1""#)
             .expect("Failed to write");
 
         fs::write(temp_dir2.join(".uservariables.toml"), r#"VAR = "dir2""#)
             .expect("Failed to write");
 
-        let ctx1 = Context::new(&temp_dir1).expect("Failed to create context");
-        let ctx2 = Context::new(&temp_dir2).expect("Failed to create context");
+        let ctx1 =
+            Context::new(&temp_dir1, &config1, &None, false).expect("Failed to create context");
+        let ctx2 =
+            Context::new(&temp_dir2, &config2, &None, false).expect("Failed to create context");
 
         assert_eq!(
             ctx1.get_user_variable("VAR"),
@@ -398,6 +433,7 @@ value = 2
     #[test]
     fn test_user_variables_override_in_merged_context() {
         let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -409,7 +445,8 @@ VAR2 = "user_value2"
         )
         .expect("Failed to write .uservariables.toml");
 
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // Add some config variables
         ctx.variables.insert(
@@ -455,7 +492,8 @@ VAR2 = "user_value2"
     #[test]
     fn test_context_clone() {
         let temp_dir = create_temp_dir();
-        let ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let ctx = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let cloned = ctx.clone();
 
         assert_eq!(ctx.working_dir, cloned.working_dir);
@@ -584,7 +622,9 @@ VAR2 = "user_value2"
     fn test_print_variables_empty() {
         // Test print_variables with empty variables (covers line 80-81)
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         ctx.variables.clear(); // Clear all variables including env vars
         ctx.print_variables();
         // No assertion - just testing that it doesn't panic
@@ -594,7 +634,9 @@ VAR2 = "user_value2"
     fn test_print_variables_with_complex_types() {
         // Test print_variables with various types
         let temp_dir = create_temp_dir();
-        let mut ctx = Context::new(&temp_dir).expect("Failed to create context");
+        let config = create_test_config(&temp_dir);
+        let mut ctx =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         ctx.variables
             .insert("float_var".to_string(), toml::Value::Float(2.5));
@@ -682,8 +724,8 @@ USER_NAME = "Enter your name"
         )
         .unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Mock input
         let input = b"John Doe\n";
@@ -731,8 +773,8 @@ USER_NAME = "Enter your name"
         )
         .unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Mock input - only provide input for USER_NAME
         let input = b"John Doe\n";
@@ -766,8 +808,8 @@ USER_NAME = "Enter your name"
         let config_path = temp_dir.join("config.toml");
         fs::write(&config_path, "").unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let input = b"";
         let mut output = Vec::new();
@@ -793,8 +835,8 @@ USER_NAME = "Enter your name"
         let config_path = temp_dir.join("config.toml");
         fs::write(&config_path, r#""#).unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Set profile with prompts
         let mut profile_prompts = HashMap::new();
@@ -807,7 +849,7 @@ USER_NAME = "Enter your name"
             prompts: profile_prompts,
         };
 
-        ctx.set_profile(Some(profile));
+        ctx.set_profile(profile);
 
         // Mock input
         let input = b"work@example.com\n";
@@ -842,8 +884,8 @@ API_KEY = "Enter your API key"
         )
         .unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Mock input
         let input = b"secret-key-123\n";
@@ -882,8 +924,8 @@ VAR2 = "Enter value 2"
         )
         .unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Provide insufficient input (only one value instead of two)
         let input = b"value1\n";
@@ -919,8 +961,8 @@ USER_EMAIL = "Enter your email"
         )
         .unwrap();
 
-        let mut ctx = Context::new(&temp_dir).unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
+        let mut ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         // Get last modified time before
         let metadata_before = fs::metadata(&uservars_path).unwrap();

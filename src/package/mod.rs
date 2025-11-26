@@ -231,9 +231,7 @@ impl Package {
     pub fn get_context_variables(&self, ctx: &Context) -> Table {
         let mut vars = ctx.get_variables().clone();
         vars.extend(self.variables.clone());
-        if let Some(profile) = &ctx.profile {
-            vars.extend(profile.variables.clone());
-        }
+        vars.extend(ctx.profile.variables.clone());
         vars.extend(ctx.get_user_variables().clone());
         vars
     }
@@ -301,9 +299,7 @@ impl Package {
     }
 
     pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
-        if let Some(profile) = &ctx.profile
-            && let Some(target_dest) = self.targets.get(profile.name.as_str())
-        {
+        if let Some(target_dest) = self.targets.get(ctx.profile.name.as_str()) {
             return resolve_path(target_dest, &ctx.working_dir);
         }
         resolve_path(&self.dest, &ctx.working_dir)
