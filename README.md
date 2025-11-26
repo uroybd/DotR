@@ -296,7 +296,6 @@ sudo mv dotr /usr/local/bin/
 
 ## Usage
 ```
-
 Usage: dotr [OPTIONS] [COMMAND]
 
 Commands:
@@ -306,12 +305,15 @@ Commands:
   update      Update dotfiles from deployed versions.
   diff        Show differences between dotfiles.
   print-vars  Print all user variables.
+  packages    List all managed packages.
+  profiles
   help        Print this message or the help of the given subcommand(s)
 
 Options:
   -w, --working-dir <WORKING_DIR>
   -h, --help                       Print help
   -V, --version                    Print version
+
 ```
 
 ## TODO

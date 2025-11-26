@@ -24,6 +24,8 @@ pub enum Command {
     Update(UpdateArgs),
     Diff(DiffArgs),
     PrintVars(PrintVarsArgs),
+    Packages(PackagesArgs),
+    Profiles(ProfilesArgs),
 }
 
 #[derive(Debug, Args)]
@@ -101,6 +103,57 @@ pub struct DeployArgs {
     pub dry_run: bool,
 }
 
+#[derive(Debug, Args, Default)]
+#[command(name = "packages", about = "List all managed packages.")]
+pub struct PackagesArgs {
+    #[arg(short = 'P', long)]
+    pub profile: Option<String>,
+    #[clap(subcommand)]
+    pub command: Option<PackagesCommand>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum PackagesCommand {
+    List(PackagesListArgs),
+    Import(ImportArgs),
+    Deploy(DeployArgs),
+    Update(UpdateArgs),
+    Diff(DiffArgs),
+}
+
+#[derive(Debug, Args, Default)]
+pub struct PackagesListArgs {
+    #[arg(short, long, default_value_t = false)]
+    pub verbose: bool,
+}
+
+#[derive(Debug, Args, Default)]
+pub struct ProfilesArgs {
+    #[clap(subcommand)]
+    pub command: Option<ProfilesCommand>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ProfilesCommand {
+    Add(ProfilesAddArgs),
+    List(ProfilesListArgs),
+}
+
+#[derive(Debug, Args, Default)]
+pub struct ProfilesListArgs {
+    #[arg(short, long, default_value_t = false)]
+    pub verbose: bool,
+}
+
+#[derive(Debug, Args, Default)]
+pub struct ProfilesAddArgs {
+    #[arg(value_name = "PROFILE_NAME")]
+    pub name: String,
+
+    #[arg(long, default_value_t = false)]
+    pub set_as_current: bool,
+}
+
 const BANNER: &str = r#"
 ██████╗  ██████╗ ████████╗██████╗ 
 ██╔══██╗██╔═══██╗╚══██╔══╝██╔══██╗
@@ -151,6 +204,46 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
         Some(Command::PrintVars(args)) => {
             let (_, ctx) = init_config(&working_dir, &args.profile, false)?;
             ctx.print_variables();
+        }
+        Some(Command::Packages(args)) => {
+            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            match args.command {
+                Some(PackagesCommand::List(args)) => {
+                    conf.list_packages(&ctx, &args)?;
+                }
+                Some(PackagesCommand::Import(import_args)) => {
+                    conf.import_package(&import_args, &ctx)?;
+                }
+                Some(PackagesCommand::Deploy(deploy_args)) => {
+                    ctx.get_prompted_variables(&conf, &deploy_args.packages)?;
+                    conf.deploy_packages(&ctx, &deploy_args)?;
+                }
+                Some(PackagesCommand::Update(update_args)) => {
+                    ctx.get_prompted_variables(&conf, &update_args.packages)?;
+                    conf.backup_packages(&ctx, &update_args)?;
+                }
+                Some(PackagesCommand::Diff(diff_args)) => {
+                    ctx.get_prompted_variables(&conf, &diff_args.packages)?;
+                    conf.diff_packages(&ctx, &diff_args)?;
+                }
+                None => {
+                    println!("No packages command provided. Use --help for more information.");
+                }
+            }
+        }
+        Some(Command::Profiles(args)) => {
+            let (mut conf, mut ctx) = init_config(&working_dir, &None, false)?;
+            match args.command {
+                Some(ProfilesCommand::List(list_args)) => {
+                    conf.list_profiles(&list_args)?;
+                }
+                Some(ProfilesCommand::Add(add_args)) => {
+                    conf.add_profile(&add_args, &mut ctx)?;
+                }
+                None => {
+                    println!("No profiles command provided. Use --help for more information.");
+                }
+            }
         }
         None => {
             println!("No command provided. Use --help for more information.");

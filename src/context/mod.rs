@@ -106,6 +106,20 @@ impl Context {
         Ok(prompted_vars)
     }
 
+    pub fn save_to_uservariables(
+        &mut self,
+        key: &str,
+        val: toml::Value,
+    ) -> Result<(), anyhow::Error> {
+        let mut user_vars = self.user_variables.clone();
+        user_vars.insert(key.to_string(), val);
+        let toml_string = toml::to_string(&user_vars)?;
+        self.user_variables = user_vars;
+        let path = self.working_dir.join(".uservariables.toml");
+        fs::write(&path, toml_string)?;
+        Ok(())
+    }
+
     pub fn parse_uservariables(cwd: &Path) -> Result<Table, anyhow::Error> {
         let path = cwd.join(".uservariables.toml");
         if path.exists() {

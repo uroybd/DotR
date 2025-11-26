@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
 
 use crate::{
-    cli::{DeployArgs, DiffArgs, ImportArgs, UpdateArgs},
+    cli::{DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfilesAddArgs, UpdateArgs},
     context::Context,
     package::{BackupDeployResult, Package},
     profile::Profile,
@@ -322,6 +322,71 @@ impl Config {
             profiles,
             prompts: HashMap::new(),
         }
+    }
+
+    pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
+        let packages = self.filter_packages(ctx, &None)?;
+        if packages.is_empty() {
+            cprintln("No packages found.", &LogLevel::INFO);
+        } else {
+            for (name, pkg) in packages.iter() {
+                println!("{} ", name);
+                if args.verbose {
+                    print!(
+                        "    Source: {}\n    Destination: {}\n    skipped: {}\n",
+                        pkg.src, pkg.dest, pkg.skip
+                    );
+                    if let Some(deps) = &pkg.dependencies {
+                        println!("    Dependencies: {:?}", deps);
+                    }
+                    if !pkg.targets.is_empty() {
+                        println!("    Targets:");
+                        for (target_name, target_dest) in pkg.targets.iter() {
+                            println!("      - {}: {}", target_name, target_dest);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn list_profiles(&self, args: &crate::cli::ProfilesListArgs) -> anyhow::Result<()> {
+        if self.profiles.is_empty() {
+            cprintln("No profiles found.", &LogLevel::INFO);
+        } else {
+            for (name, profile) in self.profiles.iter() {
+                println!("{} ", name);
+                if args.verbose {
+                    println!("    Dependencies: {:?}", profile.dependencies);
+                    println!("    Variables: {:?}", profile.variables);
+                    if !profile.prompts.is_empty() {
+                        println!("    Prompts:");
+                        for (var, prompt) in profile.prompts.iter() {
+                            println!("      - {}: {}", var, prompt);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn add_profile(&mut self, args: &ProfilesAddArgs, ctx: &mut Context) -> anyhow::Result<()> {
+        if self.profiles.contains_key(&args.name) {
+            anyhow::bail!("Profile '{}' already exists", args.name);
+        }
+        let profile = Profile::new(&args.name);
+        self.profiles.insert(args.name.clone(), profile.clone());
+        self.save(&ctx.working_dir)?;
+        cprintln(&format!("Profile '{}' added", args.name), &LogLevel::INFO);
+        if args.set_as_current {
+            ctx.save_to_uservariables("DOTR_PROFILE", toml::Value::String(profile.name.clone()))?;
+            cprintln(
+                &format!("Setting profile '{}' as current", args.name),
+                &LogLevel::INFO,
+            );
+        }
+        Ok(())
     }
 }
 
