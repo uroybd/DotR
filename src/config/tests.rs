@@ -330,10 +330,12 @@ mod remove_packages_tests {
 
         let result = config.remove_packages(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("not found in configuration"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("not found in configuration")
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -349,9 +351,7 @@ mod remove_packages_tests {
 
         let mut profile = Profile::new("test-profile");
         profile.dependencies.push("pkg1".to_string());
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
@@ -365,10 +365,12 @@ mod remove_packages_tests {
 
         let result = config.remove_packages(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("depended on by profiles"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("depended on by profiles")
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -403,12 +405,14 @@ mod remove_packages_tests {
         assert!(result.is_ok());
         assert!(!config.packages.contains_key("pkg1"));
         // Verify dependency was removed from profile
-        assert!(!config
-            .profiles
-            .get("test-profile")
-            .unwrap()
-            .dependencies
-            .contains(&"pkg1".to_string()));
+        assert!(
+            !config
+                .profiles
+                .get("test-profile")
+                .unwrap()
+                .dependencies
+                .contains(&"pkg1".to_string())
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -438,10 +442,7 @@ mod remove_packages_tests {
 
         let result = config.remove_packages(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("depended on by"));
+        assert!(result.unwrap_err().to_string().contains("depended on by"));
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -453,12 +454,14 @@ mod remove_packages_tests {
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
         let mut config = Config::new();
-        config
-            .packages
-            .insert("pkg1".to_string(), Package::new("pkg1", "dotfiles/pkg1", "/dest1"));
-        config
-            .packages
-            .insert("pkg2".to_string(), Package::new("pkg2", "dotfiles/pkg2", "/dest2"));
+        config.packages.insert(
+            "pkg1".to_string(),
+            Package::new("pkg1", "dotfiles/pkg1", "/dest1"),
+        );
+        config.packages.insert(
+            "pkg2".to_string(),
+            Package::new("pkg2", "dotfiles/pkg2", "/dest2"),
+        );
 
         let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
@@ -513,16 +516,18 @@ mod remove_packages_tests {
 
         let mut config = Config::new();
         // Create an orphan package (not referenced by any profile)
-        config
-            .packages
-            .insert("orphan".to_string(), Package::new("orphan", "dotfiles/orphan", "/dest"));
+        config.packages.insert(
+            "orphan".to_string(),
+            Package::new("orphan", "dotfiles/orphan", "/dest"),
+        );
         // Create a package referenced by default profile
         let mut profile = config.profiles.get_mut("default").unwrap().clone();
         profile.dependencies.push("used".to_string());
         config.profiles.insert("default".to_string(), profile);
-        config
-            .packages
-            .insert("used".to_string(), Package::new("used", "dotfiles/used", "/dest2"));
+        config.packages.insert(
+            "used".to_string(),
+            Package::new("used", "dotfiles/used", "/dest2"),
+        );
 
         let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
@@ -589,10 +594,12 @@ mod remove_packages_tests {
 
         let result = config.remove_packages(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("No packages specified"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No packages specified")
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -614,9 +621,7 @@ mod remove_profile_tests {
 
         let mut config = Config::new();
         let profile = Profile::new("test-profile");
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
@@ -649,10 +654,12 @@ mod remove_profile_tests {
 
         let result = config.remove_profile(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("not found in configuration"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("not found in configuration")
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -673,10 +680,12 @@ mod remove_profile_tests {
 
         let result = config.remove_profile(&args, &ctx);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Cannot remove the default profile"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Cannot remove the default profile")
+        );
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }
@@ -688,9 +697,7 @@ mod remove_profile_tests {
 
         let mut config = Config::new();
         let profile = Profile::new("test-profile");
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
 
@@ -719,9 +726,7 @@ mod remove_profile_tests {
         // Create a profile with a package
         let mut profile = Profile::new("test-profile");
         profile.dependencies.push("pkg1".to_string());
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
@@ -753,9 +758,7 @@ mod remove_profile_tests {
         // Create a profile with a package
         let mut profile = Profile::new("test-profile");
         profile.dependencies.push("pkg1".to_string());
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
@@ -842,9 +845,7 @@ mod package_safety_tests {
 
         let mut profile = Profile::new("test-profile");
         profile.dependencies.push("pkg1".to_string());
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let (is_safe, dep_profiles, dep_packages) =
             config.is_package_safe_to_remove("pkg1", &[], &[]);
@@ -880,9 +881,7 @@ mod package_safety_tests {
 
         let mut profile = Profile::new("test-profile");
         profile.dependencies.push("pkg1".to_string());
-        config
-            .profiles
-            .insert("test-profile".to_string(), profile);
+        config.profiles.insert("test-profile".to_string(), profile);
 
         let (is_safe, dep_profiles, dep_packages) =
             config.is_package_safe_to_remove("pkg1", &["test-profile".to_string()], &[]);
