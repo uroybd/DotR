@@ -578,6 +578,7 @@ impl Config {
         cprintln(&format!("Profile '{}' removed", args.name), &LogLevel::INFO);
         if args.remove_orphans {
             let orphan_packages = self.get_orphan_packages();
+            let mut dirty = false;
             for orphan in orphan_packages.iter() {
                 let pkg = self.packages.get(orphan).unwrap().clone();
                 match self.remove_package(&pkg, ctx) {
@@ -585,12 +586,16 @@ impl Config {
                         anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
                     }
                     Ok(_) => {
+                        dirty = true;
                         cprintln(
                             &format!("Orphan package '{}' removed", orphan),
                             &LogLevel::INFO,
                         );
                     }
                 }
+            }
+            if dirty {
+                self.save(&ctx.working_dir)?;
             }
         }
         Ok(())

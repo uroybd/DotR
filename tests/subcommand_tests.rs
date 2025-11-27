@@ -2,8 +2,9 @@ use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{
-        Cli, Command, InitArgs, PackagesArgs, PackagesCommand, PackagesListArgs, ProfilesAddArgs,
-        ProfilesArgs, ProfilesCommand, ProfilesListArgs, run_cli,
+        Cli, Command, InitArgs, PackagesArgs, PackagesCommand, PackagesListArgs, ProfileRemoveArgs,
+        ProfilesAddArgs, ProfilesArgs, ProfilesCommand, ProfilesListArgs, RemovePackageArgs,
+        run_cli,
     },
     config::Config,
     package::Package,
@@ -421,4 +422,317 @@ fn test_profiles_no_subcommand() {
         result.is_ok(),
         "Should handle missing subcommand gracefully"
     );
+}
+
+// ==========================
+// Remove Command Tests
+// ==========================
+
+#[test]
+fn test_remove_command_success() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a package
+    let mut config = fixture.get_config();
+    let pkg = Package::new("test-pkg", "dotfiles/test-pkg", "dest/test-pkg");
+    config.packages.insert("test-pkg".to_string(), pkg);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Create the package directory
+    fixture.write_file("dotfiles/test-pkg/file.txt", "content");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Remove(RemovePackageArgs {
+        packages: Some(vec!["test-pkg".to_string()]),
+        force: false,
+        remove_orphans: false,
+        dry_run: false,
+        profile: None,
+    }))));
+
+    assert!(result.is_ok(), "Remove command should succeed");
+
+    // Verify package was removed
+    let config = fixture.get_config();
+    assert!(
+        !config.packages.contains_key("test-pkg"),
+        "Package should be removed from config"
+    );
+}
+
+#[test]
+fn test_remove_command_with_force() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a package and add it to a profile dependency
+    let mut config = fixture.get_config();
+    let pkg = Package::new("test-pkg", "dotfiles/test-pkg", "dest/test-pkg");
+    config.packages.insert("test-pkg".to_string(), pkg);
+
+    let mut test_profile = Profile::new("test-profile");
+    test_profile.dependencies.push("test-pkg".to_string());
+    config
+        .profiles
+        .insert("test-profile".to_string(), test_profile);
+
+    config.save(&fixture.cwd).expect("Failed to save config");
+    fixture.write_file("dotfiles/test-pkg/file.txt", "content");
+
+    // Should succeed with force flag
+    let result = run_cli(fixture.get_cli(Some(Command::Remove(RemovePackageArgs {
+        packages: Some(vec!["test-pkg".to_string()]),
+        force: true,
+        remove_orphans: false,
+        dry_run: false,
+        profile: None,
+    }))));
+
+    assert!(result.is_ok(), "Remove with force should succeed");
+
+    let config = fixture.get_config();
+    assert!(!config.packages.contains_key("test-pkg"));
+}
+
+#[test]
+fn test_remove_command_dry_run() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let mut config = fixture.get_config();
+    let pkg = Package::new("test-pkg", "dotfiles/test-pkg", "dest/test-pkg");
+    config.packages.insert("test-pkg".to_string(), pkg);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Remove(RemovePackageArgs {
+        packages: Some(vec!["test-pkg".to_string()]),
+        force: false,
+        remove_orphans: false,
+        dry_run: true,
+        profile: None,
+    }))));
+
+    assert!(result.is_ok(), "Dry run should succeed");
+
+    // Package should still exist
+    let config = fixture.get_config();
+    assert!(
+        config.packages.contains_key("test-pkg"),
+        "Package should not be removed in dry run"
+    );
+}
+
+#[test]
+fn test_remove_command_nonexistent_package() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Remove(RemovePackageArgs {
+        packages: Some(vec!["nonexistent".to_string()]),
+        force: false,
+        remove_orphans: false,
+        dry_run: false,
+        profile: None,
+    }))));
+
+    assert!(result.is_err(), "Should fail for nonexistent package");
+}
+
+// ==========================
+// Packages Remove Subcommand Tests
+// ==========================
+
+#[test]
+fn test_packages_remove_subcommand() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Create a package
+    let mut config = fixture.get_config();
+    let pkg = Package::new("test-pkg", "dotfiles/test-pkg", "dest/test-pkg");
+    config.packages.insert("test-pkg".to_string(), pkg);
+    config.save(&fixture.cwd).expect("Failed to save config");
+    fixture.write_file("dotfiles/test-pkg/file.txt", "content");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
+        profile: None,
+        command: Some(PackagesCommand::Remove(RemovePackageArgs {
+            packages: Some(vec!["test-pkg".to_string()]),
+            force: false,
+            remove_orphans: false,
+            dry_run: false,
+            profile: None,
+        })),
+    }))));
+
+    assert!(result.is_ok(), "Packages remove should succeed");
+
+    let config = fixture.get_config();
+    assert!(!config.packages.contains_key("test-pkg"));
+}
+
+#[test]
+fn test_packages_remove_with_orphan_cleanup() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    // Create an orphan package
+    let orphan_pkg = Package::new("orphan-pkg", "dotfiles/orphan-pkg", "dest/orphan");
+    config.packages.insert("orphan-pkg".to_string(), orphan_pkg);
+
+    // Create a used package
+    let used_pkg = Package::new("used-pkg", "dotfiles/used-pkg", "dest/used");
+    config.packages.insert("used-pkg".to_string(), used_pkg);
+
+    let mut profile = config.profiles.get_mut("default").unwrap().clone();
+    profile.dependencies.push("used-pkg".to_string());
+    config.profiles.insert("default".to_string(), profile);
+
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.write_file("dotfiles/orphan-pkg/file.txt", "orphan");
+    fixture.write_file("dotfiles/used-pkg/file.txt", "used");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
+        profile: None,
+        command: Some(PackagesCommand::Remove(RemovePackageArgs {
+            packages: Some(vec![]), // Empty list, only remove orphans
+            force: false,
+            remove_orphans: true,
+            dry_run: false,
+            profile: None,
+        })),
+    }))));
+
+    assert!(result.is_ok(), "Remove orphans should succeed");
+
+    let config = fixture.get_config();
+    assert!(!config.packages.contains_key("orphan-pkg"));
+    assert!(config.packages.contains_key("used-pkg"));
+}
+
+// ==========================
+// Profiles Remove Subcommand Tests
+// ==========================
+
+#[test]
+fn test_profiles_remove_subcommand() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Add a test profile
+    let mut config = fixture.get_config();
+    let profile = Profile::new("test-profile");
+    config.profiles.insert("test-profile".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
+        command: Some(ProfilesCommand::Remove(ProfileRemoveArgs {
+            name: "test-profile".to_string(),
+            dry_run: false,
+            remove_orphans: false,
+        })),
+    }))));
+
+    assert!(result.is_ok(), "Profiles remove should succeed");
+
+    let config = fixture.get_config();
+    assert!(!config.profiles.contains_key("test-profile"));
+}
+
+#[test]
+fn test_profiles_remove_default_fails() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
+        command: Some(ProfilesCommand::Remove(ProfileRemoveArgs {
+            name: "default".to_string(),
+            dry_run: false,
+            remove_orphans: false,
+        })),
+    }))));
+
+    assert!(result.is_err(), "Should not allow removing default profile");
+}
+
+#[test]
+fn test_profiles_remove_with_orphan_cleanup() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let mut config = fixture.get_config();
+
+    // Create a profile with a package
+    let mut profile = Profile::new("test-profile");
+    profile.dependencies.push("profile-pkg".to_string());
+    config.profiles.insert("test-profile".to_string(), profile);
+
+    let pkg = Package::new("profile-pkg", "dotfiles/profile-pkg", "dest/profile-pkg");
+    config.packages.insert("profile-pkg".to_string(), pkg);
+
+    config.save(&fixture.cwd).expect("Failed to save config");
+    fixture.write_file("dotfiles/profile-pkg/file.txt", "content");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
+        command: Some(ProfilesCommand::Remove(ProfileRemoveArgs {
+            name: "test-profile".to_string(),
+            dry_run: false,
+            remove_orphans: true,
+        })),
+    }))));
+
+    assert!(
+        result.is_ok(),
+        "Profiles remove with orphans should succeed"
+    );
+
+    let config = fixture.get_config();
+    assert!(!config.profiles.contains_key("test-profile"));
+    assert!(!config.packages.contains_key("profile-pkg"));
+}
+
+#[test]
+fn test_profiles_remove_dry_run() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let mut config = fixture.get_config();
+    let profile = Profile::new("test-profile");
+    config.profiles.insert("test-profile".to_string(), profile);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
+        command: Some(ProfilesCommand::Remove(ProfileRemoveArgs {
+            name: "test-profile".to_string(),
+            dry_run: true,
+            remove_orphans: false,
+        })),
+    }))));
+
+    assert!(result.is_ok(), "Dry run should succeed");
+
+    let config = fixture.get_config();
+    assert!(
+        config.profiles.contains_key("test-profile"),
+        "Profile should not be removed in dry run"
+    );
+}
+
+#[test]
+fn test_profiles_remove_nonexistent() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
+        command: Some(ProfilesCommand::Remove(ProfileRemoveArgs {
+            name: "nonexistent".to_string(),
+            dry_run: false,
+            remove_orphans: false,
+        })),
+    }))));
+
+    assert!(result.is_err(), "Should fail for nonexistent profile");
 }
