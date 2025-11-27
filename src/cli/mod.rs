@@ -158,6 +158,19 @@ pub struct ProfilesArgs {
 pub enum ProfilesCommand {
     Add(ProfilesAddArgs),
     List(ProfilesListArgs),
+    Remove(ProfileRemoveArgs),
+}
+
+#[derive(Debug, Args, Default)]
+pub struct ProfileRemoveArgs {
+    #[arg(value_name = "PROFILE_NAME")]
+    pub name: String,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub remove_orphans: bool,
 }
 
 #[derive(Debug, Args, Default)]
@@ -267,6 +280,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                 }
                 Some(ProfilesCommand::Add(add_args)) => {
                     conf.add_profile(&add_args, &mut ctx)?;
+                }
+                Some(ProfilesCommand::Remove(remove_args)) => {
+                    conf.remove_profile(&remove_args, &ctx)?;
                 }
                 None => {
                     println!("No profiles command provided. Use --help for more information.");

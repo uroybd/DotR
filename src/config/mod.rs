@@ -5,8 +5,8 @@ use toml::{Table, Value, map::Map};
 
 use crate::{
     cli::{
-        DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfilesAddArgs, RemovePackageArgs,
-        UpdateArgs,
+        DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfileRemoveArgs, ProfilesAddArgs,
+        RemovePackageArgs, UpdateArgs,
     },
     context::Context,
     package::{BackupDeployResult, Package},
@@ -549,6 +549,47 @@ impl Config {
             }
         }
         (is_safe, dependent_profiles, dependent_packages)
+    }
+
+    pub fn remove_profile(
+        &mut self,
+        args: &ProfileRemoveArgs,
+        ctx: &Context,
+    ) -> anyhow::Result<()> {
+        if !self.profiles.contains_key(&args.name) {
+            anyhow::bail!("Profile '{}' not found in configuration", args.name);
+        }
+        if args.name == "default" {
+            anyhow::bail!("Cannot remove the default profile");
+        }
+        if args.dry_run {
+            cprintln(
+                &format!("Profile '{}' would be removed (dry run)", args.name),
+                &LogLevel::INFO,
+            );
+            return Ok(());
+        }
+        self.profiles.remove(&args.name);
+        self.save(&ctx.working_dir)?;
+        cprintln(&format!("Profile '{}' removed", args.name), &LogLevel::INFO);
+        if args.remove_orphans {
+            let orphan_packages = self.get_orphan_packages();
+            for orphan in orphan_packages.iter() {
+                let pkg = self.packages.get(orphan).unwrap().clone();
+                match self.remove_package(&pkg, ctx) {
+                    Err(e) => {
+                        anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
+                    }
+                    Ok(_) => {
+                        cprintln(
+                            &format!("Orphan package '{}' removed", orphan),
+                            &LogLevel::INFO,
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
