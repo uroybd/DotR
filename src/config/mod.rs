@@ -409,7 +409,7 @@ impl Config {
         args: &RemovePackageArgs,
         ctx: &Context,
     ) -> anyhow::Result<()> {
-        let pacakges = match &args.packages {
+        let packages = match &args.packages {
             Some(pkgs) => pkgs.clone(),
             None => {
                 anyhow::bail!("No packages specified for removal");
@@ -418,12 +418,12 @@ impl Config {
         let ignored_profiles: Vec<String> = vec![ctx.profile.name.clone()];
         let mut dirty = false;
         let mut to_remove = HashMap::new();
-        for package_name in pacakges.iter() {
+        for package_name in packages.iter() {
             if !self.packages.contains_key(package_name) {
                 anyhow::bail!("Package '{}' not found in configuration", package_name);
             }
             let (is_safe, dependent_profiles, dependent_packages) =
-                self.is_package_safe_to_remove(package_name, &ignored_profiles, &pacakges);
+                self.is_package_safe_to_remove(package_name, &ignored_profiles, &packages);
             if !is_safe && !args.force {
                 anyhow::bail!(
                     "Package '{}' cannot be removed because it is depended on by profiles: {:?} and packages: {:?}. Use --force to override.",
