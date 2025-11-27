@@ -74,6 +74,7 @@ mod package_name_tests {
             path: test_dir.to_str().unwrap().to_string(),
             name: None,
             profile: None,
+            ..Default::default()
         };
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
@@ -116,6 +117,7 @@ mod package_name_tests {
             path: test_file.to_str().unwrap().to_string(),
             name: None,
             profile: None,
+            ..Default::default()
         };
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
@@ -138,6 +140,7 @@ mod package_name_tests {
             path: test_file.to_str().unwrap().to_string(),
             name: None,
             profile: None,
+            ..Default::default()
         };
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();
@@ -181,6 +184,7 @@ mod package_name_tests {
             path: test_file.to_str().unwrap().to_string(),
             name: Some("my-custom-name".to_string()),
             profile: None,
+            ..Default::default()
         };
 
         let (pkg_name, pkg_ns) = get_pkg_name_and_rel_path(&args, &temp_dir).unwrap();

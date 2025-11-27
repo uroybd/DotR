@@ -65,6 +65,9 @@ pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
 
+    #[arg(short, long, default_value_t = false)]
+    pub symlink: bool,
+
     #[arg(short, long)]
     pub name: Option<String>,
 

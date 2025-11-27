@@ -4,6 +4,7 @@ use std::{
 };
 
 pub const BACKUP_EXT: &str = "dotrbak";
+pub const SYMLINK_FOLDER: &str = "deployed";
 
 /// Resolve a path string to an absolute PathBuf
 /// - If the path starts with '/', it's treated as an absolute path
