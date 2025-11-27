@@ -23,9 +23,29 @@ pub enum Command {
     Deploy(DeployArgs),
     Update(UpdateArgs),
     Diff(DiffArgs),
+    Remove(RemovePackageArgs),
     PrintVars(PrintVarsArgs),
     Packages(PackagesArgs),
     Profiles(ProfilesArgs),
+}
+
+#[derive(Debug, Args, Default)]
+#[command(name = "remove", about = "Remove a managed package.")]
+pub struct RemovePackageArgs {
+    #[arg(num_args(0..))]
+    pub packages: Option<Vec<String>>,
+
+    #[arg(short, long, default_value_t = false)]
+    pub force: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub remove_orphans: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+
+    #[arg(short = 'P', long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -118,6 +138,7 @@ pub enum PackagesCommand {
     Import(ImportArgs),
     Deploy(DeployArgs),
     Update(UpdateArgs),
+    Remove(RemovePackageArgs),
     Diff(DiffArgs),
 }
 
@@ -205,6 +226,10 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             let (_, ctx) = init_config(&working_dir, &args.profile, false)?;
             ctx.print_variables();
         }
+        Some(Command::Remove(args)) => {
+            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            conf.remove_packages(&args, &mut ctx)?;
+        }
         Some(Command::Packages(args)) => {
             let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
             match args.command {
@@ -225,6 +250,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                 Some(PackagesCommand::Diff(diff_args)) => {
                     ctx.get_prompted_variables(&conf, &diff_args.packages)?;
                     conf.diff_packages(&ctx, &diff_args)?;
+                }
+                Some(PackagesCommand::Remove(remove_args)) => {
+                    conf.remove_packages(&remove_args, &mut ctx)?;
                 }
                 None => {
                     println!("No packages command provided. Use --help for more information.");
