@@ -23,9 +23,29 @@ pub enum Command {
     Deploy(DeployArgs),
     Update(UpdateArgs),
     Diff(DiffArgs),
+    Remove(RemovePackageArgs),
     PrintVars(PrintVarsArgs),
     Packages(PackagesArgs),
     Profiles(ProfilesArgs),
+}
+
+#[derive(Debug, Args, Default)]
+#[command(name = "remove", about = "Remove a managed package.")]
+pub struct RemovePackageArgs {
+    #[arg(num_args(0..))]
+    pub packages: Option<Vec<String>>,
+
+    #[arg(short, long, default_value_t = false)]
+    pub force: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub remove_orphans: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+
+    #[arg(short = 'P', long)]
+    pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -118,6 +138,7 @@ pub enum PackagesCommand {
     Import(ImportArgs),
     Deploy(DeployArgs),
     Update(UpdateArgs),
+    Remove(RemovePackageArgs),
     Diff(DiffArgs),
 }
 
@@ -137,6 +158,19 @@ pub struct ProfilesArgs {
 pub enum ProfilesCommand {
     Add(ProfilesAddArgs),
     List(ProfilesListArgs),
+    Remove(ProfileRemoveArgs),
+}
+
+#[derive(Debug, Args, Default)]
+pub struct ProfileRemoveArgs {
+    #[arg(value_name = "PROFILE_NAME")]
+    pub name: String,
+
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub remove_orphans: bool,
 }
 
 #[derive(Debug, Args, Default)]
@@ -205,6 +239,10 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             let (_, ctx) = init_config(&working_dir, &args.profile, false)?;
             ctx.print_variables();
         }
+        Some(Command::Remove(args)) => {
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false)?;
+            conf.remove_packages(&args, &ctx)?;
+        }
         Some(Command::Packages(args)) => {
             let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
             match args.command {
@@ -226,6 +264,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     ctx.get_prompted_variables(&conf, &diff_args.packages)?;
                     conf.diff_packages(&ctx, &diff_args)?;
                 }
+                Some(PackagesCommand::Remove(remove_args)) => {
+                    conf.remove_packages(&remove_args, &ctx)?;
+                }
                 None => {
                     println!("No packages command provided. Use --help for more information.");
                 }
@@ -239,6 +280,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                 }
                 Some(ProfilesCommand::Add(add_args)) => {
                     conf.add_profile(&add_args, &mut ctx)?;
+                }
+                Some(ProfilesCommand::Remove(remove_args)) => {
+                    conf.remove_profile(&remove_args, &ctx)?;
                 }
                 None => {
                     println!("No profiles command provided. Use --help for more information.");

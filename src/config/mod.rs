@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use toml::{Table, Value, map::Map};
 
 use crate::{
-    cli::{DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfilesAddArgs, UpdateArgs},
+    cli::{
+        DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfileRemoveArgs, ProfilesAddArgs,
+        RemovePackageArgs, UpdateArgs,
+    },
     context::Context,
     package::{BackupDeployResult, Package},
     profile::Profile,
@@ -385,6 +388,210 @@ impl Config {
                 &format!("Setting profile '{}' as current", args.name),
                 &LogLevel::INFO,
             );
+        }
+        Ok(())
+    }
+
+    pub fn get_orphan_packages(&self) -> Vec<String> {
+        self.packages
+            .iter()
+            .filter_map(
+                |(name, _)| match self.is_package_safe_to_remove(name, &[], &[]) {
+                    (true, _, _) => Some(name.clone()),
+                    _ => None,
+                },
+            )
+            .collect()
+    }
+
+    pub fn remove_packages(
+        &mut self,
+        args: &RemovePackageArgs,
+        ctx: &Context,
+    ) -> anyhow::Result<()> {
+        let packages = match &args.packages {
+            Some(pkgs) => pkgs.clone(),
+            None => {
+                if args.remove_orphans {
+                    vec![]
+                } else {
+                    anyhow::bail!("No packages specified for removal");
+                }
+            }
+        };
+        let ignored_profiles: Vec<String> = vec![ctx.profile.name.clone()];
+        let mut dirty = false;
+        let mut to_remove = HashMap::new();
+        for package_name in packages.iter() {
+            if !self.packages.contains_key(package_name) {
+                anyhow::bail!("Package '{}' not found in configuration", package_name);
+            }
+            let (is_safe, dependent_profiles, dependent_packages) =
+                self.is_package_safe_to_remove(package_name, &ignored_profiles, &packages);
+            if !is_safe && !args.force {
+                anyhow::bail!(
+                    "Package '{}' cannot be removed because it is depended on by profiles: {:?} and packages: {:?}. Use --force to override.",
+                    package_name,
+                    dependent_profiles,
+                    dependent_packages
+                );
+            }
+            to_remove.insert(
+                package_name.clone(),
+                self.packages.get(package_name).unwrap().clone(),
+            );
+        }
+        if to_remove.is_empty() && !args.remove_orphans {
+            cprintln("No packages to remove.", &LogLevel::INFO);
+            return Ok(());
+        }
+        for (package_name, pkg) in to_remove.iter() {
+            if args.dry_run {
+                cprintln(
+                    &format!("Package '{}' would be removed (dry run)", package_name),
+                    &LogLevel::INFO,
+                );
+                continue;
+            }
+            match self.remove_package(pkg, ctx) {
+                Err(e) => {
+                    anyhow::bail!("Error removing package '{}': {}", package_name, e);
+                }
+                Ok(_) => {
+                    dirty = true;
+                    cprintln(
+                        &format!("Package '{}' removed", package_name),
+                        &LogLevel::INFO,
+                    );
+                }
+            }
+        }
+        if args.remove_orphans {
+            let orphan_packages = self.get_orphan_packages();
+            for orphan in orphan_packages.iter() {
+                if args.dry_run {
+                    cprintln(
+                        &format!("Orphan package '{}' would be removed (dry run)", orphan),
+                        &LogLevel::INFO,
+                    );
+                    continue;
+                }
+                let pkg = self.packages.get(orphan).unwrap().clone();
+                match self.remove_package(&pkg, ctx) {
+                    Err(e) => {
+                        anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
+                    }
+                    Ok(_) => {
+                        dirty = true;
+                        cprintln(
+                            &format!("Orphan package '{}' removed", orphan),
+                            &LogLevel::INFO,
+                        );
+                    }
+                }
+            }
+        }
+        if dirty {
+            self.save(&ctx.working_dir)?;
+        }
+        Ok(())
+    }
+
+    pub fn remove_package(&mut self, pkg: &Package, ctx: &Context) -> anyhow::Result<()> {
+        let src = ctx.working_dir.join(&pkg.src);
+        let name = pkg.name.clone();
+        self.packages.remove(&pkg.name);
+        for (_, profile) in self.profiles.iter_mut() {
+            profile.dependencies.retain(|dep| dep != &name);
+        }
+        for (_, pkg) in self.packages.iter_mut() {
+            if let Some(deps) = &mut pkg.dependencies {
+                deps.retain(|dep| dep != &name);
+            }
+        }
+        if src.exists() {
+            if src.is_dir() {
+                if src.read_dir()?.next().is_some() {
+                    std::fs::remove_dir_all(&src)?;
+                } else {
+                    std::fs::remove_dir(&src)?;
+                }
+            } else {
+                std::fs::remove_file(&src)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn is_package_safe_to_remove(
+        &self,
+        package_name: &str,
+        ignored_profiles: &[String],
+        ignored_packages: &[String],
+    ) -> (bool, Vec<String>, Vec<String>) {
+        let mut dependent_profiles: Vec<String> = vec![];
+        let mut dependent_packages: Vec<String> = vec![];
+        let mut is_safe = true;
+        for (_, profile) in self.profiles.iter() {
+            if ignored_profiles.contains(&profile.name) {
+                continue;
+            }
+            if profile.dependencies.contains(&package_name.to_string()) {
+                dependent_profiles.push(profile.name.clone());
+                is_safe = false;
+            }
+        }
+        for (_, pkg) in self.packages.iter() {
+            if ignored_packages.contains(&pkg.name) {
+                continue;
+            }
+            if let Some(deps) = &pkg.dependencies
+                && deps.contains(&package_name.to_string())
+            {
+                dependent_packages.push(pkg.name.clone());
+                is_safe = false;
+            }
+        }
+        (is_safe, dependent_profiles, dependent_packages)
+    }
+
+    pub fn remove_profile(
+        &mut self,
+        args: &ProfileRemoveArgs,
+        ctx: &Context,
+    ) -> anyhow::Result<()> {
+        if !self.profiles.contains_key(&args.name) {
+            anyhow::bail!("Profile '{}' not found in configuration", args.name);
+        }
+        if args.name == "default" {
+            anyhow::bail!("Cannot remove the default profile");
+        }
+        if args.dry_run {
+            cprintln(
+                &format!("Profile '{}' would be removed (dry run)", args.name),
+                &LogLevel::INFO,
+            );
+            return Ok(());
+        }
+        self.profiles.remove(&args.name);
+        self.save(&ctx.working_dir)?;
+        cprintln(&format!("Profile '{}' removed", args.name), &LogLevel::INFO);
+        if args.remove_orphans {
+            let orphan_packages = self.get_orphan_packages();
+            for orphan in orphan_packages.iter() {
+                let pkg = self.packages.get(orphan).unwrap().clone();
+                match self.remove_package(&pkg, ctx) {
+                    Err(e) => {
+                        anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
+                    }
+                    Ok(_) => {
+                        cprintln(
+                            &format!("Orphan package '{}' removed", orphan),
+                            &LogLevel::INFO,
+                        );
+                    }
+                }
+            }
         }
         Ok(())
     }
