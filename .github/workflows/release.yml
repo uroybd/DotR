@@ -51,11 +51,19 @@ jobs:
           if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
             sudo apt-get install -y gcc-aarch64-linux-gnu
           fi
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+            # Download and install musl cross-compiler for aarch64
+            wget https://musl.cc/aarch64-linux-musl-cross.tgz
+            tar xzf aarch64-linux-musl-cross.tgz
+            echo "$PWD/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
+          fi
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
 
       - name: Package binary
         run: |
