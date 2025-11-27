@@ -287,6 +287,10 @@ Download the latest release for your platform from the [releases page](https://g
 - **Apple Silicon (M1/M2/M3)**: `dotr-aarch64-apple-darwin.tar.gz`
 - **Intel Mac**: `dotr-x86_64-apple-darwin.tar.gz`
 - **Linux (x86_64)**: `dotr-x86_64-unknown-linux-gnu.tar.gz`
+- **Linux (aarch64)**: `dotr-aarch64-unknown-linux-gnu.tar.gz `
+- **Linux Muslc (x86_64)**: `dotr-x86_64-unknown-linux-musl.tar.gz`
+- **Linux Muslc (aarch64)**: `dotr-aarch64-unknown-linux-musl.tar.gz`
+
 
 Extract and move the binary to your PATH:
 ```bash
