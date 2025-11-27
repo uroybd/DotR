@@ -43,27 +43,18 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools
+      - name: Install cross-compilation tool
         if: matrix.os == 'ubuntu-latest'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-          fi
-          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-musl" ]]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-            # Download and install musl cross-compiler for aarch64
-            wget https://musl.cc/aarch64-linux-musl-cross.tgz
-            tar xzf aarch64-linux-musl-cross.tgz
-            echo "$PWD/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
-          fi
+          cargo install cross --git https://github.com/cross-rs/cross
 
-      - name: Build release binary
+      - name: Build release binary (native)
+        if: matrix.os != 'ubuntu-latest'
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: aarch64-linux-musl-gcc
+
+      - name: Build release binary (cross-compile)
+        if: matrix.os == 'ubuntu-latest'
+        run: cross build --release --target ${{ matrix.target }}
 
       - name: Package binary
         run: |
