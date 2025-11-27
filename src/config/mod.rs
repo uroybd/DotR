@@ -396,7 +396,7 @@ impl Config {
         self.packages
             .iter()
             .filter_map(
-                |(name, _)| match self.is_package_safe_to_remove(name, &vec![], &vec![]) {
+                |(name, _)| match self.is_package_safe_to_remove(name, &[], &[]) {
                     (true, _, _) => Some(name.clone()),
                     _ => None,
                 },
@@ -424,15 +424,13 @@ impl Config {
             }
             let (is_safe, dependent_profiles, dependent_packages) =
                 self.is_package_safe_to_remove(package_name, &ignored_profiles, &pacakges);
-            if !is_safe {
-                if !args.force {
-                    anyhow::bail!(
-                        "Package '{}' cannot be removed because it is depended on by profiles: {:?} and packages: {:?}. Use --force to override.",
-                        package_name,
-                        dependent_profiles,
-                        dependent_packages
-                    );
-                }
+            if !is_safe && !args.force {
+                anyhow::bail!(
+                    "Package '{}' cannot be removed because it is depended on by profiles: {:?} and packages: {:?}. Use --force to override.",
+                    package_name,
+                    dependent_profiles,
+                    dependent_packages
+                );
             }
             to_remove.insert(
                 package_name.clone(),
@@ -524,8 +522,8 @@ impl Config {
     pub fn is_package_safe_to_remove(
         &self,
         package_name: &str,
-        ignored_profiles: &Vec<String>,
-        ignored_packages: &Vec<String>,
+        ignored_profiles: &[String],
+        ignored_packages: &[String],
     ) -> (bool, Vec<String>, Vec<String>) {
         let mut dependent_profiles: Vec<String> = vec![];
         let mut dependent_packages: Vec<String> = vec![];
@@ -543,11 +541,11 @@ impl Config {
             if ignored_packages.contains(&pkg.name) {
                 continue;
             }
-            if let Some(deps) = &pkg.dependencies {
-                if deps.contains(&package_name.to_string()) {
-                    dependent_packages.push(pkg.name.clone());
-                    is_safe = false;
-                }
+            if let Some(deps) = &pkg.dependencies
+                && deps.contains(&package_name.to_string())
+            {
+                dependent_packages.push(pkg.name.clone());
+                is_safe = false;
             }
         }
         (is_safe, dependent_profiles, dependent_packages)

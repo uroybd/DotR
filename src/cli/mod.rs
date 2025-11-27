@@ -227,8 +227,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             ctx.print_variables();
         }
         Some(Command::Remove(args)) => {
-            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
-            conf.remove_packages(&args, &mut ctx)?;
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false)?;
+            conf.remove_packages(&args, &ctx)?;
         }
         Some(Command::Packages(args)) => {
             let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
@@ -252,7 +252,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.diff_packages(&ctx, &diff_args)?;
                 }
                 Some(PackagesCommand::Remove(remove_args)) => {
-                    conf.remove_packages(&remove_args, &mut ctx)?;
+                    conf.remove_packages(&remove_args, &ctx)?;
                 }
                 None => {
                     println!("No packages command provided. Use --help for more information.");
