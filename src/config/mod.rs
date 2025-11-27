@@ -412,7 +412,11 @@ impl Config {
         let packages = match &args.packages {
             Some(pkgs) => pkgs.clone(),
             None => {
-                anyhow::bail!("No packages specified for removal");
+                if args.remove_orphans {
+                    vec![]
+                } else {
+                    anyhow::bail!("No packages specified for removal");
+                }
             }
         };
         let ignored_profiles: Vec<String> = vec![ctx.profile.name.clone()];
