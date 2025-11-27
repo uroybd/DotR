@@ -507,16 +507,14 @@ impl Package {
                 if symlink_to.exists() {
                     if symlink_to.is_symlink() {
                         std::fs::remove_file(&symlink_to)?;
-                    } else {
-                        if symlink_to.is_dir() {
-                            if symlink_to.read_dir()?.next().is_none() {
-                                std::fs::remove_dir(&symlink_to)?;
-                            } else {
-                                std::fs::remove_dir_all(&symlink_to)?;
-                            }
+                    } else if symlink_to.is_dir() {
+                        if symlink_to.read_dir()?.next().is_none() {
+                            std::fs::remove_dir(&symlink_to)?;
                         } else {
-                            std::fs::remove_file(&symlink_to)?;
+                            std::fs::remove_dir_all(&symlink_to)?;
                         }
+                    } else {
+                        std::fs::remove_file(&symlink_to)?;
                     }
                 }
                 println!(
