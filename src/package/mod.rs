@@ -90,7 +90,9 @@ impl Package {
                 .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?;
             normalize_home_path(resolved_str)
         };
-        Ok(Self::new(&package_name, &src_path_str, &path_str))
+        let mut pkg = Self::new(&package_name, &src_path_str, &path_str);
+        pkg.symlink = args.symlink;
+        Ok(pkg)
     }
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
@@ -253,10 +255,7 @@ impl Package {
         if !self.symlink {
             anyhow::bail!("Package '{}' is not configured for symlinking", self.name);
         }
-        Ok(ctx
-            .working_dir
-            .join(utils::SYMLINK_FOLDER)
-            .join(&self.name))
+        Ok(ctx.working_dir.join(utils::SYMLINK_FOLDER).join(&self.name))
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
@@ -456,6 +455,13 @@ impl Package {
         } else {
             self.resolve_dest(ctx)
         };
+        println!(
+            "Deploying package '{}'(symlinked: {}) from '{}' to '{}'",
+            self.name,
+            self.symlink,
+            copy_from.display(),
+            copy_to.display()
+        );
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
@@ -496,11 +502,36 @@ impl Package {
             }
         }
         if self.symlink {
-            let symlink_to = self.resolve_dest(ctx);
+            let mut symlink_to = self.resolve_dest(ctx);
             if !args.dry_run {
                 if symlink_to.exists() {
-                    std::fs::remove_file(&symlink_to)?;
+                    if symlink_to.is_symlink() {
+                        std::fs::remove_file(&symlink_to)?;
+                    } else {
+                        if symlink_to.is_dir() {
+                            if symlink_to.read_dir()?.next().is_none() {
+                                std::fs::remove_dir(&symlink_to)?;
+                            } else {
+                                std::fs::remove_dir_all(&symlink_to)?;
+                            }
+                        } else {
+                            std::fs::remove_file(&symlink_to)?;
+                        }
+                    }
                 }
+                println!(
+                    "Symlinking... {} -> {}",
+                    copy_to.display(),
+                    symlink_to.display(),
+                );
+
+                if let Some(parent) = symlink_to.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                // Remove trailing slash from symlink_to:
+                let symlink = symlink_to.to_str().unwrap().trim_end_matches('/');
+                symlink_to = PathBuf::from(symlink);
+
                 std::os::unix::fs::symlink(&copy_to, &symlink_to)?;
             }
         }
