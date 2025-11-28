@@ -550,7 +550,10 @@ impl Package {
                 // Remove trailing slash from symlink_to:
                 let symlink = symlink_to.to_str().unwrap().trim_end_matches('/');
                 symlink_to = PathBuf::from(symlink);
-
+                let symlink = symlink_to
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Symlink path contains non-UTF-8 characters"))?
+                    .trim_end_matches('/');
                 std::os::unix::fs::symlink(&copy_to, &symlink_to)?;
             }
         }
