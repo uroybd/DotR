@@ -308,7 +308,7 @@ impl Config {
 
         // Create .gitignore to ignore .uservariables.toml
         let gitignore_path = cwd.join(".gitignore");
-        let gitignore_content = ".uservariables.toml\ndeployed\ndeployed/**";
+        let gitignore_content = ".uservariables.toml\ndeployed";
         std::fs::write(gitignore_path, gitignore_content)?;
 
         cprintln("Repository initialized", &LogLevel::INFO);
