@@ -100,16 +100,19 @@ impl Package {
         let (package_name, pkg_ns) = get_pkg_name_and_rel_path(args, cwd)?;
         let src_path_str = format!("dotfiles/{}", pkg_ns);
 
-        // Normalize the path: if it already starts with ~, keep it; otherwise convert if in home dir
-        let path_str = if args.path.starts_with('~') {
-            args.path.to_string()
-        } else {
-            let resolved_str = resolved_path
-                .to_str()
-                .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?;
-            normalize_home_path(resolved_str)
-        };
-        let mut pkg = Self::new(&package_name, &src_path_str, &path_str);
+        // Use the resolved path directly without canonicalizing to preserve symlinks
+        let mut dest_path_str = resolved_path
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?
+            .to_string();
+        dest_path_str = normalize_home_path(&dest_path_str);
+
+        // Preserve trailing slash if original path had one and resolved path doesn't already have it
+        if args.path.ends_with('/') && !dest_path_str.ends_with('/') && resolved_path.is_dir() {
+            dest_path_str.push('/');
+        }
+
+        let mut pkg = Self::new(&package_name, &src_path_str, &dest_path_str);
         pkg.symlink = args.symlink;
         Ok(pkg)
     }
@@ -311,7 +314,6 @@ impl Package {
                             std::fs::create_dir_all(parent)?;
                         }
                         std::fs::copy(entry.path(), &dest_path)?;
-                        println!("=> Backed up {}", entry.path().display());
                     }
                     all_copied_paths.push(dest_path);
                 }
@@ -324,7 +326,6 @@ impl Package {
             if !args.dry_run {
                 std::fs::copy(&copy_from, &copy_to)?;
             }
-            println!("=> Backed up {}", copy_from.display(),);
         }
         Ok(BackupDeployResult::Success)
     }
