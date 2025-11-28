@@ -358,6 +358,7 @@ fn test_actions_with_variables() {
         src: "dotfiles/f_action_var_test".to_string(),
         dest: "src/.action_var_test".to_string(),
         pre_actions: vec!["echo '{{ ACTION_VAR }}' > src/action_var_marker.txt".to_string()],
+        variables: pkg_vars,
         ..Default::default()
     };
     config

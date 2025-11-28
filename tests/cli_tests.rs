@@ -441,6 +441,7 @@ fn test_skip_flag_prevents_deployment() {
         name: "f_skip".to_string(),
         src: "dotfiles/f_skip".to_string(),
         dest: fixture.cwd.join("skip_dest").to_str().unwrap().to_string(),
+        skip: true,
         ..Default::default()
     };
     config.packages.insert("f_skip".to_string(), pkg);
