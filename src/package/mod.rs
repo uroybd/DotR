@@ -541,7 +541,7 @@ impl Package {
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Symlink path contains non-UTF-8 characters"))?
                     .trim_end_matches('/');
-                std::os::unix::fs::symlink(&copy_to, &symlink_to)?;
+                std::os::unix::fs::symlink(&copy_to, symlink)?;
             }
         }
         cprintln(
