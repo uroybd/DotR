@@ -45,6 +45,25 @@ pub struct Package {
     pub symlink: bool,
 }
 
+impl Default for Package {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            src: String::new(),
+            dest: String::new(),
+            dependencies: None,
+            variables: Table::new(),
+            pre_actions: Vec::new(),
+            post_actions: Vec::new(),
+            targets: HashMap::new(),
+            skip: false,
+            prompts: HashMap::new(),
+            ignore: Vec::new(),
+            symlink: false,
+        }
+    }
+}
+
 #[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
 pub enum BackupDeployResult {
     Success,

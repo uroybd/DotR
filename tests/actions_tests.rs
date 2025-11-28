@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{DeployArgs, InitArgs, run_cli},
@@ -86,14 +86,8 @@ fn test_pre_action_basic() {
         name: "f_pre_action_test".to_string(),
         src: "dotfiles/f_pre_action_test".to_string(),
         dest: "src/.pre_action_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["touch src/pre_action_marker.txt".to_string()],
-        post_actions: Vec::new(),
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -135,14 +129,8 @@ fn test_post_action_basic() {
         name: "f_post_action_test".to_string(),
         src: "dotfiles/f_post_action_test".to_string(),
         dest: "src/.post_action_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
         post_actions: vec!["touch src/post_action_marker.txt".to_string()],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -184,14 +172,9 @@ fn test_pre_and_post_actions_together() {
         name: "f_both_actions_test".to_string(),
         src: "dotfiles/f_both_actions_test".to_string(),
         dest: "src/.both_actions_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["echo 'pre' > src/both_pre_marker.txt".to_string()],
         post_actions: vec!["echo 'post' > src/both_post_marker.txt".to_string()],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -246,18 +229,12 @@ fn test_multiple_pre_actions() {
         name: "f_multi_pre_test".to_string(),
         src: "dotfiles/f_multi_pre_test".to_string(),
         dest: "src/.multi_pre_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec![
             "echo 'action1' > src/pre_action1.txt".to_string(),
             "echo 'action2' > src/pre_action2.txt".to_string(),
             "echo 'action3' > src/pre_action3.txt".to_string(),
         ],
-        post_actions: Vec::new(),
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -313,18 +290,12 @@ fn test_multiple_post_actions() {
         name: "f_multi_post_test".to_string(),
         src: "dotfiles/f_multi_post_test".to_string(),
         dest: "src/.multi_post_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
         post_actions: vec![
             "echo 'action1' > src/post_action1.txt".to_string(),
             "echo 'action2' > src/post_action2.txt".to_string(),
             "echo 'action3' > src/post_action3.txt".to_string(),
         ],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -386,14 +357,8 @@ fn test_actions_with_variables() {
         name: "f_action_var_test".to_string(),
         src: "dotfiles/f_action_var_test".to_string(),
         dest: "src/.action_var_test".to_string(),
-        dependencies: None,
-        variables: pkg_vars,
         pre_actions: vec!["echo '{{ ACTION_VAR }}' > src/action_var_marker.txt".to_string()],
-        post_actions: Vec::new(),
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -423,14 +388,9 @@ fn test_actions_persist_after_save() {
         name: "test_persist".to_string(),
         src: "dotfiles/test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["echo 'pre1'".to_string(), "echo 'pre2'".to_string()],
         post_actions: vec!["echo 'post1'".to_string(), "echo 'post2'".to_string()],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("test_persist".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -469,8 +429,6 @@ fn test_actions_execution_order() {
         name: "f_order_test".to_string(),
         src: "dotfiles/f_order_test".to_string(),
         dest: "src/.order_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec![
             "echo 'pre1' > src/order_log.txt".to_string(),
             "echo 'pre2' >> src/order_log.txt".to_string(),
@@ -479,10 +437,7 @@ fn test_actions_execution_order() {
             "echo 'post1' >> src/order_log.txt".to_string(),
             "echo 'post2' >> src/order_log.txt".to_string(),
         ],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_order_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -521,14 +476,7 @@ fn test_empty_actions_dont_fail() {
         name: "f_no_actions_test".to_string(),
         src: "dotfiles/f_no_actions_test".to_string(),
         dest: "src/.no_actions_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -564,16 +512,11 @@ fn test_actions_with_complex_commands() {
         name: "f_complex_test".to_string(),
         src: "dotfiles/f_complex_test".to_string(),
         dest: "src/.complex_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["mkdir -p src/nested/dir && touch src/nested/dir/file.txt".to_string()],
         post_actions: vec![
             "test -f src/.complex_test && echo 'deployed' > src/deploy_check.txt".to_string(),
         ],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -612,14 +555,9 @@ fn test_pre_action_failure() {
         name: "f_pre_fail".to_string(),
         src: "dotfiles/f_pre_fail".to_string(),
         dest: "src/.pre_fail".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["false".to_string()], // This command always fails
         post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_pre_fail".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -654,14 +592,8 @@ fn test_post_action_failure() {
         name: "f_post_fail".to_string(),
         src: "dotfiles/f_post_fail".to_string(),
         dest: "src/.post_fail".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
         post_actions: vec!["exit 1".to_string()], // This command exits with error
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_post_fail".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -700,14 +632,8 @@ fn test_action_with_nonexistent_command() {
         name: "f_bad_cmd".to_string(),
         src: "dotfiles/f_bad_cmd".to_string(),
         dest: "src/.bad_cmd".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["this_command_does_not_exist_12345".to_string()],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_bad_cmd".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -745,14 +671,8 @@ fn test_action_failure_with_error_message() {
         name: "f_err_msg".to_string(),
         src: "dotfiles/f_err_msg".to_string(),
         dest: "src/.err_msg".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
         pre_actions: vec!["echo 'Error occurred' >&2 && exit 42".to_string()],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_err_msg".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{DeployArgs, InitArgs, run_cli},
@@ -237,14 +237,7 @@ DATABASE_NAME = "production-db"
         name: "f_env_template".to_string(),
         src: "dotfiles/f_env_template".to_string(),
         dest: "src/.env".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages

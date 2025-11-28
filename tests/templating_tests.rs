@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
@@ -160,14 +160,7 @@ fn test_template_deployment_with_variables() {
         name: "f_bashrc_template".to_string(),
         src: "dotfiles/f_bashrc_template".to_string(),
         dest: "src/.bashrc_output".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -226,14 +219,7 @@ fn test_template_with_custom_variables() {
         name: "f_config_template".to_string(),
         src: "dotfiles/f_config_template".to_string(),
         dest: "src/.myconfig".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -288,14 +274,7 @@ fn test_template_not_backed_up_on_update() {
         name: "f_template_test".to_string(),
         src: "dotfiles/f_template_test".to_string(),
         dest: "src/.template_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages
@@ -354,14 +333,7 @@ fn test_template_directory_deployment() {
         name: "d_config_dir".to_string(),
         src: "dotfiles/d_config_dir".to_string(),
         dest: "src/.config_output".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("d_config_dir".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -416,14 +388,7 @@ fn test_mixed_template_and_regular_files() {
         name: "f_templated".to_string(),
         src: "dotfiles/f_templated".to_string(),
         dest: "src/.templated".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_templated".to_string(), package);
     config
@@ -498,14 +463,7 @@ fn test_template_with_tera_statements() {
         name: "f_advanced_template".to_string(),
         src: "dotfiles/f_advanced_template".to_string(),
         dest: "src/.advanced".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config
         .packages

@@ -105,6 +105,7 @@ fn test_import_creates_package() {
         name: None,
         path: fixture.cwd.join("test.conf").to_str().unwrap().to_string(),
         profile: None,
+        ..Default::default()
     }))));
 
     let config = fixture.get_config();
@@ -127,6 +128,7 @@ fn test_import_with_profile() {
         name: None,
         path: fixture.cwd.join("work.conf").to_str().unwrap().to_string(),
         profile: Some("work".to_string()),
+        ..Default::default()
     }))));
 
     let config = fixture.get_config();
@@ -167,14 +169,7 @@ fn test_deploy_creates_files() {
             .to_str()
             .unwrap()
             .to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_test".to_string(), test_package);
@@ -210,14 +205,7 @@ fn test_deploy_with_profile() {
             .to_str()
             .unwrap()
             .to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     package.targets.insert(
@@ -271,28 +259,14 @@ fn test_deploy_specific_packages() {
         name: "f_pkg1".to_string(),
         src: "dotfiles/f_pkg1".to_string(),
         dest: fixture.cwd.join("dest1").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let pkg2 = dotr_dear::package::Package {
         name: "f_pkg2".to_string(),
         src: "dotfiles/f_pkg2".to_string(),
         dest: fixture.cwd.join("dest2").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_pkg1".to_string(), pkg1);
@@ -341,14 +315,7 @@ fn test_update_backs_up_files() {
             .to_str()
             .unwrap()
             .to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_update".to_string(), pkg);
     config
@@ -474,14 +441,7 @@ fn test_skip_flag_prevents_deployment() {
         name: "f_skip".to_string(),
         src: "dotfiles/f_skip".to_string(),
         dest: fixture.cwd.join("skip_dest").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: true,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_skip".to_string(), pkg);
     config
@@ -513,28 +473,14 @@ fn test_profile_dependencies_deployment() {
         name: "f_dep1".to_string(),
         src: "dotfiles/f_dep1".to_string(),
         dest: fixture.cwd.join("dep1_dest").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let pkg2 = dotr_dear::package::Package {
         name: "f_dep2".to_string(),
         src: "dotfiles/f_dep2".to_string(),
         dest: fixture.cwd.join("dep2_dest").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_dep1".to_string(), pkg1);
@@ -644,6 +590,7 @@ fn test_import_nonexistent_file_fails() {
                 .unwrap()
                 .to_string(),
             profile: None,
+            ..Default::default()
         }))),
     );
 
@@ -807,13 +754,7 @@ fn test_package_with_missing_dependency_fails() {
         src: "dotfiles/test_pkg".to_string(),
         dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
         dependencies: Some(vec!["nonexistent_dep".to_string()]),
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("test_pkg".to_string(), pkg);
     config
@@ -853,14 +794,7 @@ fn test_deploy_missing_source_fails() {
         name: "missing_src".to_string(),
         src: "dotfiles/missing_src".to_string(),
         dest: fixture.cwd.join("dest").to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: Vec::new(),
-        post_actions: Vec::new(),
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("missing_src".to_string(), pkg);
     config
@@ -900,6 +834,7 @@ fn test_import_normalizes_home_path() {
         name: None,
         path: test_dir.to_str().unwrap().to_string(),
         profile: None,
+        ..Default::default()
     }))));
 
     let config = fixture.get_config();
@@ -956,6 +891,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
         name: None,
         path: abs_path.clone(),
         profile: None,
+        ..Default::default()
     }))));
 
     let config = fixture.get_config();
@@ -1001,14 +937,7 @@ fn test_dotr_profile_env_var_deploy() {
         name: "f_profile_test".to_string(),
         src: "dotfiles/f_profile_test".to_string(),
         dest: "src/.profile_test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let profile = dotr_dear::profile::Profile {
@@ -1057,14 +986,7 @@ fn test_dotr_profile_env_var_update() {
         name: "f_env_update".to_string(),
         src: "dotfiles/f_env_update".to_string(),
         dest: dest_path.to_str().unwrap().to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let profile = dotr_dear::profile::Profile {
@@ -1163,14 +1085,7 @@ fn test_cli_profile_overrides_env_var() {
         name: "f_override".to_string(),
         src: "dotfiles/f_override".to_string(),
         dest: "src/.override".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let profile1 = dotr_dear::profile::Profile {
@@ -1229,14 +1144,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
         name: "f_invalid_env".to_string(),
         src: "dotfiles/f_invalid_env".to_string(),
         dest: "src/.invalid_env".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_invalid_env".to_string(), package);
@@ -1273,42 +1181,21 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
         name: "f_valid_pkg".to_string(),
         src: "dotfiles/f_valid_pkg".to_string(),
         dest: "deploy_dest/valid.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let package2 = Package {
         name: "f_invalid_pkg".to_string(),
         src: "dotfiles/f_nonexistent".to_string(), // This doesn't exist
         dest: "deploy_dest/invalid.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let package3 = Package {
         name: "f_another_valid".to_string(),
         src: "dotfiles/f_another_valid".to_string(),
         dest: "deploy_dest/another.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_valid_pkg".to_string(), package1);
@@ -1380,28 +1267,14 @@ fn test_deploy_without_ignore_errors_stops_on_failure() {
         name: "f_first_pkg".to_string(),
         src: "dotfiles/f_first_pkg".to_string(),
         dest: "deploy_dest/first.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let package2 = Package {
         name: "f_failing_pkg".to_string(),
         src: "dotfiles/f_nonexistent".to_string(), // This doesn't exist
         dest: "deploy_dest/failing.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_first_pkg".to_string(), package1);
@@ -1447,28 +1320,14 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         name: "f_valid_backup".to_string(),
         src: "dotfiles/f_valid_backup".to_string(),
         dest: "backup_src/valid.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let package2 = Package {
         name: "f_invalid_backup".to_string(),
         src: "dotfiles/f_invalid_backup".to_string(),
         dest: "backup_src/nonexistent.txt".to_string(), // Source doesn't exist
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config
@@ -1527,28 +1386,14 @@ fn test_update_without_ignore_errors_stops_on_failure() {
         name: "f_backup_pkg".to_string(),
         src: "dotfiles/f_backup_pkg".to_string(),
         dest: "backup_src/exists.txt".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     let package2 = Package {
         name: "f_failing_backup".to_string(),
         src: "dotfiles/f_failing_backup".to_string(),
         dest: "backup_src/missing.txt".to_string(), // Doesn't exist
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("f_backup_pkg".to_string(), package1);
@@ -1592,14 +1437,7 @@ fn test_deploy_with_clean_removes_extra_files() {
         name: "d_config_dir".to_string(),
         src: "dotfiles/d_config_dir".to_string(),
         dest: "deploy_dest/config".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_config_dir".to_string(), package);
@@ -1657,14 +1495,7 @@ fn test_deploy_without_clean_keeps_extra_files() {
         name: "d_another_dir".to_string(),
         src: "dotfiles/d_another_dir".to_string(),
         dest: "deploy_dest/another".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_another_dir".to_string(), package);
@@ -1711,14 +1542,7 @@ fn test_backup_with_clean_removes_extra_files() {
         name: "d_backup_dir".to_string(),
         src: "dotfiles/d_backup_dir".to_string(),
         dest: "source/backup_dir".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_backup_dir".to_string(), package);
@@ -1776,14 +1600,7 @@ fn test_backup_without_clean_keeps_extra_files() {
         name: "d_backup_keep".to_string(),
         src: "dotfiles/d_backup_keep".to_string(),
         dest: "source/backup_keep".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_backup_keep".to_string(), package);
@@ -1830,14 +1647,7 @@ fn test_clean_preserves_backup_files() {
         name: "d_test_clean".to_string(),
         src: "dotfiles/d_test_clean".to_string(),
         dest: "deploy_dest/test_clean".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_test_clean".to_string(), package);
@@ -1902,14 +1712,7 @@ fn test_clean_removes_empty_directories() {
         name: "d_empty_dirs".to_string(),
         src: "dotfiles/d_empty_dirs".to_string(),
         dest: "deploy_dest/empty_dirs".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_empty_dirs".to_string(), package);
@@ -1965,14 +1768,7 @@ fn test_clean_removes_non_empty_directories() {
         name: "d_nonempty_dirs".to_string(),
         src: "dotfiles/d_nonempty_dirs".to_string(),
         dest: "deploy_dest/nonempty_dirs".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config
@@ -2039,14 +1835,7 @@ fn test_clean_handles_nested_directory_structure() {
         name: "d_nested".to_string(),
         src: "dotfiles/d_nested".to_string(),
         dest: "deploy_dest/nested".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config.packages.insert("d_nested".to_string(), package);
@@ -2112,14 +1901,7 @@ fn test_clean_preserves_kept_directories() {
         name: "d_preserve_dirs".to_string(),
         src: "dotfiles/d_preserve_dirs".to_string(),
         dest: "deploy_dest/preserve".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
 
     config
@@ -2182,14 +1964,8 @@ fn test_clean_respects_ignore_patterns_files() {
         name: "d_ignore_files".to_string(),
         src: "dotfiles/d_ignore_files".to_string(),
         dest: "deploy_dest/ignore_files".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
         ignore: vec!["*.log".to_string(), "temp*".to_string()],
+        ..Default::default()
     };
 
     config
@@ -2263,14 +2039,8 @@ fn test_clean_respects_ignore_patterns_directories() {
         name: "d_ignore_dirs".to_string(),
         src: "dotfiles/d_ignore_dirs".to_string(),
         dest: "deploy_dest/ignore_dirs".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
         ignore: vec!["cache".to_string(), ".git".to_string()],
+        ..Default::default()
     };
 
     config.packages.insert("d_ignore_dirs".to_string(), package);
@@ -2337,14 +2107,8 @@ fn test_clean_ignore_patterns_in_backup() {
         name: "d_backup_ignore".to_string(),
         src: "dotfiles/d_backup_ignore".to_string(),
         dest: "source/backup_ignore".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
         ignore: vec!["*.tmp".to_string(), "build".to_string()],
+        ..Default::default()
     };
 
     config
@@ -2413,14 +2177,8 @@ fn test_clean_ignore_patterns_with_nested_paths() {
         name: "d_nested_ignore".to_string(),
         src: "dotfiles/d_nested_ignore".to_string(),
         dest: "deploy_dest/nested_ignore".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
         ignore: vec!["node_modules".to_string(), "**/*.swp".to_string()],
+        ..Default::default()
     };
 
     config
@@ -2504,14 +2262,7 @@ fn test_clean_without_ignore_patterns() {
         name: "d_no_ignore".to_string(),
         src: "dotfiles/d_no_ignore".to_string(),
         dest: "deploy_dest/no_ignore".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: std::collections::HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(), // No ignore patterns
+        ..Default::default()
     };
 
     config.packages.insert("d_no_ignore".to_string(), package);
