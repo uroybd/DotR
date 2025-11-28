@@ -204,7 +204,9 @@ impl Package {
         if !self.ignore.is_empty() {
             pkg_table.insert("ignore".to_string(), vec_string_to_toml_array(&self.ignore));
         }
-        pkg_table.insert("symlink".to_string(), toml::Value::Boolean(self.symlink));
+        if self.symlink {
+            pkg_table.insert("symlink".to_string(), toml::Value::Boolean(true));
+        }
         pkg_table
     }
 
