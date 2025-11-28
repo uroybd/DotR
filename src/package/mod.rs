@@ -476,13 +476,6 @@ impl Package {
         } else {
             self.resolve_dest(ctx)
         };
-        println!(
-            "Deploying package '{}'(symlinked: {}) from '{}' to '{}'",
-            self.name,
-            self.symlink,
-            copy_from.display(),
-            copy_to.display()
-        );
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
@@ -538,12 +531,6 @@ impl Package {
                         std::fs::remove_file(&symlink_to)?;
                     }
                 }
-                println!(
-                    "Symlinking... {} -> {}",
-                    copy_to.display(),
-                    symlink_to.display(),
-                );
-
                 if let Some(parent) = symlink_to.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
