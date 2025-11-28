@@ -68,52 +68,74 @@ fn cleanup_backups(cwd: &Path) {
 fn restore_test_files(cwd: &Path) {
     let src_dir = cwd.join("src");
 
+    // Helper function to write file, removing symlinks first
+    let write_file = |path: &std::path::PathBuf, content: &str| {
+        if path.exists() || path.is_symlink() {
+            let _ = fs::remove_file(path);
+        }
+        let _ = fs::write(path, content);
+    };
+
     // Restore .bashrc
-    let _ = fs::write(
-        src_dir.join(".bashrc"),
+    write_file(
+        &src_dir.join(".bashrc"),
         "# Bashrc configuration\nexport PATH=\"$HOME/.local/bin:$PATH\"\nalias ls='ls --color=auto'\n",
     );
 
     // Restore .zshrc
-    let _ = fs::write(
-        src_dir.join(".zshrc"),
+    write_file(
+        &src_dir.join(".zshrc"),
         "# ZSH Configuration\nexport PATH=\"$HOME/bin:$PATH\"\nalias ll='ls -la'\n",
     );
 
     // Restore .vimrc
-    let _ = fs::write(
-        src_dir.join(".vimrc"),
+    write_file(
+        &src_dir.join(".vimrc"),
         "\" Vim Configuration\nset number\nset expandtab\nset tabstop=4\n",
     );
 
     // Restore .gitconfig
-    let _ = fs::write(
-        src_dir.join(".gitconfig"),
+    write_file(
+        &src_dir.join(".gitconfig"),
         "# Git Configuration\n[user]\n    name = Test User\n    email = test@example.com\n[core]\n    editor = vim\n",
     );
 
     // Restore nvim/init.lua
-    let _ = fs::create_dir_all(src_dir.join("nvim"));
-    let _ = fs::write(
-        src_dir.join("nvim/init.lua"),
+    let nvim_dir = src_dir.join("nvim");
+    if nvim_dir.is_symlink() {
+        let _ = fs::remove_file(&nvim_dir);
+    }
+    let _ = fs::create_dir_all(&nvim_dir);
+    write_file(
+        &src_dir.join("nvim/init.lua"),
         "-- Neovim configuration\nvim.opt.number = true\nvim.opt.expandtab = true\n",
     );
 
     // Restore tmux files
-    let _ = fs::create_dir_all(src_dir.join("tmux"));
-    let _ = fs::write(
-        src_dir.join("tmux/tmux.conf"),
+    let tmux_dir = src_dir.join("tmux");
+    if tmux_dir.is_symlink() {
+        let _ = fs::remove_file(&tmux_dir);
+    }
+    let _ = fs::create_dir_all(&tmux_dir);
+    write_file(
+        &src_dir.join("tmux/tmux.conf"),
         "# Tmux Configuration\nset -g mouse on\nbind-key r source-file ~/.tmux.conf\n",
     );
-    let _ = fs::write(
-        src_dir.join("tmux/theme.conf"),
+    write_file(
+        &src_dir.join("tmux/theme.conf"),
         "# Tmux Theme\nset -g status-bg blue\nset -g status-fg white\n",
     );
 
     // Restore alacritty config
-    let _ = fs::create_dir_all(src_dir.join("config/alacritty"));
-    let _ = fs::write(
-        src_dir.join("config/alacritty/alacritty.yml"),
+    let alacritty_dir = src_dir.join("config/alacritty");
+    // Remove symlink if exists
+    let config_dir = src_dir.join("config");
+    if config_dir.join("alacritty").is_symlink() {
+        let _ = fs::remove_file(config_dir.join("alacritty"));
+    }
+    let _ = fs::create_dir_all(&alacritty_dir);
+    write_file(
+        &src_dir.join("config/alacritty/alacritty.yml"),
         "# Alacritty Configuration\nwindow:\n  padding:\n    x: 10\n    y: 10\nfont:\n  size: 12.0\n",
     );
 }

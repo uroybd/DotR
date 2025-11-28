@@ -509,6 +509,11 @@ impl Package {
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
         } else {
+            // For single file deployment with symlink, create parent directories
+            if self.symlink
+                && let Some(parent) = copy_to.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
             let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true, args.dry_run)?;
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;

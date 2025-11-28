@@ -23,8 +23,10 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 
 ### 📦 Package Management
 - **Import dotfiles** from any location into your repository
+- **Import with symlinks** - use `--symlink` flag to deploy as symlinks instead of copies
 - **Deploy dotfiles** to their target locations
 - **Update changes** back to your repository
+- **Remove packages** - clean up managed packages with `dotr packages remove`
 - Support for both **files and directories**
 - **Profile-based deployment** for different environments (work, home, server)
 - **Profile dependencies** to automatically deploy required packages
@@ -32,6 +34,9 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 
 ### 🎭 Profiles
 - **Environment-specific configurations** (work, home, server, laptop, etc.)
+- **Add profiles** - create new profiles with `dotr profiles add`
+- **Remove profiles** - delete profiles with `dotr profiles remove`
+- **List profiles** - view all available profiles with `dotr profiles list`
 - **Profile variables** that override package and config variables
 - **Package dependencies** per profile for automatic deployment
 - **Target overrides** to deploy same package to different locations per profile
@@ -73,10 +78,12 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 
 ### 🎯 Smart Workflows
 - Templated and regular files can coexist in the same repository
+- **Symlink support** - deploy as symlinks for live-editing workflows
 - **Granular file deployment** - only deploys files when content has changed
 - **Granular backups** - creates per-file backups (`.dotrbak`) instead of directory backups
 - **Diff command** to preview changes before deployment
 - **Dry run mode** - preview deploy and update operations without making any changes
+- **Remove orphans** - clean up packages/profiles and their orphaned dependencies
 - Selective package deployment and updates
 - Profile-based deployments for different machines/environments
 - Directory structure preservation
@@ -92,6 +99,9 @@ dotr init
 ```bash
 dotr import ~/.bashrc
 dotr import ~/.config/nvim/
+
+# Import with symlink (deploy as symlink instead of copy)
+dotr import ~/.config/nvim/ --symlink
 
 # Import for a specific profile
 dotr import ~/.ssh/config --profile work
@@ -133,6 +143,36 @@ dotr update --profile work
 
 # Dry run to preview what would be updated without making changes
 dotr update --dry-run
+```
+
+6. **Manage packages and profiles**:
+```bash
+# List all packages
+dotr packages list
+
+# List packages with verbose details
+dotr packages list --verbose
+
+# Remove a package
+dotr packages remove nvim
+
+# Remove package and its orphaned dependencies
+dotr packages remove nvim --remove-orphans
+
+# List all profiles
+dotr profiles list
+
+# List profiles with verbose details
+dotr profiles list --verbose
+
+# Add a new profile
+dotr profiles add laptop
+
+# Remove a profile
+dotr profiles remove work
+
+# Remove profile and orphaned packages
+dotr profiles remove work --remove-orphans
 ```
 
 ## Variables Example
@@ -223,6 +263,34 @@ Deploy with: `dotr deploy --profile work`
 
 📖 **[Learn more about Profiles](https://github.com/uroybd/DotR/wiki/Profiles)**
 
+## Symlink Support
+
+Import and deploy dotfiles as symlinks instead of copies for live-editing workflows:
+
+```bash
+# Import with symlink
+dotr import ~/.config/nvim/ --symlink
+
+# Files are deployed to a 'deployed' directory and symlinked to their destinations
+# Edit files at ~/.config/nvim/ and changes immediately reflect in the repository
+```
+
+**How it works:**
+1. Files are copied from source to `dotfiles/nvim/` (your repository)
+2. During deployment, files are copied to `deployed/nvim/` 
+3. A symlink is created from `~/.config/nvim/` → `deployed/nvim/`
+4. Edit at the symlink location, changes are immediately in `deployed/`, ready to update back to `dotfiles/`
+
+**Configuration:**
+```toml
+[packages.nvim]
+src = "dotfiles/nvim"
+dest = "~/.config/nvim/"
+symlink = true  # Enable symlink deployment
+```
+
+📖 **[Learn more about Symlinks](https://github.com/uroybd/DotR/wiki/Symlinks)**
+
 ## Diff Command
 
 ```bash
@@ -303,14 +371,14 @@ sudo mv dotr /usr/local/bin/
 Usage: dotr [OPTIONS] [COMMAND]
 
 Commands:
-  init        Intialize dotfiles repository.
+  init        Initialize dotfiles repository.
   import      Import dotfile and update configuration.
   deploy      Deploy dotfiles from repository.
   update      Update dotfiles from deployed versions.
   diff        Show differences between dotfiles.
   print-vars  Print all user variables.
-  packages    List all managed packages.
-  profiles
+  packages    Manage packages (list, import, deploy, update, remove, diff).
+  profiles    Manage profiles (list, add, remove).
   help        Print this message or the help of the given subcommand(s)
 
 Options:
@@ -318,6 +386,34 @@ Options:
   -h, --help                       Print help
   -V, --version                    Print version
 
+```
+
+### Package Commands
+```bash
+# List packages
+dotr packages list [OPTIONS]
+  --verbose          # Show detailed package information
+
+# Remove packages
+dotr packages remove <PACKAGE>... [OPTIONS]
+  --force            # Force removal without confirmation
+  --remove-orphans   # Remove orphaned dependencies
+  --dry-run          # Preview what would be removed
+```
+
+### Profile Commands
+```bash
+# List profiles
+dotr profiles list [OPTIONS]
+  --verbose          # Show detailed profile information
+
+# Add a profile
+dotr profiles add <PROFILE_NAME>
+
+# Remove a profile
+dotr profiles remove <PROFILE_NAME> [OPTIONS]
+  --remove-orphans   # Remove packages only used by this profile
+  --dry-run          # Preview what would be removed
 ```
 
 ## TODO
@@ -332,4 +428,6 @@ Options:
 - [x] Granular copying and backups
 - [x] Interactive prompts (config/package/profile level)
 - [x] Dry run mode (preview deploy/update without changes)
-- [ ] Symlinking config
+- [x] Symlinking config (import and deploy with symlinks)
+- [x] Package management (list, remove with orphan cleanup)
+- [x] Profile management (add, remove with orphan cleanup)

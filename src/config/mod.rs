@@ -155,9 +155,23 @@ impl Config {
                 .targets
                 .insert(profile_name.clone(), package.dest.clone());
         }
+        let should_deploy = args.symlink;
         self.packages.insert(pkg_name.clone(), package);
         self.profiles.insert(profile_name.clone(), profile);
         self.save(&ctx.working_dir)?;
+        if should_deploy {
+            let pkg = self.packages.get(&pkg_name).unwrap();
+            pkg.deploy(
+                ctx,
+                &crate::cli::DeployArgs {
+                    packages: Some(vec![pkg_name.clone()]),
+                    profile: Some(profile_name),
+                    ignore_errors: false,
+                    clean: false,
+                    dry_run: false,
+                },
+            )?;
+        }
         cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::INFO);
         Ok(())
     }
