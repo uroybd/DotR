@@ -322,10 +322,8 @@ impl Package {
                 // Remove any files in copy_to that were not copied in this operation
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
-        } else {
-            if !args.dry_run {
-                std::fs::copy(&copy_from, &copy_to)?;
-            }
+        } else if !args.dry_run {
+            std::fs::copy(&copy_from, &copy_to)?;
         }
         Ok(BackupDeployResult::Success)
     }
