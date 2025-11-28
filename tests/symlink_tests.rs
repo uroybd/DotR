@@ -355,8 +355,8 @@ fn test_symlink_replaces_existing_symlink() {
         fs::remove_file(&bashrc).expect("Failed to remove existing file");
     }
 
-    // Create old symlink
-    std::os::unix::fs::symlink(&temp_target, &bashrc).expect("Failed to create symlink");
+    // Create old symlink with relative path
+    std::os::unix::fs::symlink(".bashrc.old", &bashrc).expect("Failed to create symlink");
 
     // Import with symlink should replace the old symlink with a new one
     fixture.import(BASHRC_PATH, true);
@@ -442,8 +442,7 @@ fn test_update_symlink_package() {
         .values()
         .next()
         .expect("Should have a package");
-    let src_file = fixture.cwd.join(&package.src);
-    let dotfiles_content = fixture.read_file(src_file.to_str().unwrap());
+    let dotfiles_content = fixture.read_file(&package.src);
     assert!(
         dotfiles_content.contains("Modified through symlink"),
         "Dotfiles source should be updated"
