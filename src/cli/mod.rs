@@ -59,11 +59,15 @@ pub struct PrintVarsArgs {
     pub profile: Option<String>,
 }
 
-#[derive(Debug, Args, Default)]
+#[derive(Debug, Args)]
 #[command(name = "import", about = "Import dotfile and update configuration.")]
+#[derive(Default)]
 pub struct ImportArgs {
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
+
+    #[arg(short, long, default_value_t = false)]
+    pub symlink: bool,
 
     #[arg(short, long)]
     pub name: Option<String>,

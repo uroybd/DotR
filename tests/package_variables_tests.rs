@@ -89,6 +89,7 @@ fn test_package_variables_basic() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
     config
         .packages
@@ -154,6 +155,7 @@ fn test_package_variables_override_config_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
     config
         .packages
@@ -214,6 +216,8 @@ MY_VAR = "user_value"
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+
+        symlink: false,
     };
     config
         .packages
@@ -268,6 +272,7 @@ fn test_package_variables_with_nested_structures() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -317,6 +322,7 @@ fn test_package_variables_persist_after_save() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -388,6 +394,7 @@ TEST_VAR = "user_value"
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
     config
         .packages
@@ -444,6 +451,7 @@ fn test_multiple_packages_with_different_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
 
     // Create second package with its variables
@@ -465,6 +473,7 @@ fn test_multiple_packages_with_different_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
+        symlink: false,
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);

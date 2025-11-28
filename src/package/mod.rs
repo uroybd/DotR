@@ -12,7 +12,7 @@ use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
     utils::{
-        BACKUP_EXT, LogLevel, cprintln, get_string_from_value, get_string_hashmap_from_value,
+        self, BACKUP_EXT, LogLevel, cprintln, get_string_from_value, get_string_hashmap_from_value,
         get_vec_string_from_value, normalize_home_path, resolve_path, string_hashmap_to_toml_table,
         vec_string_to_toml_array,
     },
@@ -41,6 +41,27 @@ pub struct Package {
     pub prompts: HashMap<String, String>, // Package-level prompts
     #[serde(default)]
     pub ignore: Vec<String>, // Patterns to ignore during deployment
+    // Symlinks defaults to false
+    pub symlink: bool,
+}
+
+impl Default for Package {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            src: String::new(),
+            dest: String::new(),
+            dependencies: None,
+            variables: Table::new(),
+            pre_actions: Vec::new(),
+            post_actions: Vec::new(),
+            targets: HashMap::new(),
+            skip: false,
+            prompts: HashMap::new(),
+            ignore: Vec::new(),
+            symlink: false,
+        }
+    }
 }
 
 #[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
@@ -64,6 +85,7 @@ impl Package {
             skip: false,
             prompts: HashMap::new(),
             ignore: Vec::new(),
+            symlink: false,
         }
     }
 
@@ -87,7 +109,9 @@ impl Package {
                 .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?;
             normalize_home_path(resolved_str)
         };
-        Ok(Self::new(&package_name, &src_path_str, &path_str))
+        let mut pkg = Self::new(&package_name, &src_path_str, &path_str);
+        pkg.symlink = args.symlink;
+        Ok(pkg)
     }
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
@@ -116,6 +140,10 @@ impl Package {
             .expect("The 'prompts' field must be a table of string to string mappings");
         let ignore = get_vec_string_from_value(pkg_val.get("ignore"))
             .expect("The 'ignore' field must be an array of strings");
+        let symlink = pkg_val
+            .get("symlink")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
 
         Ok(Self {
             name: pkg_name.to_string(),
@@ -129,6 +157,7 @@ impl Package {
             targets,
             prompts,
             ignore,
+            symlink,
         })
     }
 
@@ -174,6 +203,9 @@ impl Package {
         }
         if !self.ignore.is_empty() {
             pkg_table.insert("ignore".to_string(), vec_string_to_toml_array(&self.ignore));
+        }
+        if self.symlink {
+            pkg_table.insert("symlink".to_string(), toml::Value::Boolean(true));
         }
         pkg_table
     }
@@ -238,6 +270,13 @@ impl Package {
 
     pub fn should_ignore(&self, rel_path: &Path) -> bool {
         should_ignore(&self.ignore, rel_path)
+    }
+
+    pub fn resolve_deployment_path(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
+        if !self.symlink {
+            anyhow::bail!("Package '{}' is not configured for symlinking", self.name);
+        }
+        Ok(ctx.working_dir.join(utils::SYMLINK_FOLDER).join(&self.name))
     }
 
     /// Backup the package by copying files from dest to a backup location, recursively.
@@ -405,7 +444,7 @@ impl Package {
                 return Ok(BackupDeployResult::Skipped);
             }
             if !dry_run {
-                if backup && dest.exists() {
+                if backup && dest.exists() && !self.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -414,7 +453,7 @@ impl Package {
         } else {
             // It can be a binary file, copy as-is and return Ok
             if !dry_run {
-                if backup && dest.exists() {
+                if backup && dest.exists() && !self.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -432,7 +471,11 @@ impl Package {
     ) -> Result<BackupDeployResult, anyhow::Error> {
         self.execute_pre_actions(ctx, args.dry_run)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
-        let copy_to = self.resolve_dest(ctx);
+        let copy_to = if self.symlink {
+            self.resolve_deployment_path(ctx)?
+        } else {
+            self.resolve_dest(ctx)
+        };
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
@@ -470,6 +513,35 @@ impl Package {
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;
                 println!("=> Deployed {}", copy_to.display());
+            }
+        }
+        if self.symlink {
+            let mut symlink_to = self.resolve_dest(ctx);
+            if !args.dry_run {
+                if symlink_to.exists() {
+                    if symlink_to.is_symlink() {
+                        std::fs::remove_file(&symlink_to)?;
+                    } else if symlink_to.is_dir() {
+                        if symlink_to.read_dir()?.next().is_none() {
+                            std::fs::remove_dir(&symlink_to)?;
+                        } else {
+                            std::fs::remove_dir_all(&symlink_to)?;
+                        }
+                    } else {
+                        std::fs::remove_file(&symlink_to)?;
+                    }
+                }
+                if let Some(parent) = symlink_to.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                // Remove trailing slash from symlink_to:
+                let symlink = symlink_to.to_str().unwrap().trim_end_matches('/');
+                symlink_to = PathBuf::from(symlink);
+                let symlink = symlink_to
+                    .to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Symlink path contains non-UTF-8 characters"))?
+                    .trim_end_matches('/');
+                std::os::unix::fs::symlink(&copy_to, symlink)?;
             }
         }
         cprintln(

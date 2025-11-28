@@ -1240,6 +1240,7 @@ fn test_import_with_custom_name() {
             path: BASHRC_PATH.to_string(),
             name: Some("custom_bashrc".to_string()),
             profile: None,
+            ..Default::default()
         }))),
     )
     .expect("Import with custom name failed");
@@ -1268,6 +1269,7 @@ fn test_import_directory_with_custom_name() {
             path: NVIM_PATH.to_string(),
             name: Some("my_nvim_config".to_string()),
             profile: None,
+            ..Default::default()
         }))),
     )
     .expect("Import directory with custom name failed");
@@ -1296,6 +1298,7 @@ fn test_custom_name_replaces_special_characters() {
             path: BASHRC_PATH.to_string(),
             name: Some("my-config.v2".to_string()),
             profile: None,
+            ..Default::default()
         }))),
     )
     .expect("Import with special chars in name failed");
@@ -1320,6 +1323,7 @@ fn test_custom_name_with_profile() {
             path: BASHRC_PATH.to_string(),
             name: Some("work_bashrc".to_string()),
             profile: Some("work".to_string()),
+            ..Default::default()
         }))),
     )
     .expect("Import with custom name and profile failed");
@@ -1351,6 +1355,7 @@ fn test_deploy_package_with_custom_name() {
             path: BASHRC_PATH.to_string(),
             name: Some("mybash".to_string()),
             profile: None,
+            ..Default::default()
         }))),
     )
     .expect("Import failed");

@@ -423,14 +423,7 @@ fn test_package_level_prompts() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),
@@ -465,14 +458,7 @@ fn test_package_multiple_prompts() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     package.prompts.insert(
         "PKG_VAR1".to_string(),
@@ -573,14 +559,7 @@ fn test_package_and_profile_prompts_together() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),
@@ -628,14 +607,7 @@ fn test_package_prompts_do_not_interfere_with_variables() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     package.variables.insert(
         "STATIC_VAR".to_string(),
@@ -702,14 +674,7 @@ fn test_empty_package_prompts() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     config.packages.insert("f_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -764,14 +729,7 @@ fn test_three_level_prompts_hierarchy() {
         name: "f_test".to_string(),
         src: "dotfiles/f_test".to_string(),
         dest: "src/.test".to_string(),
-        dependencies: None,
-        variables: toml::Table::new(),
-        pre_actions: vec![],
-        post_actions: vec![],
-        targets: HashMap::new(),
-        skip: false,
-        prompts: HashMap::new(),
-        ignore: Vec::new(),
+        ..Default::default()
     };
     package.prompts.insert(
         "PACKAGE_VAR".to_string(),
