@@ -420,9 +420,13 @@ fn test_actions_execution_order() {
     fs::create_dir_all(fixture.cwd.join("src")).expect("Failed to create src dir");
 
     // Create a directory with files instead of single file
-    fs::create_dir_all(fixture.cwd.join("dotfiles/f_order_test")).expect("Failed to create dotfiles dir");
-    fs::write(fixture.cwd.join("dotfiles/f_order_test/file1.txt"), "Test content\n")
-        .expect("Failed to create file");
+    fs::create_dir_all(fixture.cwd.join("dotfiles/f_order_test"))
+        .expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_order_test/file1.txt"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
 
     // Create existing dest file with different content to ensure deployment happens
     let dest_path = fixture.cwd.join("src/.order_test");
@@ -432,8 +436,11 @@ fn test_actions_execution_order() {
     if !dest_path.exists() {
         fs::create_dir_all(&dest_path).expect("Failed to create dest dir");
     }
-    fs::write(fixture.cwd.join("src/.order_test/file1.txt"), "Old content\n")
-        .expect("Failed to create dest file");
+    fs::write(
+        fixture.cwd.join("src/.order_test/file1.txt"),
+        "Old content\n",
+    )
+    .expect("Failed to create dest file");
 
     // Create package with actions that write to a log file
     let mut config = fixture.get_config();
@@ -594,9 +601,13 @@ fn test_post_action_failure() {
     fixture.init();
 
     // Create a directory with files instead of single file
-    fs::create_dir_all(fixture.cwd.join("dotfiles/f_post_fail")).expect("Failed to create dotfiles dir");
-    fs::write(fixture.cwd.join("dotfiles/f_post_fail/file1.txt"), "Test content\n")
-        .expect("Failed to create file");
+    fs::create_dir_all(fixture.cwd.join("dotfiles/f_post_fail"))
+        .expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_post_fail/file1.txt"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
 
     // Create existing dest file with different content to ensure deployment happens
     let dest_path = fixture.cwd.join("src/.post_fail");
@@ -606,8 +617,11 @@ fn test_post_action_failure() {
     if !dest_path.exists() {
         fs::create_dir_all(&dest_path).expect("Failed to create dest dir");
     }
-    fs::write(fixture.cwd.join("src/.post_fail/file1.txt"), "Different content\n")
-        .expect("Failed to create dest file");
+    fs::write(
+        fixture.cwd.join("src/.post_fail/file1.txt"),
+        "Different content\n",
+    )
+    .expect("Failed to create dest file");
 
     // Create package with a failing post-action
     let mut config = fixture.get_config();
