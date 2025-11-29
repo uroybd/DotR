@@ -419,17 +419,28 @@ fn test_actions_execution_order() {
     // Create src directory
     fs::create_dir_all(fixture.cwd.join("src")).expect("Failed to create src dir");
 
-    // Create a simple template file
-    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(fixture.cwd.join("dotfiles/f_order_test"), "Test content\n")
+    // Create a directory with files instead of single file
+    fs::create_dir_all(fixture.cwd.join("dotfiles/f_order_test")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_order_test/file1.txt"), "Test content\n")
         .expect("Failed to create file");
+
+    // Create existing dest file with different content to ensure deployment happens
+    let dest_path = fixture.cwd.join("src/.order_test");
+    if dest_path.exists() && dest_path.is_file() {
+        fs::remove_file(&dest_path).expect("Failed to remove file");
+    }
+    if !dest_path.exists() {
+        fs::create_dir_all(&dest_path).expect("Failed to create dest dir");
+    }
+    fs::write(fixture.cwd.join("src/.order_test/file1.txt"), "Old content\n")
+        .expect("Failed to create dest file");
 
     // Create package with actions that write to a log file
     let mut config = fixture.get_config();
     let package = dotr_dear::package::Package {
         name: "f_order_test".to_string(),
-        src: "dotfiles/f_order_test".to_string(),
-        dest: "src/.order_test".to_string(),
+        src: "dotfiles/f_order_test/".to_string(),
+        dest: "src/.order_test/".to_string(),
         pre_actions: vec![
             "echo 'pre1' > src/order_log.txt".to_string(),
             "echo 'pre2' >> src/order_log.txt".to_string(),
@@ -582,26 +593,33 @@ fn test_post_action_failure() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    // Create a simple file
-    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-    fs::write(fixture.cwd.join("dotfiles/f_post_fail"), "Test content\n")
+    // Create a directory with files instead of single file
+    fs::create_dir_all(fixture.cwd.join("dotfiles/f_post_fail")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_post_fail/file1.txt"), "Test content\n")
         .expect("Failed to create file");
+
+    // Create existing dest file with different content to ensure deployment happens
+    let dest_path = fixture.cwd.join("src/.post_fail");
+    if dest_path.exists() && dest_path.is_file() {
+        fs::remove_file(&dest_path).expect("Failed to remove file");
+    }
+    if !dest_path.exists() {
+        fs::create_dir_all(&dest_path).expect("Failed to create dest dir");
+    }
+    fs::write(fixture.cwd.join("src/.post_fail/file1.txt"), "Different content\n")
+        .expect("Failed to create dest file");
 
     // Create package with a failing post-action
     let mut config = fixture.get_config();
     let package = dotr_dear::package::Package {
         name: "f_post_fail".to_string(),
-        src: "dotfiles/f_post_fail".to_string(),
-        dest: "src/.post_fail".to_string(),
+        src: "dotfiles/f_post_fail/".to_string(),
+        dest: "src/.post_fail/".to_string(),
         post_actions: vec!["exit 1".to_string()], // This command exits with error
         ..Default::default()
     };
     config.packages.insert("f_post_fail".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
-
-    // Modify file to trigger deployment
-    fs::write(fixture.cwd.join("src/.post_fail"), "Different content\n")
-        .expect("Failed to create file");
 
     // Deploy should fail due to post-action failure
     let result = run_cli(
