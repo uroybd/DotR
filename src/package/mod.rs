@@ -468,13 +468,13 @@ impl Package {
         ctx: &Context,
         args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
-        self.execute_pre_actions(ctx, args.dry_run)?;
         let copy_from = resolve_path(&self.src, &ctx.working_dir);
         let copy_to = if self.symlink {
             self.resolve_deployment_path(ctx)?
         } else {
             self.resolve_dest(ctx)
         };
+        let mut pre_action_executed = false;
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
@@ -486,6 +486,10 @@ impl Package {
                     continue;
                 }
                 let dest_path = copy_to.join(relative_path);
+                if !pre_action_executed {
+                    self.execute_pre_actions(ctx, args.dry_run)?;
+                    pre_action_executed = true;
+                }
                 if entry.path().is_dir() && !args.dry_run {
                     std::fs::create_dir_all(&dest_path)?;
                 } else {
@@ -508,6 +512,7 @@ impl Package {
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
         } else {
+            self.execute_pre_actions(ctx, args.dry_run)?;
             // For single file deployment with symlink, create parent directories
             if self.symlink
                 && !args.dry_run
@@ -554,7 +559,9 @@ impl Package {
             &format!("Package '{}' deployed", self.name),
             &LogLevel::INFO,
         );
-        self.execute_post_actions(ctx, args.dry_run)?;
+        if pre_action_executed {
+            self.execute_post_actions(ctx, args.dry_run)?;
+        }
         Ok(result)
     }
 
