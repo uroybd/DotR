@@ -199,9 +199,9 @@ fn test_import_dots() {
 fn test_canonical_linking() {
     let fixture = TestFixture::new();
 
-    let path_from_home = utils::resolve_path("~/.config", &fixture.cwd);
-    let path_from_root = utils::resolve_path("/Volumes/Repos/", &fixture.cwd);
-    let path_from_cwd = utils::resolve_path("src/nvim", &fixture.cwd);
+    let path_from_home = utils::resolve_path("~/.config", &fixture.cwd).unwrap();
+    let path_from_root = utils::resolve_path("/Volumes/Repos/", &fixture.cwd).unwrap();
+    let path_from_cwd = utils::resolve_path("src/nvim", &fixture.cwd).unwrap();
 
     assert!(path_from_home.is_absolute());
     assert!(path_from_root.is_absolute());

@@ -10,18 +10,17 @@ pub const SYMLINK_FOLDER: &str = "deployed";
 /// - If the path starts with '/', it's treated as an absolute path
 /// - If the path starts with '~', it's treated as relative to the home directory
 /// - Otherwise, it's treated as relative to the current working directory (cwd)
-pub fn resolve_path(path: &str, cwd: &Path) -> PathBuf {
+pub fn resolve_path(path: &str, cwd: &Path) -> anyhow::Result<PathBuf> {
     if path.starts_with('/') {
-        PathBuf::from(path)
+        Ok(PathBuf::from(path))
     } else if path.starts_with("~") {
         let home_dir = std::env::home_dir().expect("Failed to get home directory");
         // remove first segment of the path
         let p = path.splitn(2, '/').collect::<Vec<&str>>();
-        // print for debug
-        home_dir.join(p[1..].join("/"))
+        Ok(home_dir.join(p[1..].join("/")))
     } else {
         let p = cwd.join(path);
-        std::path::absolute(&p).expect("Failed to get absolute path")
+        Ok(std::path::absolute(&p)?)
     }
 }
 
@@ -162,7 +161,7 @@ mod tests {
     fn test_resolve_path_absolute() {
         let cwd = PathBuf::from("/some/cwd");
         let path = "/absolute/path";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).expect("Failed to resolve path");
         assert_eq!(resolved, PathBuf::from("/absolute/path"));
     }
 
@@ -173,12 +172,12 @@ mod tests {
 
         // Test ~/subdir
         let path = "~/Documents";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
         assert_eq!(resolved, home.join("Documents"));
 
         // Test just ~
         let path = "~";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
         assert_eq!(resolved, home);
     }
 
@@ -186,7 +185,7 @@ mod tests {
     fn test_resolve_path_relative() {
         let cwd = PathBuf::from("/some/cwd");
         let path = "relative/path";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
 
         // Should be absolute path based on cwd
         assert!(resolved.is_absolute());
@@ -197,7 +196,7 @@ mod tests {
     fn test_resolve_path_dot_relative() {
         let cwd = PathBuf::from("/some/cwd");
         let path = "./file.txt";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
 
         assert!(resolved.is_absolute());
         assert!(resolved.ends_with("file.txt"));
@@ -207,7 +206,7 @@ mod tests {
     fn test_resolve_path_parent_relative() {
         let cwd = PathBuf::from("/some/cwd/subdir");
         let path = "../file.txt";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
 
         assert!(resolved.is_absolute());
     }
@@ -280,7 +279,7 @@ mod tests {
     fn test_resolve_path_empty_relative() {
         let cwd = PathBuf::from("/some/cwd");
         let path = "";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).unwrap();
 
         assert!(resolved.is_absolute());
     }
@@ -307,7 +306,7 @@ mod tests {
         let original = "~/.bashrc";
 
         // Resolve it
-        let resolved = resolve_path(original, &cwd);
+        let resolved = resolve_path(original, &cwd).unwrap();
         assert_eq!(resolved, home.join(".bashrc"));
 
         // Normalize it back
