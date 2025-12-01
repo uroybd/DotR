@@ -93,7 +93,7 @@ impl Package {
     // The path can be absolute or relative to the current working directory.
     // That path must exist and it will be set to the dest field.
     pub fn from_path(args: &ImportArgs, cwd: &Path) -> Result<Self, anyhow::Error> {
-        let resolved_path = resolve_path(&args.path, cwd);
+        let resolved_path = resolve_path(&args.path, cwd)?;
         if !resolved_path.exists() {
             anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
@@ -291,7 +291,7 @@ impl Package {
             );
             return Ok(BackupDeployResult::Skipped);
         }
-        let copy_from = self.resolve_dest(ctx);
+        let copy_from = self.resolve_dest(ctx)?;
         let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
             let mut all_copied_paths = vec![];
@@ -328,11 +328,13 @@ impl Package {
         Ok(BackupDeployResult::Success)
     }
 
-    pub fn resolve_dest(&self, ctx: &Context) -> PathBuf {
-        if let Some(target_dest) = self.targets.get(ctx.profile.name.as_str()) {
-            return resolve_path(target_dest, &ctx.working_dir);
-        }
-        resolve_path(&self.dest, &ctx.working_dir)
+    pub fn resolve_dest(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
+        let mut dest = match self.targets.get(ctx.profile.name.as_str()) {
+            Some(d) => d.clone(),
+            None => self.dest.clone(),
+        };
+        dest = compile_string(&dest, &self.get_context_variables(ctx))?;
+        resolve_path(&dest, &ctx.working_dir)
     }
 
     pub fn diff_file(
@@ -394,8 +396,8 @@ impl Package {
     }
 
     pub fn diff(&self, ctx: &Context) -> Result<(), anyhow::Error> {
-        let src = resolve_path(&self.src, &ctx.working_dir);
-        let dest = self.resolve_dest(ctx);
+        let src = resolve_path(&self.src, &ctx.working_dir)?;
+        let dest = self.resolve_dest(ctx)?;
         if src.is_dir() {
             // Recursively diff directory contents
             for entry in walkdir::WalkDir::new(&src) {
@@ -468,11 +470,11 @@ impl Package {
         ctx: &Context,
         args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
-        let copy_from = resolve_path(&self.src, &ctx.working_dir);
+        let copy_from = resolve_path(&self.src, &ctx.working_dir)?;
         let copy_to = if self.symlink {
             self.resolve_deployment_path(ctx)?
         } else {
-            self.resolve_dest(ctx)
+            self.resolve_dest(ctx)?
         };
         let mut pre_action_executed = false;
         let mut result = BackupDeployResult::Skipped;
@@ -527,7 +529,7 @@ impl Package {
             }
         }
         if self.symlink {
-            let mut symlink_to = self.resolve_dest(ctx);
+            let mut symlink_to = self.resolve_dest(ctx)?;
             if !args.dry_run {
                 if symlink_to.exists() {
                     if symlink_to.is_symlink() {
@@ -609,7 +611,7 @@ pub fn get_pkg_name_and_rel_path(
     args: &ImportArgs,
     cwd: &Path,
 ) -> Result<(String, String), anyhow::Error> {
-    let path = resolve_path(&args.path, cwd);
+    let path = resolve_path(&args.path, cwd)?;
     let prefix = if path.is_dir() { "d_" } else { "f_" };
     let extension = path.extension().and_then(|ext| ext.to_str());
 

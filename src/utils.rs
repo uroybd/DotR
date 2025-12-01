@@ -10,18 +10,17 @@ pub const SYMLINK_FOLDER: &str = "deployed";
 /// - If the path starts with '/', it's treated as an absolute path
 /// - If the path starts with '~', it's treated as relative to the home directory
 /// - Otherwise, it's treated as relative to the current working directory (cwd)
-pub fn resolve_path(path: &str, cwd: &Path) -> PathBuf {
+pub fn resolve_path(path: &str, cwd: &Path) -> anyhow::Result<PathBuf> {
     if path.starts_with('/') {
-        PathBuf::from(path)
+        Ok(PathBuf::from(path))
     } else if path.starts_with("~") {
         let home_dir = std::env::home_dir().expect("Failed to get home directory");
         // remove first segment of the path
         let p = path.splitn(2, '/').collect::<Vec<&str>>();
-        // print for debug
-        home_dir.join(p[1..].join("/"))
+        Ok(home_dir.join(p[1..].join("/")))
     } else {
         let p = cwd.join(path);
-        std::path::absolute(&p).expect("Failed to get absolute path")
+        std::path::absolute(&p)
     }
 }
 
@@ -35,7 +34,7 @@ pub fn normalize_home_path(path: &str) -> String {
     }
 
     if let Some(home_dir) = std::env::home_dir() {
-        let home_str = home_dir.to_string_lossy();
+        let home_str = home_dir.to_string_lossy()?;
 
         // Check if path is exactly home or starts with home/
         if path == home_str.as_ref() {
@@ -162,7 +161,7 @@ mod tests {
     fn test_resolve_path_absolute() {
         let cwd = PathBuf::from("/some/cwd");
         let path = "/absolute/path";
-        let resolved = resolve_path(path, &cwd);
+        let resolved = resolve_path(path, &cwd).expect("Failed to resolve path");
         assert_eq!(resolved, PathBuf::from("/absolute/path"));
     }
 
