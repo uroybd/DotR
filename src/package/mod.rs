@@ -445,6 +445,9 @@ impl Package {
                 return Ok(BackupDeployResult::Skipped);
             }
             if !dry_run {
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
                 if backup && dest.exists() && !self.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
@@ -454,6 +457,9 @@ impl Package {
         } else {
             // It can be a binary file, copy as-is and return Ok
             if !dry_run {
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
                 if backup && dest.exists() && !self.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
@@ -515,6 +521,7 @@ impl Package {
             }
         } else {
             self.execute_pre_actions(ctx, args.dry_run)?;
+            pre_action_executed = true;
             // For single file deployment with symlink, create parent directories
             if self.symlink
                 && !args.dry_run
