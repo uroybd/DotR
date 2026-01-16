@@ -234,7 +234,7 @@ fn test_deploy_with_profile() {
         packages: None,
         profile: Some("work".to_string()),
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -290,7 +290,7 @@ fn test_deploy_specific_packages() {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -514,7 +514,7 @@ fn test_profile_dependencies_deployment() {
         packages: None,
         profile: Some("minimal".to_string()),
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -611,7 +611,7 @@ fn test_deploy_with_invalid_profile_fails() {
         packages: None,
         profile: Some("nonexistent_profile".to_string()),
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -631,7 +631,7 @@ fn test_update_with_invalid_profile_fails() {
         packages: None,
         profile: Some("invalid_profile".to_string()),
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -670,7 +670,7 @@ fn test_deploy_nonexistent_package_fails() {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -694,7 +694,7 @@ fn test_update_nonexistent_package_fails() {
         packages: Some(vec!["nonexistent_package".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -770,7 +770,7 @@ fn test_package_with_missing_dependency_fails() {
         packages: Some(vec!["test_pkg".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -1012,7 +1012,7 @@ fn test_dotr_profile_env_var_update() {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))))
     .expect("Deploy failed");
@@ -1028,7 +1028,7 @@ fn test_dotr_profile_env_var_update() {
         packages: Some(vec!["f_env_update".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -1122,7 +1122,7 @@ fn test_cli_profile_overrides_env_var() {
         packages: None,
         profile: Some("cliprofile".to_string()),
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -1238,7 +1238,7 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: true,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -1359,7 +1359,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         packages: None,
         profile: None,
         ignore_errors: true,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))));
 
@@ -1467,7 +1467,7 @@ fn test_deploy_with_clean_removes_extra_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1518,7 +1518,10 @@ fn test_deploy_without_clean_keeps_extra_files() {
     fixture.write_file("deploy_dest/another/extra_file.txt", "this should remain");
 
     // Deploy with clean=false
-    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
+    let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+        clean: Some(false),
+        ..Default::default()
+    }))));
 
     assert!(result.is_ok(), "Deploy without clean should succeed");
 
@@ -1572,7 +1575,7 @@ fn test_backup_with_clean_removes_extra_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1623,7 +1626,10 @@ fn test_backup_without_clean_keeps_extra_files() {
     fixture.write_file("dotfiles/d_backup_keep/old_file.txt", "this should remain");
 
     // Backup with clean=false
-    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs::default()))));
+    let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
+        clean: Some(false),
+        ..Default::default()
+    }))));
 
     assert!(result.is_ok(), "Backup without clean should succeed");
 
@@ -1676,7 +1682,7 @@ fn test_clean_preserves_backup_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1737,7 +1743,7 @@ fn test_clean_removes_empty_directories() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1801,7 +1807,7 @@ fn test_clean_removes_non_empty_directories() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1867,7 +1873,7 @@ fn test_clean_handles_nested_directory_structure() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1933,7 +1939,7 @@ fn test_clean_preserves_kept_directories() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -1995,7 +2001,7 @@ fn test_clean_respects_ignore_patterns_files() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -2067,7 +2073,7 @@ fn test_clean_respects_ignore_patterns_directories() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -2137,7 +2143,7 @@ fn test_clean_ignore_patterns_in_backup() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -2213,7 +2219,7 @@ fn test_clean_ignore_patterns_with_nested_paths() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 
@@ -2288,7 +2294,7 @@ fn test_clean_without_ignore_patterns() {
         packages: None,
         profile: None,
         ignore_errors: false,
-        clean: true,
+        clean: Some(true),
         dry_run: false,
     }))));
 

@@ -61,7 +61,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
@@ -74,7 +74,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
@@ -381,7 +381,7 @@ fn test_deploy_nonexistent_package() {
             packages: Some(vec!["nonexistent_package".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         }))),
     );

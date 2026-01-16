@@ -84,6 +84,14 @@ For detailed documentation, guides, and examples, visit the [DotR Wiki](https://
 - Profile-based deployments for different machines/environments
 - Directory structure preservation
 
+### 🧹 Clean Mode
+- **Clean by default** - automatically removes files in destination that don't exist in source
+- Keeps your deployed configurations synchronized with your repository
+- **Package-level control** - disable cleaning per package with `clean = false` in config
+- **CLI override** - use `--clean=false` to skip cleaning for a single operation
+- Perfect for maintaining tidy config directories without manual cleanup
+- Respects ignore patterns - won't remove files matching your ignore rules
+
 ## Quick Start
 
 1. **Initialize** a dotfiles repository:
@@ -315,14 +323,49 @@ dotr update --dry-run
 
 # Combine with other options
 dotr deploy --dry-run --profile work --packages nvim,bashrc
-dotr update --dry-run --clean
+
+# Preview deploy without cleaning extra files
+dotr deploy --dry-run --clean=false
 ```
 
 Dry run mode shows what would happen during deploy or update operations without:
 - Creating or modifying any files
 - Creating backups
 - Executing pre/post actions
-- Removing files (when using --clean)
+- Removing extra files (clean operations run by default)
+
+## Clean Mode
+
+By default, DotR cleans up destination directories by removing files that don't exist in your dotfiles repository. This keeps your configurations synchronized.
+
+```bash
+# Deploy with cleaning (default behavior)
+dotr deploy
+
+# Deploy without cleaning extra files
+dotr deploy --clean=false
+
+# Update with cleaning (default)
+dotr update
+
+# Update without cleaning
+dotr update --clean=false
+```
+
+**Package-level configuration:**
+```toml
+[packages.nvim]
+src = "dotfiles/nvim"
+dest = "~/.config/nvim/"
+clean = false  # Disable cleaning for this package
+```
+
+**How it works:**
+- Files in destination that aren't in source are removed during deploy/update
+- Backup files (`.dotrbak` extension) are never removed
+- Files matching ignore patterns are preserved
+- CLI `--clean` flag overrides package-level settings
+- Use `--clean=false` to keep extra files in destination
 
 ## Installation
 

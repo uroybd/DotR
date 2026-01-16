@@ -43,8 +43,12 @@ pub struct Package {
     pub ignore: Vec<String>, // Patterns to ignore during deployment
     // Symlinks defaults to false
     pub symlink: bool,
-    #[serde(default)]
+    #[serde(default = "default_clean")]
     pub clean: bool,
+}
+
+fn default_clean() -> bool {
+    true
 }
 
 impl Default for Package {
@@ -151,6 +155,10 @@ impl Package {
             .get("symlink")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        let clean = pkg_val
+            .get("clean")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
 
         Ok(Self {
             name: pkg_name.to_string(),
@@ -165,7 +173,7 @@ impl Package {
             prompts,
             ignore,
             symlink,
-            clean: true,
+            clean,
         })
     }
 
@@ -214,6 +222,9 @@ impl Package {
         }
         if self.symlink {
             pkg_table.insert("symlink".to_string(), toml::Value::Boolean(true));
+        }
+        if !self.clean {
+            pkg_table.insert("clean".to_string(), toml::Value::Boolean(false));
         }
         pkg_table
     }
@@ -711,6 +722,11 @@ pub fn clean(
     ignore: &[String],
     dry_run: bool,
 ) -> anyhow::Result<()> {
+    // If the operation path doesn't exist, there's nothing to clean
+    if !operation_path.exists() {
+        return Ok(());
+    }
+
     let mut dirs = vec![];
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;

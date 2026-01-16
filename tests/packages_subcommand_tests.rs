@@ -122,7 +122,7 @@ fn test_packages_deploy_subcommand() {
             packages: Some(vec!["f_deploy_test".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         })),
     }))))
@@ -155,7 +155,7 @@ fn test_packages_update_subcommand() {
         packages: Some(vec!["f_update_test".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))))
     .expect("Deploy failed");
@@ -171,7 +171,7 @@ fn test_packages_update_subcommand() {
             packages: Some(vec!["f_update_test".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         })),
     }))))
@@ -206,7 +206,7 @@ fn test_packages_diff_subcommand() {
         packages: Some(vec!["f_diff_test".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))))
     .expect("Deploy failed");
@@ -347,7 +347,7 @@ fn test_packages_deploy_with_profile() {
             packages: None, // Deploy all packages in profile
             profile: Some("deploy_profile".to_string()),
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         })),
     }))))
@@ -382,7 +382,7 @@ fn test_packages_deploy_dry_run() {
             packages: Some(vec!["f_dryrun_test".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: true,
         })),
     }))))
@@ -417,7 +417,7 @@ fn test_packages_update_dry_run() {
         packages: Some(vec!["f_update_dryrun".to_string()]),
         profile: None,
         ignore_errors: false,
-        clean: false,
+        clean: Some(false),
         dry_run: false,
     }))))
     .expect("Deploy failed");
@@ -432,7 +432,7 @@ fn test_packages_update_dry_run() {
             packages: Some(vec!["f_update_dryrun".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: true,
         })),
     }))))
@@ -480,7 +480,7 @@ fn test_packages_multiple_packages_deploy() {
             ]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         })),
     }))))

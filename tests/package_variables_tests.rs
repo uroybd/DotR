@@ -38,7 +38,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
@@ -90,6 +90,7 @@ fn test_package_variables_basic() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
     config
         .packages
@@ -156,6 +157,7 @@ fn test_package_variables_override_config_variables() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
     config
         .packages
@@ -218,6 +220,7 @@ MY_VAR = "user_value"
         ignore: Vec::new(),
 
         symlink: false,
+        clean: true,
     };
     config
         .packages
@@ -273,6 +276,7 @@ fn test_package_variables_with_nested_structures() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
     config.packages.insert("f_nested_test".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -323,6 +327,7 @@ fn test_package_variables_persist_after_save() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
     config.packages.insert("test_package".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -395,6 +400,7 @@ TEST_VAR = "user_value"
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
     config
         .packages
@@ -452,6 +458,7 @@ fn test_multiple_packages_with_different_variables() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
 
     // Create second package with its variables
@@ -474,6 +481,7 @@ fn test_multiple_packages_with_different_variables() {
         prompts: HashMap::new(),
         ignore: Vec::new(),
         symlink: false,
+        clean: true,
     };
 
     config.packages.insert("f_pkg1".to_string(), package1);

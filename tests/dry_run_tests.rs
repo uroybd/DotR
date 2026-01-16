@@ -169,7 +169,7 @@ fn test_dry_run_deploy_clean_no_files_removed() {
     // Deploy with dry run and clean
     let args = DeployArgs {
         dry_run: true,
-        clean: true,
+        clean: Some(true),
         ..Default::default()
     };
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(args))));
@@ -242,7 +242,7 @@ fn test_dry_run_update_with_clean() {
     // Update with dry run and clean
     let args = UpdateArgs {
         dry_run: true,
-        clean: true,
+        clean: Some(true),
         ..Default::default()
     };
     let result = run_cli(fixture.get_cli(Some(Command::Update(args))));

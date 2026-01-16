@@ -145,7 +145,7 @@ impl Config {
             packages: None,
             profile: Some(profile_name.clone()),
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         };
         package.backup(ctx, &backup_args)?;
@@ -167,7 +167,7 @@ impl Config {
                     packages: Some(vec![pkg_name.clone()]),
                     profile: Some(profile_name),
                     ignore_errors: false,
-                    clean: false,
+                    clean: Some(false),
                     dry_run: false,
                 },
             )?;
