@@ -43,6 +43,12 @@ pub struct Package {
     pub ignore: Vec<String>, // Patterns to ignore during deployment
     // Symlinks defaults to false
     pub symlink: bool,
+    #[serde(default = "default_clean")]
+    pub clean: bool,
+}
+
+fn default_clean() -> bool {
+    true
 }
 
 impl Default for Package {
@@ -60,6 +66,7 @@ impl Default for Package {
             prompts: HashMap::new(),
             ignore: Vec::new(),
             symlink: false,
+            clean: true,
         }
     }
 }
@@ -86,6 +93,7 @@ impl Package {
             prompts: HashMap::new(),
             ignore: Vec::new(),
             symlink: false,
+            clean: true,
         }
     }
 
@@ -147,6 +155,10 @@ impl Package {
             .get("symlink")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
+        let clean = pkg_val
+            .get("clean")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
 
         Ok(Self {
             name: pkg_name.to_string(),
@@ -161,6 +173,7 @@ impl Package {
             prompts,
             ignore,
             symlink,
+            clean,
         })
     }
 
@@ -209,6 +222,9 @@ impl Package {
         }
         if self.symlink {
             pkg_table.insert("symlink".to_string(), toml::Value::Boolean(true));
+        }
+        if !self.clean {
+            pkg_table.insert("clean".to_string(), toml::Value::Boolean(false));
         }
         pkg_table
     }
@@ -318,7 +334,7 @@ impl Package {
                     all_copied_paths.push(dest_path);
                 }
             }
-            if args.clean {
+            if self.should_clean(args.clean) {
                 // Remove any files in copy_to that were not copied in this operation
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
@@ -326,6 +342,13 @@ impl Package {
             std::fs::copy(&copy_from, &copy_to)?;
         }
         Ok(BackupDeployResult::Success)
+    }
+
+    pub fn should_clean(&self, arg_val: Option<bool>) -> bool {
+        match arg_val {
+            Some(v) => v,
+            None => self.clean,
+        }
     }
 
     pub fn resolve_dest(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
@@ -515,7 +538,7 @@ impl Package {
                 }
                 all_deployed_paths.push(dest_path);
             }
-            if args.clean {
+            if self.should_clean(args.clean) {
                 // Remove any files in copy_to that were not deployed in this operation
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
@@ -699,6 +722,11 @@ pub fn clean(
     ignore: &[String],
     dry_run: bool,
 ) -> anyhow::Result<()> {
+    // If the operation path doesn't exist, there's nothing to clean
+    if !operation_path.exists() {
+        return Ok(());
+    }
+
     let mut dirs = vec![];
     for entry in walkdir::WalkDir::new(operation_path) {
         let entry = entry?;

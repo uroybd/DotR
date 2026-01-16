@@ -101,8 +101,8 @@ pub struct UpdateArgs {
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
 
-    #[arg(long, default_value_t = false)]
-    pub clean: bool,
+    #[arg(long)]
+    pub clean: Option<bool>,
 
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
@@ -120,8 +120,8 @@ pub struct DeployArgs {
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
 
-    #[arg(long, default_value_t = false)]
-    pub clean: bool,
+    #[arg(long)]
+    pub clean: Option<bool>,
 
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,

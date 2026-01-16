@@ -46,7 +46,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
@@ -587,7 +587,7 @@ fn test_pre_action_failure() {
             packages: Some(vec!["f_pre_fail".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         }))),
     );
@@ -641,7 +641,7 @@ fn test_post_action_failure() {
             packages: Some(vec!["f_post_fail".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         }))),
     );
@@ -677,7 +677,7 @@ fn test_action_with_nonexistent_command() {
             packages: Some(vec!["f_bad_cmd".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         }))),
     );
@@ -716,7 +716,7 @@ fn test_action_failure_with_error_message() {
             packages: Some(vec!["f_err_msg".to_string()]),
             profile: None,
             ignore_errors: false,
-            clean: false,
+            clean: Some(false),
             dry_run: false,
         }))),
     );

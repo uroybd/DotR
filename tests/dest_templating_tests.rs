@@ -38,7 +38,7 @@ impl TestFixture {
                 packages,
                 profile,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )

@@ -48,7 +48,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
@@ -61,7 +61,7 @@ impl TestFixture {
                 packages,
                 profile: None,
                 ignore_errors: false,
-                clean: false,
+                clean: Some(false),
                 dry_run: false,
             }))),
         )
