@@ -43,6 +43,8 @@ pub struct Package {
     pub ignore: Vec<String>, // Patterns to ignore during deployment
     // Symlinks defaults to false
     pub symlink: bool,
+    #[serde(default)]
+    pub clean: bool,
 }
 
 impl Default for Package {
@@ -60,6 +62,7 @@ impl Default for Package {
             prompts: HashMap::new(),
             ignore: Vec::new(),
             symlink: false,
+            clean: true,
         }
     }
 }
@@ -86,6 +89,7 @@ impl Package {
             prompts: HashMap::new(),
             ignore: Vec::new(),
             symlink: false,
+            clean: true,
         }
     }
 
@@ -161,6 +165,7 @@ impl Package {
             prompts,
             ignore,
             symlink,
+            clean: true,
         })
     }
 
@@ -318,7 +323,7 @@ impl Package {
                     all_copied_paths.push(dest_path);
                 }
             }
-            if args.clean {
+            if self.should_clean(args.clean) {
                 // Remove any files in copy_to that were not copied in this operation
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
@@ -326,6 +331,13 @@ impl Package {
             std::fs::copy(&copy_from, &copy_to)?;
         }
         Ok(BackupDeployResult::Success)
+    }
+
+    pub fn should_clean(&self, arg_val: Option<bool>) -> bool {
+        match arg_val {
+            Some(v) => v,
+            None => self.clean,
+        }
     }
 
     pub fn resolve_dest(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
@@ -515,7 +527,7 @@ impl Package {
                 }
                 all_deployed_paths.push(dest_path);
             }
-            if args.clean {
+            if self.should_clean(args.clean) {
                 // Remove any files in copy_to that were not deployed in this operation
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
