@@ -407,10 +407,14 @@ impl Config {
     }
 
     pub fn get_orphan_packages(&self) -> Vec<String> {
-        self.packages.keys().filter_map(|name| match self.is_package_safe_to_remove(name, &[], &[]) {
+        self.packages
+            .keys()
+            .filter_map(
+                |name| match self.is_package_safe_to_remove(name, &[], &[]) {
                     (true, _, _) => Some(name.clone()),
                     _ => None,
-                })
+                },
+            )
             .collect()
     }
 
