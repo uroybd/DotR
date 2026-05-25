@@ -247,6 +247,8 @@ jobs:
   check-success:
     name: Check All Jobs Passed
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: [lint, test, coverage, security-audit, cargo-vet]
     if: always()
     steps:
