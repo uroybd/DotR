@@ -12,6 +12,8 @@ env:
 jobs:
   build:
     name: Build release binaries
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -103,6 +105,8 @@ jobs:
     name: Update Homebrew Tap
     needs: release
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
