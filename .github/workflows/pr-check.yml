@@ -42,11 +42,25 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Cache cargo-vet
+        uses: actions/cache@v3
+        id: cache-cargo-vet
+        with:
+          path: ~/.cargo/bin/cargo-vet
+          key: ${{ runner.os }}-cargo-vet-0.10
+
+      - name: Install cargo-vet
+        if: steps.cache-cargo-vet.outputs.cache-hit != 'true'
+        run: cargo install --locked cargo-vet
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run cargo vet
+        run: cargo vet
 
   test:
     name: Test
@@ -215,49 +229,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  cargo-vet:
-    name: Supply Chain Security (cargo vet)
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo index
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo-vet
-        uses: actions/cache@v3
-        id: cache-cargo-vet
-        with:
-          path: ~/.cargo/bin/cargo-vet
-          key: ${{ runner.os }}-cargo-vet-0.10
-
-      - name: Install cargo-vet
-        if: steps.cache-cargo-vet.outputs.cache-hit != 'true'
-        run: cargo install --locked cargo-vet
-
-      - name: Run cargo vet
-        run: cargo vet
-
   check-success:
     name: Check All Jobs Passed
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: [lint, test, coverage, security-audit, cargo-vet]
+    needs: [lint, test, coverage, security-audit]
     if: always()
     steps:
       - name: Check if all jobs succeeded
@@ -265,8 +242,7 @@ jobs:
           if [ "${{ needs.lint.result }}" != "success" ] || \
              [ "${{ needs.test.result }}" != "success" ] || \
              [ "${{ needs.coverage.result }}" != "success" ] || \
-             [ "${{ needs.security-audit.result }}" != "success" ] || \
-             [ "${{ needs.cargo-vet.result }}" != "success" ]; then
+             [ "${{ needs.security-audit.result }}" != "success" ]; then
             echo "One or more jobs failed"
             exit 1
           fi
