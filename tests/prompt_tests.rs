@@ -39,7 +39,8 @@ impl TestFixture {
 
     fn get_context(&self) -> Context {
         let config = self.get_config();
-        Context::new(&self.cwd, &config, &None, false).expect("Failed to create context")
+        let (ctx, _) = Context::new(&self.cwd, &config, &None, false).expect("Failed to create context");
+        ctx
     }
 }
 

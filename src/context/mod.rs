@@ -150,7 +150,7 @@ impl Context {
         conf: &Config,
         profile_name: &Option<String>,
         create_profile_if_missing: bool,
-    ) -> Result<Self, anyhow::Error> {
+    ) -> Result<(Self, bool), anyhow::Error> {
         let mut variables = conf.variables.clone();
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
@@ -159,18 +159,21 @@ impl Context {
         let user_variables = Self::parse_uservariables(working_dir)?;
         let mut all_variables = variables.clone();
         all_variables.extend(user_variables.clone());
-        let profile = Self::get_profile_from_config(
+        let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
             create_profile_if_missing,
             &all_variables,
         )?;
-        Ok(Self {
-            working_dir: working_dir.to_path_buf(),
-            variables,
-            user_variables,
-            profile,
-        })
+        Ok((
+            Self {
+                working_dir: working_dir.to_path_buf(),
+                variables,
+                user_variables,
+                profile,
+            },
+            created,
+        ))
     }
 
     pub fn get_profile_from_config(
@@ -178,7 +181,7 @@ impl Context {
         pname: &Option<String>,
         create_if_missing: bool,
         variables: &Table,
-    ) -> anyhow::Result<Profile> {
+    ) -> anyhow::Result<(Profile, bool)> {
         let profile_name = match pname {
             Some(name) => name.clone(),
             None => {
@@ -196,11 +199,11 @@ impl Context {
 
         let profile = conf.profiles.get(&profile_name);
         if let Some(prof) = profile {
-            return Ok(prof.clone());
+            return Ok((prof.clone(), false));
         } else if !create_if_missing && profile_name != "default" {
             anyhow::bail!("Profile {} not found", profile_name);
         }
-        Ok(Profile::new(&profile_name))
+        Ok((Profile::new(&profile_name), true))
     }
 
     pub fn get_variables(&self) -> &Table {

@@ -30,7 +30,7 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx =
+        let (ctx, _) =
             Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         let filtered = config.filter_packages(&ctx, &None).unwrap();
@@ -62,7 +62,7 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx =
+        let (ctx, _) =
             Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         let filtered = config.filter_packages(&ctx, &None).unwrap();
@@ -95,7 +95,7 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let filtered = config.filter_packages(&ctx, &None).unwrap();
 
@@ -124,7 +124,7 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx =
+        let (ctx, _) =
             Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         // Explicitly request pkg1 even though it has skip=true
@@ -295,7 +295,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -318,7 +318,7 @@ mod remove_packages_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["nonexistent".to_string()]),
@@ -353,7 +353,7 @@ mod remove_packages_tests {
         profile.dependencies.push("pkg1".to_string());
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -391,7 +391,7 @@ mod remove_packages_tests {
             .profiles
             .insert("test-profile".to_string(), profile.clone());
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -430,7 +430,7 @@ mod remove_packages_tests {
         pkg2.dependencies = Some(vec!["pkg1".to_string()]);
         config.packages.insert("pkg2".to_string(), pkg2);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -463,7 +463,7 @@ mod remove_packages_tests {
             Package::new("pkg2", "dotfiles/pkg2", "/dest2"),
         );
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string(), "pkg2".to_string()]),
@@ -490,7 +490,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -529,7 +529,7 @@ mod remove_packages_tests {
             Package::new("used", "dotfiles/used", "/dest2"),
         );
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec![]), // Empty list to trigger only orphan removal
@@ -559,7 +559,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -582,7 +582,7 @@ mod remove_packages_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: None,
@@ -623,7 +623,7 @@ mod remove_profile_tests {
         let profile = Profile::new("test-profile");
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -644,7 +644,7 @@ mod remove_profile_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "nonexistent".to_string(),
@@ -670,7 +670,7 @@ mod remove_profile_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "default".to_string(),
@@ -699,7 +699,7 @@ mod remove_profile_tests {
         let profile = Profile::new("test-profile");
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -731,7 +731,7 @@ mod remove_profile_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -763,7 +763,7 @@ mod remove_profile_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -799,7 +799,7 @@ mod remove_profile_tests {
         let pkg = Package::new("shared", "dotfiles/shared", "/dest");
         config.packages.insert("shared".to_string(), pkg);
 
-        let ctx = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "profile1".to_string(),

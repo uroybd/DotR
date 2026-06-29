@@ -308,7 +308,9 @@ fn init_config(
         println!("{}", BANNER);
     }
     // Start with environment variables from Context::new()
-    let ctx = Context::new(working_dir, &conf, profile, create_if_missing)?;
-    conf.update_profiles(&ctx.profile, &ctx)?;
+    let (ctx, profile_created) = Context::new(working_dir, &conf, profile, create_if_missing)?;
+    if profile_created {
+        conf.update_profiles(&ctx.profile, &ctx)?;
+    }
     Ok((conf, ctx))
 }
