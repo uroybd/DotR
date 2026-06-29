@@ -529,8 +529,7 @@ impl Package {
             return false;
         }
         if src_path.is_dir() {
-            for entry in walkdir::WalkDir::new(&src_path) {
-                let entry = entry.expect("Failed to read directory entry");
+            for entry in walkdir::WalkDir::new(&src_path).into_iter().flatten() {
                 if entry.path().is_file() {
                     return is_templated(&entry.path().to_path_buf());
                 }

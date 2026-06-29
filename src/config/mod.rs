@@ -128,7 +128,8 @@ impl Config {
         self.profiles.insert(profile_name.clone(), profile);
         self.save(&ctx.working_dir)?;
         if should_deploy {
-            let pkg = self.packages.get(&pkg_name).unwrap();
+            let pkg = self.packages.get(&pkg_name)
+                .ok_or_else(|| anyhow::anyhow!("Package '{}' not found after insertion", pkg_name))?;
             pkg.deploy(
                 ctx,
                 &crate::cli::DeployArgs {
@@ -417,7 +418,10 @@ impl Config {
             }
             to_remove.insert(
                 package_name.clone(),
-                self.packages.get(package_name).unwrap().clone(),
+                self.packages
+                    .get(package_name)
+                    .ok_or_else(|| anyhow::anyhow!("Package '{}' not found in configuration", package_name))?
+                    .clone(),
             );
         }
         if to_remove.is_empty() && !args.remove_orphans {
@@ -455,7 +459,10 @@ impl Config {
                     );
                     continue;
                 }
-                let pkg = self.packages.get(orphan).unwrap().clone();
+                let pkg = self.packages
+                    .get(orphan)
+                    .ok_or_else(|| anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan))?
+                    .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
                         anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
@@ -559,7 +566,10 @@ impl Config {
             let orphan_packages = self.get_orphan_packages();
             let mut dirty = false;
             for orphan in orphan_packages.iter() {
-                let pkg = self.packages.get(orphan).unwrap().clone();
+                let pkg = self.packages
+                    .get(orphan)
+                    .ok_or_else(|| anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan))?
+                    .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
                         anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);

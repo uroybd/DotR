@@ -7,7 +7,7 @@ use std::{
 use serde::Serialize;
 use toml::Table;
 
-use crate::{config::Config, profile::Profile};
+use crate::{config::Config, profile::Profile, utils::{LogLevel, cprintln}};
 
 mod tests;
 
@@ -91,7 +91,10 @@ impl Context {
                         dirty = true;
                     }
                     Err(e) => {
-                        eprintln!("Error getting prompted variable '{}': {}", key, e);
+                        cprintln(
+                            &format!("Error getting prompted variable '{}': {}", key, e),
+                            &LogLevel::Warning,
+                        );
                     }
                 }
             }
