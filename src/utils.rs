@@ -95,10 +95,12 @@ pub fn cprintln(message: &str, level: &LogLevel) {
 }
 
 pub fn get_string_from_value(v: Option<&toml::Value>, field_name: &str) -> anyhow::Result<String> {
-    Ok(v.ok_or_else(|| anyhow::anyhow!("'{}' is required", field_name))?
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("'{}' must be a string", field_name))?
-        .to_string())
+    Ok(
+        v.ok_or_else(|| anyhow::anyhow!("'{}' is required", field_name))?
+            .as_str()
+            .ok_or_else(|| anyhow::anyhow!("'{}' must be a string", field_name))?
+            .to_string(),
+    )
 }
 
 pub fn get_string_hashmap_from_value(

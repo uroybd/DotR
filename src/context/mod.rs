@@ -7,7 +7,11 @@ use std::{
 use serde::Serialize;
 use toml::Table;
 
-use crate::{config::Config, profile::Profile, utils::{LogLevel, cprintln}};
+use crate::{
+    config::Config,
+    profile::Profile,
+    utils::{LogLevel, cprintln},
+};
 
 mod tests;
 

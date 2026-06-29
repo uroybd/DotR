@@ -128,8 +128,9 @@ impl Config {
         self.profiles.insert(profile_name.clone(), profile);
         self.save(&ctx.working_dir)?;
         if should_deploy {
-            let pkg = self.packages.get(&pkg_name)
-                .ok_or_else(|| anyhow::anyhow!("Package '{}' not found after insertion", pkg_name))?;
+            let pkg = self.packages.get(&pkg_name).ok_or_else(|| {
+                anyhow::anyhow!("Package '{}' not found after insertion", pkg_name)
+            })?;
             pkg.deploy(
                 ctx,
                 &crate::cli::DeployArgs {
@@ -420,7 +421,9 @@ impl Config {
                 package_name.clone(),
                 self.packages
                     .get(package_name)
-                    .ok_or_else(|| anyhow::anyhow!("Package '{}' not found in configuration", package_name))?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Package '{}' not found in configuration", package_name)
+                    })?
                     .clone(),
             );
         }
@@ -459,9 +462,12 @@ impl Config {
                     );
                     continue;
                 }
-                let pkg = self.packages
+                let pkg = self
+                    .packages
                     .get(orphan)
-                    .ok_or_else(|| anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan))?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan)
+                    })?
                     .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
@@ -566,9 +572,12 @@ impl Config {
             let orphan_packages = self.get_orphan_packages();
             let mut dirty = false;
             for orphan in orphan_packages.iter() {
-                let pkg = self.packages
+                let pkg = self
+                    .packages
                     .get(orphan)
-                    .ok_or_else(|| anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan))?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan)
+                    })?
                     .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
