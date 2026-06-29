@@ -47,13 +47,14 @@ impl Context {
         &mut self,
         conf: &Config,
         packages: &Option<Vec<String>>,
-    ) -> Result<Table, anyhow::Error> {
+    ) -> anyhow::Result<()> {
         self.get_prompted_variables_with_io(
             conf,
             packages,
             &mut std::io::stdin().lock(),
             &mut std::io::stdout(),
-        )
+        )?;
+        Ok(())
     }
 
     pub(crate) fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(

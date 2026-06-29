@@ -1,19 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use toml::{Table, Value};
+use toml::Table;
 
-use crate::utils::{
-    get_string_hashmap_from_value, get_vec_string_from_value, string_hashmap_to_toml_table,
-    vec_string_to_toml_array,
-};
+use crate::utils::{get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
+    #[serde(skip)]
     pub name: String,
+    #[serde(skip_serializing_if = "is_empty_table")]
     pub variables: Table,
     pub dependencies: Vec<String>,
-    #[serde(default)]
-    pub prompts: HashMap<String, String>, // Profile-level prompts
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub prompts: HashMap<String, String>,
 }
 
 impl Profile {
@@ -26,7 +25,7 @@ impl Profile {
         }
     }
 
-    pub fn from_table(name: &str, table: &Table) -> anyhow::Result<Self, anyhow::Error> {
+    pub fn from_table(name: &str, table: &Table) -> anyhow::Result<Self> {
         let variables = match table.get("variables") {
             Some(var_block) => var_block
                 .as_table()
@@ -35,36 +34,12 @@ impl Profile {
             None => Table::new(),
         };
         let dependencies = get_vec_string_from_value(table.get("dependencies"))?;
-        let prompts = get_string_hashmap_from_value(table.get("prompts"))
-            .expect("The 'prompts' field must be a table of string to string mappings");
+        let prompts = get_string_hashmap_from_value(table.get("prompts"))?;
         Ok(Self {
             name: name.to_string(),
             variables,
             dependencies,
             prompts,
         })
-    }
-
-    pub fn to_table(&self) -> Table {
-        let mut table = Table::new();
-        if !self.variables.is_empty() {
-            table.insert(
-                "variables".to_string(),
-                Value::Table(self.variables.clone()),
-            );
-        }
-        table.insert(
-            "dependencies".to_string(),
-            vec_string_to_toml_array(&self.dependencies),
-        );
-
-        if !self.prompts.is_empty() {
-            table.insert(
-                "prompts".to_string(),
-                string_hashmap_to_toml_table(&self.prompts),
-            );
-        }
-
-        table
     }
 }

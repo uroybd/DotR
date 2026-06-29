@@ -212,8 +212,6 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
     }
     working_dir = working_dir.canonicalize()?;
 
-    // Print working directory
-    // Print full working directory path
     match args.command {
         Some(Command::Init(_)) => {
             println!("Initializing configuration...");

@@ -7,8 +7,7 @@ use dotr_dear::{
 fn main() {
     let args = Cli::parse();
     if let Err(e) = run_cli(args) {
-        let error = format!("{}", e);
-        cprintln(&error, &LogLevel::ERROR);
+        cprintln(&e.to_string(), &LogLevel::Error);
         std::process::exit(1);
     }
 }

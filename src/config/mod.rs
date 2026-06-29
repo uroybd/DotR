@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use serde::{Deserialize, Serialize};
-use toml::{Table, Value, map::Map};
+use toml::Table;
 
 use crate::{
     cli::{
@@ -11,7 +11,7 @@ use crate::{
     context::Context,
     package::{BackupDeployResult, Package},
     profile::Profile,
-    utils::{LogLevel, cprintln},
+    utils::{LogLevel, cprintln, is_empty_table},
 };
 
 #[cfg(test)]
@@ -20,10 +20,14 @@ mod tests;
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Config {
     pub banner: bool,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub packages: HashMap<String, Package>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub profiles: HashMap<String, Profile>,
+    #[serde(skip_serializing_if = "is_empty_table")]
     pub variables: Table,
-    pub prompts: HashMap<String, String>, // The key of variable, and the value is the prompt message
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub prompts: HashMap<String, String>,
 }
 
 pub(crate) enum OpType {
@@ -43,15 +47,13 @@ impl Config {
     }
 
     pub fn save(&self, cwd: &Path) -> anyhow::Result<()> {
-        let table = self.to_table();
-        let config_content = toml::to_string_pretty(&table)?;
+        let config_content = toml::to_string_pretty(self)?;
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
 
     pub fn from_table(table: &Table) -> anyhow::Result<Self> {
         let mut packages: HashMap<String, Package> = HashMap::new();
-        // Iter on packages value as key value
         let package_confs = table.get("packages").and_then(|v| v.as_table());
         if let Some(pkg_confs) = package_confs {
             for (key, val) in pkg_confs.iter() {
@@ -75,7 +77,6 @@ impl Config {
             }
         }
         let mut variables: Table = Table::new();
-        // Add HOME as a default variable
         if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
             for (k, v) in vars.iter() {
                 variables.insert(k.clone(), v.clone());
@@ -100,47 +101,14 @@ impl Config {
             prompts,
         })
     }
-    pub fn to_table(&self) -> Table {
-        let mut table = Table::new();
-        table.insert("banner".to_string(), toml::Value::Boolean(self.banner));
-        if !self.variables.is_empty() {
-            table.insert(
-                "variables".to_string(),
-                Value::Table(self.variables.clone()),
-            );
-        }
-        if !self.packages.is_empty() {
-            let mut packages_table: Map<String, Value> = Map::new();
-            self.packages.iter().for_each(|(name, pkg)| {
-                packages_table.insert(name.clone(), Value::Table(pkg.to_table()));
-            });
-            table.insert("packages".to_string(), packages_table.into());
-        }
-        if !self.profiles.is_empty() {
-            let mut profiles_table: Map<String, Value> = Map::new();
-            self.profiles.iter().for_each(|(name, profile)| {
-                profiles_table.insert(name.clone(), Value::Table(profile.to_table()));
-            });
-            table.insert("profiles".to_string(), profiles_table.into());
-        }
-        if !self.prompts.is_empty() {
-            let mut prompts_table: Map<String, Value> = Map::new();
-            self.prompts.iter().for_each(|(key, prompt)| {
-                prompts_table.insert(key.clone(), Value::String(prompt.clone()));
-            });
-            table.insert("prompts".to_string(), prompts_table.into());
-        }
-        table
-    }
 
     pub fn import_package(&mut self, args: &ImportArgs, ctx: &Context) -> anyhow::Result<()> {
         let mut profile = ctx.profile.clone();
         let profile_name = profile.name.clone();
-        cprintln(&format!("Importing from {}", args.path), &LogLevel::INFO);
+        cprintln(&format!("Importing from {}", args.path), &LogLevel::Info);
         let mut package = Package::from_path(args, &ctx.working_dir)?;
         let pkg_name = package.name.clone();
 
-        // Create default UpdateArgs for import backup
         let backup_args = crate::cli::UpdateArgs {
             packages: None,
             profile: Some(profile_name.clone()),
@@ -172,7 +140,7 @@ impl Config {
                 },
             )?;
         }
-        cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::INFO);
+        cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::Info);
         Ok(())
     }
 
@@ -205,9 +173,8 @@ impl Config {
                 }
             }
         }
-        // Now resolve packages dependencies
         let mut dependencies: HashMap<String, Package> = HashMap::new();
-        for (_, pkg) in packages.iter() {
+        for pkg in packages.values() {
             if let Some(deps) = &pkg.dependencies {
                 for dep in deps {
                     if let Some(dep_pkg) = self.packages.get(dep) {
@@ -223,15 +190,15 @@ impl Config {
     }
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
-        cprintln("Backing up packages...", &LogLevel::INFO);
+        cprintln("Backing up packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
+        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
             match pkg.backup(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
                         cprintln(
                             &format!("Error backing up package '{}': {}", pkg.name, e),
-                            &LogLevel::ERROR,
+                            &LogLevel::Error,
                         );
                         *stats.entry(BackupDeployResult::Failed).or_insert(0) += 1;
                     } else {
@@ -248,15 +215,15 @@ impl Config {
     }
 
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
-        cprintln("Deploying packages...", &LogLevel::INFO);
+        cprintln("Deploying packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
+        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
             match pkg.deploy(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
                         cprintln(
                             &format!("Error deploying package '{}': {}", pkg.name, e),
-                            &LogLevel::ERROR,
+                            &LogLevel::Error,
                         );
                         *stats.entry(BackupDeployResult::Failed).or_insert(0) += 1;
                     } else {
@@ -273,14 +240,14 @@ impl Config {
     }
 
     pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
-        cprintln("Checking differences...", &LogLevel::INFO);
-        for (_, pkg) in self.filter_packages(ctx, &args.packages)?.iter() {
-            cprintln(&format!("Package: {}", pkg.name), &LogLevel::INFO);
+        cprintln("Checking differences...", &LogLevel::Info);
+        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
+            cprintln(&format!("Package: {}", pkg.name), &LogLevel::Info);
             if let Err(e) = pkg.diff(ctx) {
                 if args.ignore_errors {
                     cprintln(
                         &format!("Error diffing package '{}': {}", pkg.name, e),
-                        &LogLevel::ERROR,
+                        &LogLevel::Error,
                     );
                 } else {
                     return Err(e);
@@ -299,7 +266,7 @@ impl Config {
                         "Profile '{}' not found in configuration, creating empty profile",
                         profile.name
                     ),
-                    &LogLevel::WARNING,
+                    &LogLevel::Warning,
                 );
                 profile.clone()
             });
@@ -308,24 +275,21 @@ impl Config {
     }
 
     pub fn init(cwd: &Path) -> Result<Self, anyhow::Error> {
-        // If config.toml already exists, do nothing
         let config_path = cwd.join("config.toml");
         if config_path.exists() {
-            cprintln("config.toml exists, skipping", &LogLevel::WARNING);
+            cprintln("config.toml exists, skipping", &LogLevel::Warning);
             return Self::from_path(cwd);
         }
-        // Here you would add the logic to create a default config file
         let default_config = Config::new();
         let toml_string = toml::to_string(&default_config)?;
         std::fs::write(config_path, toml_string)?;
         std::fs::create_dir_all(cwd.join("dotfiles"))?;
 
-        // Create .gitignore to ignore .uservariables.toml
         let gitignore_path = cwd.join(".gitignore");
         let gitignore_content = ".uservariables.toml\ndeployed";
         std::fs::write(gitignore_path, gitignore_content)?;
 
-        cprintln("Repository initialized", &LogLevel::INFO);
+        cprintln("Repository initialized", &LogLevel::Info);
         Ok(default_config)
     }
 
@@ -344,10 +308,10 @@ impl Config {
     pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
         let packages = self.filter_packages(ctx, &None)?;
         if packages.is_empty() {
-            cprintln("No packages found.", &LogLevel::INFO);
+            cprintln("No packages found.", &LogLevel::Info);
         } else {
-            for (name, pkg) in packages.iter() {
-                println!("{} ", name);
+            for pkg in packages.values() {
+                println!("{}", pkg.name);
                 if args.verbose {
                     print!(
                         "    Source: {}\n    Destination: {}\n    skipped: {}\n",
@@ -370,10 +334,10 @@ impl Config {
 
     pub fn list_profiles(&self, args: &crate::cli::ProfilesListArgs) -> anyhow::Result<()> {
         if self.profiles.is_empty() {
-            cprintln("No profiles found.", &LogLevel::INFO);
+            cprintln("No profiles found.", &LogLevel::Info);
         } else {
-            for (name, profile) in self.profiles.iter() {
-                println!("{} ", name);
+            for profile in self.profiles.values() {
+                println!("{}", profile.name);
                 if args.verbose {
                     println!("    Dependencies: {:?}", profile.dependencies);
                     println!("    Variables: {:?}", profile.variables);
@@ -388,6 +352,7 @@ impl Config {
         }
         Ok(())
     }
+
     pub fn add_profile(&mut self, args: &ProfilesAddArgs, ctx: &mut Context) -> anyhow::Result<()> {
         if self.profiles.contains_key(&args.name) {
             anyhow::bail!("Profile '{}' already exists", args.name);
@@ -395,12 +360,12 @@ impl Config {
         let profile = Profile::new(&args.name);
         self.profiles.insert(args.name.clone(), profile.clone());
         self.save(&ctx.working_dir)?;
-        cprintln(&format!("Profile '{}' added", args.name), &LogLevel::INFO);
+        cprintln(&format!("Profile '{}' added", args.name), &LogLevel::Info);
         if args.set_as_current {
             ctx.save_to_uservariables("DOTR_PROFILE", toml::Value::String(profile.name.clone()))?;
             cprintln(
                 &format!("Setting profile '{}' as current", args.name),
-                &LogLevel::INFO,
+                &LogLevel::Info,
             );
         }
         Ok(())
@@ -456,14 +421,14 @@ impl Config {
             );
         }
         if to_remove.is_empty() && !args.remove_orphans {
-            cprintln("No packages to remove.", &LogLevel::INFO);
+            cprintln("No packages to remove.", &LogLevel::Info);
             return Ok(());
         }
         for (package_name, pkg) in to_remove.iter() {
             if args.dry_run {
                 cprintln(
                     &format!("Package '{}' would be removed (dry run)", package_name),
-                    &LogLevel::INFO,
+                    &LogLevel::Info,
                 );
                 continue;
             }
@@ -475,7 +440,7 @@ impl Config {
                     dirty = true;
                     cprintln(
                         &format!("Package '{}' removed", package_name),
-                        &LogLevel::INFO,
+                        &LogLevel::Info,
                     );
                 }
             }
@@ -486,7 +451,7 @@ impl Config {
                 if args.dry_run {
                     cprintln(
                         &format!("Orphan package '{}' would be removed (dry run)", orphan),
-                        &LogLevel::INFO,
+                        &LogLevel::Info,
                     );
                     continue;
                 }
@@ -499,7 +464,7 @@ impl Config {
                         dirty = true;
                         cprintln(
                             &format!("Orphan package '{}' removed", orphan),
-                            &LogLevel::INFO,
+                            &LogLevel::Info,
                         );
                     }
                 }
@@ -515,10 +480,10 @@ impl Config {
         let src = ctx.working_dir.join(&pkg.src);
         let name = pkg.name.clone();
         self.packages.remove(&pkg.name);
-        for (_, profile) in self.profiles.iter_mut() {
+        for profile in self.profiles.values_mut() {
             profile.dependencies.retain(|dep| dep != &name);
         }
-        for (_, pkg) in self.packages.iter_mut() {
+        for pkg in self.packages.values_mut() {
             if let Some(deps) = &mut pkg.dependencies {
                 deps.retain(|dep| dep != &name);
             }
@@ -546,7 +511,7 @@ impl Config {
         let mut dependent_profiles: Vec<String> = vec![];
         let mut dependent_packages: Vec<String> = vec![];
         let mut is_safe = true;
-        for (_, profile) in self.profiles.iter() {
+        for profile in self.profiles.values() {
             if ignored_profiles.contains(&profile.name) {
                 continue;
             }
@@ -555,7 +520,7 @@ impl Config {
                 is_safe = false;
             }
         }
-        for (_, pkg) in self.packages.iter() {
+        for pkg in self.packages.values() {
             if ignored_packages.contains(&pkg.name) {
                 continue;
             }
@@ -583,13 +548,13 @@ impl Config {
         if args.dry_run {
             cprintln(
                 &format!("Profile '{}' would be removed (dry run)", args.name),
-                &LogLevel::INFO,
+                &LogLevel::Info,
             );
             return Ok(());
         }
         self.profiles.remove(&args.name);
         self.save(&ctx.working_dir)?;
-        cprintln(&format!("Profile '{}' removed", args.name), &LogLevel::INFO);
+        cprintln(&format!("Profile '{}' removed", args.name), &LogLevel::Info);
         if args.remove_orphans {
             let orphan_packages = self.get_orphan_packages();
             let mut dirty = false;
@@ -603,7 +568,7 @@ impl Config {
                         dirty = true;
                         cprintln(
                             &format!("Orphan package '{}' removed", orphan),
-                            &LogLevel::INFO,
+                            &LogLevel::Info,
                         );
                     }
                 }
@@ -617,7 +582,6 @@ impl Config {
 }
 
 pub(crate) fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpType) {
-    // Print a one-liner summary of stats for each result type, with emojis
     let (op_name, op_success_name) = match op_type {
         OpType::Backup => ("Backup", "backed up"),
         OpType::Deploy => ("Deployment", "deployed"),
@@ -635,15 +599,12 @@ pub(crate) fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpT
     if summary_parts.is_empty() {
         cprintln(
             &format!("No packages processed for {}", op_name),
-            &LogLevel::INFO,
+            &LogLevel::Info,
         );
     } else {
         let mut summary_string = summary_parts.join(", ");
         summary_string.push('.');
-        cprintln(
-            &format!("{} summary:", op_name).to_string(),
-            &LogLevel::INFO,
-        );
-        cprintln(&summary_string, &LogLevel::INFO);
+        cprintln(&format!("{} summary:", op_name), &LogLevel::Info);
+        cprintln(&summary_string, &LogLevel::Info);
     }
 }

@@ -13,8 +13,7 @@ use crate::{
     context::Context,
     utils::{
         self, BACKUP_EXT, LogLevel, cprintln, get_string_from_value, get_string_hashmap_from_value,
-        get_vec_string_from_value, normalize_home_path, resolve_path, string_hashmap_to_toml_table,
-        vec_string_to_toml_array,
+        get_vec_string_from_value, is_empty_table, normalize_home_path, resolve_path,
     },
 };
 
@@ -25,49 +24,49 @@ static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
         .expect("Failed to compile template regex")
 });
 
-// A package represents a dotfile package with its source, destination, and dependencies.
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Package {
-    pub name: String,
-    pub src: String,
-    pub dest: String,
-    pub dependencies: Option<Vec<String>>,
-    pub variables: Table,
-    pub pre_actions: Vec<String>,
-    pub post_actions: Vec<String>,
-    pub targets: HashMap<String, String>, // The key is profile name, the value is dest to override.
-    pub skip: bool,
-    #[serde(default)]
-    pub prompts: HashMap<String, String>, // Package-level prompts
-    #[serde(default)]
-    pub ignore: Vec<String>, // Patterns to ignore during deployment
-    // Symlinks defaults to false
-    pub symlink: bool,
-    #[serde(default = "default_clean")]
-    pub clean: bool,
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+fn is_true(b: &bool) -> bool {
+    *b
 }
 
 fn default_clean() -> bool {
     true
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Package {
+    #[serde(skip)]
+    pub name: String,
+    pub src: String,
+    pub dest: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dependencies: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "is_empty_table")]
+    pub variables: Table,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pre_actions: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub post_actions: Vec<String>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub targets: HashMap<String, String>,
+    #[serde(skip_serializing_if = "is_false", default)]
+    pub skip: bool,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub prompts: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ignore: Vec<String>,
+    #[serde(skip_serializing_if = "is_false", default)]
+    pub symlink: bool,
+    #[serde(skip_serializing_if = "is_true", default = "default_clean")]
+    pub clean: bool,
+}
+
 impl Default for Package {
     fn default() -> Self {
-        Self {
-            name: String::new(),
-            src: String::new(),
-            dest: String::new(),
-            dependencies: None,
-            variables: Table::new(),
-            pre_actions: Vec::new(),
-            post_actions: Vec::new(),
-            targets: HashMap::new(),
-            skip: false,
-            prompts: HashMap::new(),
-            ignore: Vec::new(),
-            symlink: false,
-            clean: true,
-        }
+        Self::new("", "", "")
     }
 }
 
@@ -97,9 +96,6 @@ impl Package {
         }
     }
 
-    // Create a new Package from a given path, used to import dotfiles.
-    // The path can be absolute or relative to the current working directory.
-    // That path must exist and it will be set to the dest field.
     pub fn from_path(args: &ImportArgs, cwd: &Path) -> Result<Self, anyhow::Error> {
         let resolved_path = resolve_path(&args.path, cwd)?;
         if !resolved_path.exists() {
@@ -108,14 +104,12 @@ impl Package {
         let (package_name, pkg_ns) = get_pkg_name_and_rel_path(args, cwd)?;
         let src_path_str = format!("dotfiles/{}", pkg_ns);
 
-        // Use the resolved path directly without canonicalizing to preserve symlinks
         let mut dest_path_str = resolved_path
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("Invalid path: contains non-UTF-8 characters"))?
             .to_string();
         dest_path_str = normalize_home_path(&dest_path_str);
 
-        // Preserve trailing slash if original path had one and resolved path doesn't already have it
         if args.path.ends_with('/') && !dest_path_str.ends_with('/') && resolved_path.is_dir() {
             dest_path_str.push('/');
         }
@@ -135,22 +129,17 @@ impl Package {
                 .clone(),
             None => Table::new(),
         };
-        let pre_actions = get_vec_string_from_value(pkg_val.get("pre_actions"))
-            .expect("The 'pre_actions' field must be an array of strings");
-        let post_actions = get_vec_string_from_value(pkg_val.get("post_actions"))
-            .expect("The 'post_actions' field must be an array of strings");
-        let targets = get_string_hashmap_from_value(pkg_val.get("targets"))
-            .expect("The 'targets' field must be a table of string to string mappings");
-        let src = get_string_from_value(pkg_val.get("src")).expect("Package src is required");
-        let dest = get_string_from_value(pkg_val.get("dest")).expect("Package dest is required");
+        let pre_actions = get_vec_string_from_value(pkg_val.get("pre_actions"))?;
+        let post_actions = get_vec_string_from_value(pkg_val.get("post_actions"))?;
+        let targets = get_string_hashmap_from_value(pkg_val.get("targets"))?;
+        let src = get_string_from_value(pkg_val.get("src"), "src")?;
+        let dest = get_string_from_value(pkg_val.get("dest"), "dest")?;
         let skip = pkg_val
             .get("skip")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
-        let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))
-            .expect("The 'prompts' field must be a table of string to string mappings");
-        let ignore = get_vec_string_from_value(pkg_val.get("ignore"))
-            .expect("The 'ignore' field must be an array of strings");
+        let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))?;
+        let ignore = get_vec_string_from_value(pkg_val.get("ignore"))?;
         let symlink = pkg_val
             .get("symlink")
             .and_then(|v| v.as_bool())
@@ -177,58 +166,6 @@ impl Package {
         })
     }
 
-    pub fn to_table(&self) -> Table {
-        let mut pkg_table = Table::new();
-        pkg_table.insert("src".to_string(), toml::Value::String(self.src.clone()));
-        pkg_table.insert("dest".to_string(), toml::Value::String(self.dest.clone()));
-        if let Some(deps) = &self.dependencies {
-            pkg_table.insert("dependencies".to_string(), vec_string_to_toml_array(deps));
-        }
-        if !self.variables.is_empty() {
-            pkg_table.insert(
-                "variables".to_string(),
-                toml::Value::Table(self.variables.clone()),
-            );
-        }
-        if !self.pre_actions.is_empty() {
-            pkg_table.insert(
-                "pre_actions".to_string(),
-                vec_string_to_toml_array(&self.pre_actions),
-            );
-        }
-        if !self.post_actions.is_empty() {
-            pkg_table.insert(
-                "post_actions".to_string(),
-                vec_string_to_toml_array(&self.post_actions),
-            );
-        }
-        if self.skip {
-            pkg_table.insert("skip".to_string(), toml::Value::Boolean(true));
-        }
-        if !self.targets.is_empty() {
-            pkg_table.insert(
-                "targets".to_string(),
-                string_hashmap_to_toml_table(&self.targets),
-            );
-        }
-        if !self.prompts.is_empty() {
-            pkg_table.insert(
-                "prompts".to_string(),
-                string_hashmap_to_toml_table(&self.prompts),
-            );
-        }
-        if !self.ignore.is_empty() {
-            pkg_table.insert("ignore".to_string(), vec_string_to_toml_array(&self.ignore));
-        }
-        if self.symlink {
-            pkg_table.insert("symlink".to_string(), toml::Value::Boolean(true));
-        }
-        if !self.clean {
-            pkg_table.insert("clean".to_string(), toml::Value::Boolean(false));
-        }
-        pkg_table
-    }
-
     pub fn execute_action(
         &self,
         action: &str,
@@ -237,12 +174,11 @@ impl Package {
         dry_run: bool,
     ) -> anyhow::Result<()> {
         let compiled_action = compile_string(action, variables)?;
-        // Get SHELL environment variable or default to /bin/sh
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
         if dry_run {
             cprintln(
                 &format!("(Dry Run) Would execute action: {}", compiled_action),
-                &LogLevel::INFO,
+                &LogLevel::Info,
             );
             return Ok(());
         }
@@ -257,7 +193,7 @@ impl Package {
                 action,
                 status.code()
             );
-            cprintln(&msg, &LogLevel::ERROR);
+            cprintln(&msg, &LogLevel::Error);
             return Err(anyhow::anyhow!(msg));
         }
         Ok(())
@@ -303,7 +239,7 @@ impl Package {
         if self.package_is_templated(&ctx.working_dir) {
             cprintln(
                 &format!("Skipping backup for templated '{}'", self.name),
-                &LogLevel::WARNING,
+                &LogLevel::Warning,
             );
             return Ok(BackupDeployResult::Skipped);
         }
@@ -311,7 +247,6 @@ impl Package {
         let copy_to = ctx.working_dir.join(self.src.clone());
         if copy_from.is_dir() {
             let mut all_copied_paths = vec![];
-            // Recursively copy directory contents, avoiding files ending with BACKUP_EXT
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
@@ -335,7 +270,6 @@ impl Package {
                 }
             }
             if self.should_clean(args.clean) {
-                // Remove any files in copy_to that were not copied in this operation
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
         } else if !args.dry_run {
@@ -385,7 +319,7 @@ impl Package {
                             "No changes in {}",
                             src.file_name().unwrap_or_default().to_string_lossy()
                         ),
-                        &LogLevel::INFO,
+                        &LogLevel::Info,
                     );
                 } else {
                     cprintln(
@@ -394,9 +328,8 @@ impl Package {
                             src.file_name().unwrap_or_default().to_string_lossy(),
                             dest.display()
                         ),
-                        &LogLevel::INFO,
+                        &LogLevel::Info,
                     );
-                    // Print line-by-line diff, with - for removed lines, + for added lines, and space for unchanged lines. Add colors if possible.
                     for diff in diff::lines(&existing_content, &compiled_content) {
                         match diff {
                             diff::Result::Left(l) => {
@@ -422,7 +355,6 @@ impl Package {
         let src = resolve_path(&self.src, &ctx.working_dir)?;
         let dest = self.resolve_dest(ctx)?;
         if src.is_dir() {
-            // Recursively diff directory contents
             for entry in walkdir::WalkDir::new(&src) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&src)?;
@@ -478,7 +410,7 @@ impl Package {
                 std::fs::write(dest, compiled_content)?;
             }
         } else {
-            // It can be a binary file, copy as-is and return Ok
+            // Binary file: copy as-is
             if !dry_run {
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
@@ -509,7 +441,6 @@ impl Package {
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
-            // Recursively copy directory contents
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
@@ -539,13 +470,11 @@ impl Package {
                 all_deployed_paths.push(dest_path);
             }
             if self.should_clean(args.clean) {
-                // Remove any files in copy_to that were not deployed in this operation
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
         } else {
             self.execute_pre_actions(ctx, args.dry_run)?;
             pre_action_executed = true;
-            // For single file deployment with symlink, create parent directories
             if self.symlink
                 && !args.dry_run
                 && let Some(parent) = copy_to.parent()
@@ -559,7 +488,7 @@ impl Package {
             }
         }
         if self.symlink {
-            let mut symlink_to = self.resolve_dest(ctx)?;
+            let symlink_to = self.resolve_dest(ctx)?;
             if !args.dry_run {
                 if symlink_to.exists() {
                     if symlink_to.is_symlink() {
@@ -577,19 +506,16 @@ impl Package {
                 if let Some(parent) = symlink_to.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                // Remove trailing slash from symlink_to:
-                let symlink = symlink_to.to_str().unwrap().trim_end_matches('/');
-                symlink_to = PathBuf::from(symlink);
-                let symlink = symlink_to
+                let symlink_str = symlink_to
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Symlink path contains non-UTF-8 characters"))?
                     .trim_end_matches('/');
-                std::os::unix::fs::symlink(&copy_to, symlink)?;
+                std::os::unix::fs::symlink(&copy_to, symlink_str)?;
             }
         }
         cprintln(
             &format!("Package '{}' deployed", self.name),
-            &LogLevel::INFO,
+            &LogLevel::Info,
         );
         if pre_action_executed {
             self.execute_post_actions(ctx, args.dry_run)?;
@@ -598,19 +524,10 @@ impl Package {
     }
 
     pub fn package_is_templated(&self, cwd: &Path) -> bool {
-        // Check if src exists as a directory or file, if not return true:
         let src_path = cwd.join(&self.src);
         if !src_path.exists() {
             return false;
         }
-        // Check for following templating indicators using walkdir (when necessary) and regex:
-        // {{ and }} for expressions
-        // {% and %} for statements
-        // {# and #} for comments
-        // {{- and -}} for expressions
-        // {%- and -%} for statements
-        // {#- and -#} for comments
-
         if src_path.is_dir() {
             for entry in walkdir::WalkDir::new(&src_path) {
                 let entry = entry.expect("Failed to read directory entry");
@@ -645,7 +562,6 @@ pub fn get_pkg_name_and_rel_path(
     let prefix = if path.is_dir() { "d_" } else { "f_" };
     let extension = path.extension().and_then(|ext| ext.to_str());
 
-    // Get the name (with extension for files, full name for dirs)
     let name = match args.name.as_ref() {
         Some(n) => n.clone(),
         None => {
@@ -657,22 +573,13 @@ pub fn get_pkg_name_and_rel_path(
         }
     };
 
-    // Replace special characters with underscores for package_name
     let sanitized_name = name.replace(['-', '.'], "_");
     let package_name = format!("{}{}", prefix, sanitized_name);
 
-    // For pkg_ns, preserve the dot before extension
-    let pkg_ns = if extension.is_some() {
-        // The name already includes the extension, so just replace chars except the last dot
-        let name_with_prefix = format!("{}{}", prefix, name);
-        // Replace all '-' and '.' with '_' except for the extension separator
-        if let Some(ext) = extension {
-            let base_name = name.trim_end_matches(&format!(".{}", ext));
-            let sanitized_base = base_name.replace(['-', '.'], "_");
-            format!("{}{}.{}", prefix, sanitized_base, ext)
-        } else {
-            name_with_prefix.replace(['-', '.'], "_")
-        }
+    let pkg_ns = if let Some(ext) = extension {
+        let base_name = name.trim_end_matches(&format!(".{}", ext));
+        let sanitized_base = base_name.replace(['-', '.'], "_");
+        format!("{}{}.{}", prefix, sanitized_base, ext)
     } else {
         package_name.clone()
     };
@@ -680,7 +587,6 @@ pub fn get_pkg_name_and_rel_path(
     Ok((package_name, pkg_ns))
 }
 
-/// Create a backup path by appending the backup extension to the original path
 fn create_backup_path(path: &Path) -> PathBuf {
     let mut backup_path = path.as_os_str().to_os_string();
     backup_path.push(".");
@@ -722,7 +628,6 @@ pub fn clean(
     ignore: &[String],
     dry_run: bool,
 ) -> anyhow::Result<()> {
-    // If the operation path doesn't exist, there's nothing to clean
     if !operation_path.exists() {
         return Ok(());
     }
@@ -732,21 +637,21 @@ pub fn clean(
         let entry = entry?;
         let path = entry.path().to_path_buf();
         if path == *operation_path {
-            continue; // Skip the root operation path
+            continue;
         }
         let rel_path = path.strip_prefix(operation_path)?;
         if should_ignore(ignore, rel_path) {
-            continue; // Skip ignored patterns
+            continue;
         }
         if !keep.contains(&path) {
             if path.is_file() {
                 if path.extension() == Some(OsStr::new(BACKUP_EXT)) {
-                    continue; // Skip backup files
+                    continue;
                 }
                 if dry_run {
                     cprintln(
                         &format!("(Dry Run) Would remove file: {}", path.display()),
-                        &LogLevel::INFO,
+                        &LogLevel::Info,
                     );
                 } else {
                     std::fs::remove_file(&path)?;
@@ -756,7 +661,6 @@ pub fn clean(
             }
         }
     }
-    // Remove empty directories in reverse order (from deepest to shallowest)
     dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
     for dir in dirs {
         if !dir.exists() {
@@ -765,14 +669,14 @@ pub fn clean(
         if dry_run {
             cprintln(
                 &format!("(Dry Run) Would remove directory: {}", dir.display()),
-                &LogLevel::INFO,
+                &LogLevel::Info,
             );
             continue;
         }
         if dir.read_dir()?.next().is_none() {
             std::fs::remove_dir(&dir)?;
         } else {
-            std::fs::remove_dir_all(&dir)?; // Remove non-empty directories
+            std::fs::remove_dir_all(&dir)?;
         }
     }
     Ok(())

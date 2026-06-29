@@ -14,8 +14,9 @@ pub fn resolve_path(path: &str, cwd: &Path) -> anyhow::Result<PathBuf> {
     if path.starts_with('/') {
         Ok(PathBuf::from(path))
     } else if path.starts_with("~") {
-        let home_dir = std::env::home_dir().expect("Failed to get home directory");
-        // remove first segment of the path
+        let home_dir = std::env::var("HOME")
+            .map(PathBuf::from)
+            .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
         let p = path.splitn(2, '/').collect::<Vec<&str>>();
         Ok(home_dir.join(p[1..].join("/")))
     } else {
@@ -29,22 +30,18 @@ pub fn resolve_path(path: &str, cwd: &Path) -> anyhow::Result<PathBuf> {
 /// - Otherwise, returns the original path as a string
 pub fn normalize_home_path(path: &str) -> String {
     if path.starts_with('~') {
-        // Already normalized
         return path.to_string();
     }
 
-    if let Some(home_dir) = std::env::home_dir() {
+    if let Ok(home_dir) = std::env::var("HOME").map(PathBuf::from) {
         let home_str = home_dir.to_string_lossy();
 
-        // Check if path is exactly home or starts with home/
         if path == home_str.as_ref() {
             return "~".to_string();
         }
 
-        // Ensure we match on directory boundary by checking for trailing /
         let home_with_slash = format!("{}/", home_str);
         if path.starts_with(&home_with_slash) {
-            // Replace home directory with ~
             let relative = &path[home_str.len()..];
             return format!("~{}", relative);
         }
@@ -53,7 +50,6 @@ pub fn normalize_home_path(path: &str) -> String {
     path.to_string()
 }
 
-// Define terminal colors for WARNING, ERROR, INFO, FATAL
 pub const COLOR_WARNING: &str = "\x1b[33m"; // Yellow
 pub const COLOR_ERROR: &str = "\x1b[31m"; // Red
 pub const COLOR_INFO: &str = "\x1b[34m"; // Blue
@@ -61,47 +57,47 @@ pub const COLOR_FATAL: &str = "\x1b[35m"; // Magenta
 pub const RESET_COLOR: &str = "\x1b[0m"; // Reset
 
 pub enum LogLevel {
-    WARNING,
-    ERROR,
-    INFO,
-    FATAL,
+    Warning,
+    Error,
+    Info,
+    Fatal,
 }
 
 impl LogLevel {
     pub fn as_str(&self) -> &str {
         match self {
-            LogLevel::WARNING => "WARNING",
-            LogLevel::ERROR => "ERROR",
-            LogLevel::INFO => "INFO",
-            LogLevel::FATAL => "FATAL",
+            LogLevel::Warning => "WARNING",
+            LogLevel::Error => "ERROR",
+            LogLevel::Info => "INFO",
+            LogLevel::Fatal => "FATAL",
         }
     }
 
     pub fn to_colorful_str(&self) -> String {
         match self {
-            LogLevel::WARNING => format!("{}[{}]{}", COLOR_WARNING, self.as_str(), RESET_COLOR),
-            LogLevel::ERROR => format!("{}[{}]{}", COLOR_ERROR, self.as_str(), RESET_COLOR),
-            LogLevel::INFO => format!("{}[{}]{}", COLOR_INFO, self.as_str(), RESET_COLOR),
-            LogLevel::FATAL => format!("{}[{}]{}", COLOR_FATAL, self.as_str(), RESET_COLOR),
+            LogLevel::Warning => format!("{}[{}]{}", COLOR_WARNING, self.as_str(), RESET_COLOR),
+            LogLevel::Error => format!("{}[{}]{}", COLOR_ERROR, self.as_str(), RESET_COLOR),
+            LogLevel::Info => format!("{}[{}]{}", COLOR_INFO, self.as_str(), RESET_COLOR),
+            LogLevel::Fatal => format!("{}[{}]{}", COLOR_FATAL, self.as_str(), RESET_COLOR),
         }
     }
 }
 
 pub fn cprintln(message: &str, level: &LogLevel) {
     match level {
-        LogLevel::ERROR | LogLevel::FATAL => {
+        LogLevel::Error | LogLevel::Fatal => {
             eprintln!("{} {}", level.to_colorful_str(), message);
         }
-        LogLevel::WARNING | LogLevel::INFO => {
+        LogLevel::Warning | LogLevel::Info => {
             println!("{} {}", level.to_colorful_str(), message);
         }
     }
 }
 
-pub fn get_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<String> {
-    Ok(v.ok_or_else(|| anyhow::anyhow!("Package src is required"))?
+pub fn get_string_from_value(v: Option<&toml::Value>, field_name: &str) -> anyhow::Result<String> {
+    Ok(v.ok_or_else(|| anyhow::anyhow!("'{}' is required", field_name))?
         .as_str()
-        .ok_or_else(|| anyhow::anyhow!("Package src must be a string"))?
+        .ok_or_else(|| anyhow::anyhow!("'{}' must be a string", field_name))?
         .to_string())
 }
 
@@ -111,45 +107,37 @@ pub fn get_string_hashmap_from_value(
     match v {
         Some(value) => value
             .as_table()
-            .ok_or_else(|| anyhow::anyhow!("The 'prompts' field must be a table"))?
+            .ok_or_else(|| anyhow::anyhow!("field must be a table"))?
             .iter()
             .map(|(key, value)| {
-                let prompt_str = value
+                let s = value
                     .as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Prompt message must be a string"))?;
-                Ok((key.clone(), prompt_str.to_string()))
+                    .ok_or_else(|| anyhow::anyhow!("table values must be strings"))?;
+                Ok((key.clone(), s.to_string()))
             })
             .collect::<Result<HashMap<_, _>, _>>(),
         None => Ok(HashMap::new()),
     }
 }
 
-pub fn vec_string_to_toml_array(vec: &[String]) -> toml::Value {
-    toml::Value::Array(vec.iter().map(|a| toml::Value::String(a.clone())).collect())
-}
-
-pub fn string_hashmap_to_toml_table(map: &HashMap<String, String>) -> toml::Value {
-    toml::Value::Table(
-        map.iter()
-            .map(|(k, v)| (k.clone(), toml::Value::String(v.clone())))
-            .collect(),
-    )
-}
-
 pub fn get_vec_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<Vec<String>> {
     match v {
         Some(block) => block
             .as_array()
-            .ok_or_else(|| anyhow::anyhow!("The 'pre_actions' field must be an array"))?
+            .ok_or_else(|| anyhow::anyhow!("field must be an array"))?
             .iter()
             .map(|v| {
                 v.as_str()
-                    .ok_or_else(|| anyhow::anyhow!("Pre-action must be a string"))
+                    .ok_or_else(|| anyhow::anyhow!("array elements must be strings"))
                     .map(|s| s.to_string())
             })
             .collect::<Result<Vec<_>, _>>(),
         None => Ok(Vec::new()),
     }
+}
+
+pub fn is_empty_table(t: &toml::Table) -> bool {
+    t.is_empty()
 }
 
 #[cfg(test)]
