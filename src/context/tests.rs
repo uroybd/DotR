@@ -29,7 +29,8 @@ mod context_tests {
     fn test_context_new() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(&ctx.working_dir, &temp_dir);
         assert!(
@@ -46,7 +47,8 @@ mod context_tests {
     fn test_context_contains_env_variables() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // HOME should always be in environment
         assert!(
@@ -170,7 +172,8 @@ key = "secret-key"
             .expect("Failed to write .uservariables.toml");
 
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(
             ctx.get_user_variable("USER_VAR"),
@@ -245,7 +248,8 @@ key = "secret-key"
         fs::write(uservars_path, r#"USER_VAR = "value""#)
             .expect("Failed to write .uservariables.toml");
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(user_vars.len(), 1);
@@ -367,7 +371,8 @@ value = 2
         )
         .expect("Failed to write .uservariables.toml");
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(
@@ -385,7 +390,8 @@ value = 2
     fn test_context_working_dir() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         assert_eq!(ctx.working_dir, temp_dir);
     }
@@ -394,7 +400,8 @@ value = 2
     fn test_context_debug_format() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // Should have Debug implementation
         let debug_str = format!("{:?}", ctx);
@@ -493,7 +500,8 @@ VAR2 = "user_value2"
     fn test_context_clone() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
         let cloned = ctx.clone();
 
         assert_eq!(ctx.working_dir, cloned.working_dir);
