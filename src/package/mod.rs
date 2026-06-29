@@ -17,6 +17,7 @@ use crate::{
     },
 };
 
+#[cfg(test)]
 mod tests;
 
 static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {

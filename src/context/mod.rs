@@ -13,6 +13,7 @@ use crate::{
     utils::{LogLevel, cprintln},
 };
 
+#[cfg(test)]
 mod tests;
 
 #[derive(Debug, Clone, Serialize)]
