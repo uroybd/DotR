@@ -304,6 +304,9 @@ fn init_config(
     create_if_missing: bool,
 ) -> anyhow::Result<(Config, Context)> {
     let mut conf = config::Config::from_path(working_dir)?;
+    if conf.banner {
+        println!("{}", BANNER);
+    }
     let (ctx, profile_created) = Context::new(working_dir, &conf, profile, create_if_missing)?;
     if profile_created {
         conf.update_profiles(&ctx.profile, &ctx)?;
