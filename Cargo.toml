@@ -16,7 +16,7 @@ anyhow = "1.0.100"
 diff = "0.1.13"
 glob-match = "0.2.1"
 regex = "1.12.2"
-tera = "1.20.1"
+tera = "2"
 toml = { version = "1.1.2", features = ["serde", "display"] }
 uuid = { version = "1.18.1", features = ["v4"] }
 walkdir = "2.5.0"
