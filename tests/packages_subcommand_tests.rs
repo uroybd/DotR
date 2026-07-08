@@ -124,6 +124,7 @@ fn test_packages_deploy_subcommand() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         })),
     }))))
     .expect("Packages deploy failed");
@@ -157,6 +158,7 @@ fn test_packages_update_subcommand() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))))
     .expect("Deploy failed");
 
@@ -208,6 +210,7 @@ fn test_packages_diff_subcommand() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))))
     .expect("Deploy failed");
 
@@ -349,6 +352,7 @@ fn test_packages_deploy_with_profile() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         })),
     }))))
     .expect("Packages deploy with profile failed");
@@ -384,6 +388,7 @@ fn test_packages_deploy_dry_run() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: true,
+            ..Default::default()
         })),
     }))))
     .expect("Packages deploy dry-run failed");
@@ -419,6 +424,7 @@ fn test_packages_update_dry_run() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))))
     .expect("Deploy failed");
 
@@ -482,6 +488,7 @@ fn test_packages_multiple_packages_deploy() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         })),
     }))))
     .expect("Packages deploy multiple failed");

@@ -95,6 +95,7 @@ fn test_deploy_clean_by_default() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should succeed");
@@ -145,6 +146,7 @@ fn test_update_clean_by_default() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -195,6 +197,7 @@ fn test_deploy_explicit_no_clean_overrides_default() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should succeed");
@@ -246,6 +249,7 @@ fn test_package_clean_false_overrides_default() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should succeed");
@@ -297,6 +301,7 @@ fn test_cli_clean_arg_overrides_package_setting() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should succeed");
@@ -348,6 +353,7 @@ fn test_package_clean_true_explicit() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should succeed");
@@ -400,6 +406,7 @@ fn test_update_with_package_clean_false() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -451,6 +458,7 @@ fn test_update_cli_override_package_clean() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");

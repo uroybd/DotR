@@ -139,6 +139,10 @@ impl Config {
                     ignore_errors: false,
                     clean: Some(false),
                     dry_run: false,
+                    skip_actions: false,
+                    skip_pre_actions: false,
+                    skip_post_actions: false,
+                    ignore_dependencies: false,
                 },
             )?;
         }
@@ -150,6 +154,7 @@ impl Config {
         &self,
         ctx: &Context,
         names: &Option<Vec<String>>,
+        ignore_dependencies: bool,
     ) -> anyhow::Result<HashMap<String, Package>> {
         let mut packages: HashMap<String, Package> = HashMap::new();
         if let Some(pkg_names) = names {
@@ -175,6 +180,9 @@ impl Config {
                 }
             }
         }
+        if ignore_dependencies {
+            return Ok(packages);
+        }
         let mut dependencies: HashMap<String, Package> = HashMap::new();
         for pkg in packages.values() {
             if let Some(deps) = &pkg.dependencies {
@@ -194,7 +202,7 @@ impl Config {
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
         cprintln("Backing up packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
+        for pkg in self.filter_packages(ctx, &args.packages, false)?.values() {
             match pkg.backup(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
@@ -219,7 +227,10 @@ impl Config {
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
+        for pkg in self
+            .filter_packages(ctx, &args.packages, args.ignore_dependencies)?
+            .values()
+        {
             match pkg.deploy(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
@@ -243,7 +254,7 @@ impl Config {
 
     pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::Info);
-        for pkg in self.filter_packages(ctx, &args.packages)?.values() {
+        for pkg in self.filter_packages(ctx, &args.packages, false)?.values() {
             cprintln(&format!("Package: {}", pkg.name), &LogLevel::Info);
             if let Err(e) = pkg.diff(ctx) {
                 if args.ignore_errors {
@@ -308,7 +319,7 @@ impl Config {
     }
 
     pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
-        let packages = self.filter_packages(ctx, &None)?;
+        let packages = self.filter_packages(ctx, &None, false)?;
         if packages.is_empty() {
             cprintln("No packages found.", &LogLevel::Info);
         } else {

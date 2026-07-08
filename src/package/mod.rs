@@ -517,7 +517,7 @@ impl Package {
             &format!("Package '{}' deployed", self.name),
             &LogLevel::Info,
         );
-        if !args.skip_post_actions || !args.skip_actions {
+        if !args.skip_post_actions && !args.skip_actions {
             self.execute_post_actions(ctx, args.dry_run)?;
         }
         Ok(result)

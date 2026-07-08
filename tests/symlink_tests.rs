@@ -55,6 +55,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                ..Default::default()
             }))),
         )
         .expect("Deploy failed");
@@ -68,6 +69,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                ..Default::default()
             }))),
         )
         .expect("Update failed");
@@ -542,6 +544,7 @@ fn test_symlink_dry_run() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: true,
+            ..Default::default()
         }))),
     )
     .expect("Dry run deploy failed");

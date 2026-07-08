@@ -33,7 +33,7 @@ mod filter_packages_tests {
         let (ctx, _) =
             Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
-        let filtered = config.filter_packages(&ctx, &None).unwrap();
+        let filtered = config.filter_packages(&ctx, &None, false).unwrap();
 
         // Should only contain pkg2 since pkg1 has skip=true
         assert_eq!(filtered.len(), 1);
@@ -65,7 +65,7 @@ mod filter_packages_tests {
         let (ctx, _) =
             Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
-        let filtered = config.filter_packages(&ctx, &None).unwrap();
+        let filtered = config.filter_packages(&ctx, &None, false).unwrap();
 
         assert_eq!(filtered.len(), 2);
         assert!(filtered.contains_key("pkg1"));
@@ -97,7 +97,7 @@ mod filter_packages_tests {
 
         let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
 
-        let filtered = config.filter_packages(&ctx, &None).unwrap();
+        let filtered = config.filter_packages(&ctx, &None, false).unwrap();
 
         assert_eq!(filtered.len(), 0);
 
@@ -130,12 +130,99 @@ mod filter_packages_tests {
         // Explicitly request pkg1 even though it has skip=true
         let specific_packages = vec!["pkg1".to_string()];
         let filtered = config
-            .filter_packages(&ctx, &Some(specific_packages))
+            .filter_packages(&ctx, &Some(specific_packages), false)
             .unwrap();
 
         // When specifically requested, skip flag is ignored
         assert_eq!(filtered.len(), 1);
         assert!(filtered.contains_key("pkg1"));
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_filter_packages_includes_dependencies_by_default() {
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = Config::new();
+
+        let pkg1 = Package::new("pkg1", "/src1", "/dest1");
+        let mut pkg2 = Package::new("pkg2", "/src2", "/dest2");
+        pkg2.dependencies = Some(vec!["pkg1".to_string()]);
+
+        config.packages.insert("pkg1".to_string(), pkg1);
+        config.packages.insert("pkg2".to_string(), pkg2);
+
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        // Only request pkg2 explicitly; pkg1 should be pulled in as a dependency
+        let filtered = config
+            .filter_packages(&ctx, &Some(vec!["pkg2".to_string()]), false)
+            .unwrap();
+
+        assert_eq!(filtered.len(), 2);
+        assert!(filtered.contains_key("pkg1"));
+        assert!(filtered.contains_key("pkg2"));
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_filter_packages_ignore_dependencies_excludes_deps() {
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = Config::new();
+
+        let pkg1 = Package::new("pkg1", "/src1", "/dest1");
+        let mut pkg2 = Package::new("pkg2", "/src2", "/dest2");
+        pkg2.dependencies = Some(vec!["pkg1".to_string()]);
+
+        config.packages.insert("pkg1".to_string(), pkg1);
+        config.packages.insert("pkg2".to_string(), pkg2);
+
+        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        // With ignore_dependencies=true, pkg1 should NOT be pulled in
+        let filtered = config
+            .filter_packages(&ctx, &Some(vec!["pkg2".to_string()]), true)
+            .unwrap();
+
+        assert_eq!(filtered.len(), 1);
+        assert!(filtered.contains_key("pkg2"));
+        assert!(!filtered.contains_key("pkg1"));
+
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_filter_packages_ignore_dependencies_with_profile() {
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut config = Config::new();
+
+        let pkg1 = Package::new("pkg1", "/src1", "/dest1");
+        let mut pkg2 = Package::new("pkg2", "/src2", "/dest2");
+        pkg2.dependencies = Some(vec!["pkg1".to_string()]);
+
+        config.packages.insert("pkg1".to_string(), pkg1);
+        config.packages.insert("pkg2".to_string(), pkg2);
+
+        let mut profile = Profile::new("test-profile");
+        profile.dependencies.push("pkg2".to_string());
+        config.profiles.insert("test-profile".to_string(), profile);
+
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
+
+        // No explicit package names (profile-driven selection), ignore_dependencies=true
+        let filtered = config.filter_packages(&ctx, &None, true).unwrap();
+
+        assert_eq!(filtered.len(), 1);
+        assert!(filtered.contains_key("pkg2"));
+        assert!(!filtered.contains_key("pkg1"));
 
         std::fs::remove_dir_all(&temp_dir).ok();
     }

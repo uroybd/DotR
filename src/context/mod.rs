@@ -77,7 +77,7 @@ impl Context {
         for (key, prompt) in self.profile.prompts.iter() {
             prompts.insert(key.clone(), prompt.clone());
         }
-        if let Ok(filtered_packages) = conf.filter_packages(self, packages) {
+        if let Ok(filtered_packages) = conf.filter_packages(self, packages, false) {
             // For each package, merge its prompts too
             for (_, package) in filtered_packages.iter() {
                 for (key, prompt) in package.prompts.iter() {

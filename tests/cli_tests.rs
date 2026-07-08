@@ -236,6 +236,7 @@ fn test_deploy_with_profile() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     fixture.assert_file_exists(
@@ -292,6 +293,7 @@ fn test_deploy_specific_packages() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     fixture.assert_file_exists("dest1/file1.txt", "pkg1 should be deployed");
@@ -516,6 +518,7 @@ fn test_profile_dependencies_deployment() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     fixture.assert_file_exists(
@@ -613,6 +616,7 @@ fn test_deploy_with_invalid_profile_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_err(), "Deploy with invalid profile should fail");
@@ -633,6 +637,7 @@ fn test_update_with_invalid_profile_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -672,6 +677,7 @@ fn test_deploy_nonexistent_package_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     // Deploy should fail with error for nonexistent package
@@ -696,6 +702,7 @@ fn test_update_nonexistent_package_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     // Update should fail with error for nonexistent package
@@ -772,6 +779,7 @@ fn test_package_with_missing_dependency_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(
@@ -1014,6 +1022,7 @@ fn test_dotr_profile_env_var_update() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))))
     .expect("Deploy failed");
 
@@ -1030,6 +1039,7 @@ fn test_dotr_profile_env_var_update() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(
@@ -1124,6 +1134,7 @@ fn test_cli_profile_overrides_env_var() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy should use CLI profile over env var");
@@ -1240,6 +1251,7 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
         ignore_errors: true,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(
@@ -1361,6 +1373,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         ignore_errors: true,
         clean: Some(false),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(
@@ -1469,6 +1482,7 @@ fn test_deploy_with_clean_removes_extra_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -1577,6 +1591,7 @@ fn test_backup_with_clean_removes_extra_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");
@@ -1684,6 +1699,7 @@ fn test_clean_preserves_backup_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -1745,6 +1761,7 @@ fn test_clean_removes_empty_directories() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -1809,6 +1826,7 @@ fn test_clean_removes_non_empty_directories() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -1875,6 +1893,7 @@ fn test_clean_handles_nested_directory_structure() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -1941,6 +1960,7 @@ fn test_clean_preserves_kept_directories() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -2003,6 +2023,7 @@ fn test_clean_respects_ignore_patterns_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -2075,6 +2096,7 @@ fn test_clean_respects_ignore_patterns_directories() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -2145,6 +2167,7 @@ fn test_clean_ignore_patterns_in_backup() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");
@@ -2221,6 +2244,7 @@ fn test_clean_ignore_patterns_with_nested_paths() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");
@@ -2296,6 +2320,7 @@ fn test_clean_without_ignore_patterns() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Deploy with clean should succeed");

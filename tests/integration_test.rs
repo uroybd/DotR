@@ -63,6 +63,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                ..Default::default()
             }))),
         )
         .expect("Deploy failed");
@@ -76,6 +77,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                ..Default::default()
             }))),
         )
         .expect("Update failed");
@@ -383,6 +385,7 @@ fn test_deploy_nonexistent_package() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         }))),
     );
 

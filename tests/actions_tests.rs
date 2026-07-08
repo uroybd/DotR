@@ -48,6 +48,21 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                ..Default::default()
+            }))),
+        )
+        .expect("Deploy failed");
+    }
+
+    fn deploy_with_args(&self, packages: Option<Vec<String>>, args: DeployArgs) {
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+                packages,
+                profile: None,
+                ignore_errors: false,
+                clean: Some(false),
+                dry_run: false,
+                ..args
             }))),
         )
         .expect("Deploy failed");
@@ -589,6 +604,7 @@ fn test_pre_action_failure() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         }))),
     );
 
@@ -643,6 +659,7 @@ fn test_post_action_failure() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         }))),
     );
 
@@ -679,6 +696,7 @@ fn test_action_with_nonexistent_command() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         }))),
     );
 
@@ -718,11 +736,207 @@ fn test_action_failure_with_error_message() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            ..Default::default()
         }))),
     );
 
     assert!(
         result.is_err(),
         "Deploy should fail when action exits with non-zero code"
+    );
+}
+
+#[test]
+fn test_skip_pre_actions_skips_only_pre() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_skip_pre_test"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "f_skip_pre_test".to_string(),
+        src: "dotfiles/f_skip_pre_test".to_string(),
+        dest: "src/.skip_pre_test".to_string(),
+        pre_actions: vec!["touch src/skip_pre_marker.txt".to_string()],
+        post_actions: vec!["touch src/skip_pre_post_marker.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_skip_pre_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Guard against leftover marker files from prior runs polluting the assertion below.
+    let _ = fs::remove_file(fixture.cwd.join("src/skip_pre_marker.txt"));
+
+    fixture.deploy_with_args(
+        Some(vec!["f_skip_pre_test".to_string()]),
+        DeployArgs {
+            skip_pre_actions: true,
+            ..Default::default()
+        },
+    );
+
+    assert!(
+        !fixture.cwd.join("src/skip_pre_marker.txt").exists(),
+        "Pre-action marker should NOT exist when skip_pre_actions is set"
+    );
+    assert!(
+        fixture.cwd.join("src/skip_pre_post_marker.txt").exists(),
+        "Post-action marker should still exist when only skip_pre_actions is set"
+    );
+    assert!(
+        fixture.cwd.join("src/.skip_pre_test").exists(),
+        "Main file should still be deployed"
+    );
+}
+
+#[test]
+fn test_skip_post_actions_skips_only_post() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_skip_post_test"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "f_skip_post_test".to_string(),
+        src: "dotfiles/f_skip_post_test".to_string(),
+        dest: "src/.skip_post_test".to_string(),
+        pre_actions: vec!["touch src/skip_post_pre_marker.txt".to_string()],
+        post_actions: vec!["touch src/skip_post_marker.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_skip_post_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Guard against leftover marker files from prior runs polluting the assertion below.
+    let _ = fs::remove_file(fixture.cwd.join("src/skip_post_marker.txt"));
+
+    fixture.deploy_with_args(
+        Some(vec!["f_skip_post_test".to_string()]),
+        DeployArgs {
+            skip_post_actions: true,
+            ..Default::default()
+        },
+    );
+
+    assert!(
+        fixture.cwd.join("src/skip_post_pre_marker.txt").exists(),
+        "Pre-action marker should still exist when only skip_post_actions is set"
+    );
+    assert!(
+        !fixture.cwd.join("src/skip_post_marker.txt").exists(),
+        "Post-action marker should NOT exist when skip_post_actions is set"
+    );
+    assert!(
+        fixture.cwd.join("src/.skip_post_test").exists(),
+        "Main file should still be deployed"
+    );
+}
+
+#[test]
+fn test_skip_actions_skips_both_pre_and_post() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_skip_all_test"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "f_skip_all_test".to_string(),
+        src: "dotfiles/f_skip_all_test".to_string(),
+        dest: "src/.skip_all_test".to_string(),
+        pre_actions: vec!["touch src/skip_all_pre_marker.txt".to_string()],
+        post_actions: vec!["touch src/skip_all_post_marker.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_skip_all_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Guard against leftover marker files from prior runs polluting the assertions below.
+    let _ = fs::remove_file(fixture.cwd.join("src/skip_all_pre_marker.txt"));
+    let _ = fs::remove_file(fixture.cwd.join("src/skip_all_post_marker.txt"));
+
+    fixture.deploy_with_args(
+        Some(vec!["f_skip_all_test".to_string()]),
+        DeployArgs {
+            skip_actions: true,
+            ..Default::default()
+        },
+    );
+
+    assert!(
+        !fixture.cwd.join("src/skip_all_pre_marker.txt").exists(),
+        "Pre-action marker should NOT exist when skip_actions is set"
+    );
+    assert!(
+        !fixture.cwd.join("src/skip_all_post_marker.txt").exists(),
+        "Post-action marker should NOT exist when skip_actions is set"
+    );
+    assert!(
+        fixture.cwd.join("src/.skip_all_test").exists(),
+        "Main file should still be deployed even when actions are skipped"
+    );
+}
+
+#[test]
+fn test_actions_run_by_default_without_skip_flags() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(
+        fixture.cwd.join("dotfiles/f_no_skip_test"),
+        "Test content\n",
+    )
+    .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "f_no_skip_test".to_string(),
+        src: "dotfiles/f_no_skip_test".to_string(),
+        dest: "src/.no_skip_test".to_string(),
+        pre_actions: vec!["touch src/no_skip_pre_marker.txt".to_string()],
+        post_actions: vec!["touch src/no_skip_post_marker.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_no_skip_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy_with_args(
+        Some(vec!["f_no_skip_test".to_string()]),
+        DeployArgs::default(),
+    );
+
+    assert!(
+        fixture.cwd.join("src/no_skip_pre_marker.txt").exists(),
+        "Pre-action marker should exist when no skip flags are set"
+    );
+    assert!(
+        fixture.cwd.join("src/no_skip_post_marker.txt").exists(),
+        "Post-action marker should exist when no skip flags are set"
     );
 }
