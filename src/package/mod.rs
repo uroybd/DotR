@@ -229,7 +229,7 @@ impl Package {
     }
 
     pub fn resolve_deployment_path(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
-        if !self.symlink {
+        if !self.symlink && !ctx.symlink {
             anyhow::bail!("Package '{}' is not configured for symlinking", self.name);
         }
         Ok(ctx.working_dir.join(utils::SYMLINK_FOLDER).join(&self.name))
@@ -404,7 +404,7 @@ impl Package {
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                if backup && dest.exists() && !self.symlink {
+                if backup && dest.exists() && !self.symlink && !ctx.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -416,7 +416,7 @@ impl Package {
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                if backup && dest.exists() && !self.symlink {
+                if backup && dest.exists() && !self.symlink && !ctx.symlink {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -433,7 +433,7 @@ impl Package {
         args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
         let copy_from = resolve_path(&self.src, &ctx.working_dir)?;
-        let copy_to = if self.symlink {
+        let copy_to = if self.symlink || ctx.symlink {
             self.resolve_deployment_path(ctx)?
         } else {
             self.resolve_dest(ctx)?
@@ -475,7 +475,7 @@ impl Package {
             if !args.skip_pre_actions && !args.skip_actions {
                 self.execute_pre_actions(ctx, args.dry_run)?;
             }
-            if self.symlink
+            if (self.symlink || ctx.symlink)
                 && !args.dry_run
                 && let Some(parent) = copy_to.parent()
             {
@@ -487,7 +487,7 @@ impl Package {
                 println!("=> Deployed {}", copy_to.display());
             }
         }
-        if self.symlink {
+        if self.symlink || ctx.symlink {
             let symlink_to = self.resolve_dest(ctx)?;
             if !args.dry_run {
                 if symlink_to.exists() {

@@ -28,6 +28,7 @@ pub struct Config {
     pub variables: Table,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub prompts: HashMap<String, String>,
+    pub symlink: bool,
 }
 
 pub(crate) enum OpType {
@@ -93,6 +94,10 @@ impl Config {
         Ok(Self {
             banner: table
                 .get("banner")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            symlink: table
+                .get("symlink")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false),
             packages,
@@ -311,10 +316,8 @@ impl Config {
         profiles.insert("default".to_string(), Profile::new("default"));
         Self {
             banner: true,
-            packages: HashMap::new(),
-            variables: Table::new(),
             profiles,
-            prompts: HashMap::new(),
+            ..Default::default()
         }
     }
 

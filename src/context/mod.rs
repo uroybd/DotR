@@ -22,6 +22,7 @@ pub struct Context {
     variables: Table,
     user_variables: Table,
     pub profile: Profile,
+    pub symlink: bool,
 }
 
 impl Context {
@@ -172,6 +173,7 @@ impl Context {
                 variables,
                 user_variables,
                 profile,
+                symlink: conf.symlink,
             },
             created,
         ))
