@@ -454,6 +454,8 @@ fn test_deploy_with_profile() {
         variables: toml::Table::new(),
         dependencies: vec!["f_app".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -735,6 +737,8 @@ fn test_profile_dependencies_deployment() {
         variables: toml::Table::new(),
         dependencies: vec!["f_dep1".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     config.profiles.insert("minimal".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -1180,6 +1184,8 @@ fn test_dotr_profile_env_var_deploy() {
         variables: toml::Table::new(),
         dependencies: vec!["f_profile_test".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
 
     config
@@ -1229,6 +1235,8 @@ fn test_dotr_profile_env_var_update() {
         variables: toml::Table::new(),
         dependencies: vec!["f_env_update".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
 
     config.packages.insert("f_env_update".to_string(), package);
@@ -1291,6 +1299,8 @@ fn test_dotr_profile_env_var_print_vars() {
         variables: profile_vars,
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
 
     config.profiles.insert("printenv".to_string(), profile);
@@ -1329,6 +1339,8 @@ fn test_cli_profile_overrides_env_var() {
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
 
     let profile2 = dotr_dear::profile::Profile {
@@ -1336,6 +1348,8 @@ fn test_cli_profile_overrides_env_var() {
         variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
 
     config.packages.insert("f_override".to_string(), package);

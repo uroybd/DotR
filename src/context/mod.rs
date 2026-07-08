@@ -70,50 +70,114 @@ impl Context {
         reader: &mut R,
         writer: &mut W,
     ) -> Result<Table, anyhow::Error> {
-        // First, get the user variables
-        let mut prompted_vars = self.user_variables.clone();
-        // Now, get the prompts from config
+        use crate::prompt_store::{
+            BitwardenStore, DEFAULT_BITWARDEN_NOTE, FileStore, KeychainStore, PromptBackend,
+            PromptStore,
+        };
+
+        // config -> profile -> package, later wins.
         let mut prompts = conf.prompts.clone();
-        // Merge profile prompts
         for (key, prompt) in self.profile.prompts.iter() {
             prompts.insert(key.clone(), prompt.clone());
         }
         if let Ok(filtered_packages) = conf.filter_packages(self, packages, false) {
-            // For each package, merge its prompts too
             for (_, package) in filtered_packages.iter() {
                 for (key, prompt) in package.prompts.iter() {
                     prompts.insert(key.clone(), prompt.clone());
                 }
             }
         }
-        // Then check for prompted variables and add them if they don't exist in user variables
-        // prompt for their values
-        let mut dirty = false;
-        for (key, prompt) in prompts.iter() {
-            if !prompted_vars.contains_key(key) {
-                match get_prompted_variables(prompt, &mut *reader, &mut *writer) {
+
+        // Built once, reused per key — file_store especially, since each
+        // `set` rewrites the whole file from its own in-memory cache.
+        let file_store = FileStore::new(self.working_dir.clone(), self.user_variables.clone());
+        let keychain_store = KeychainStore::new(&self.working_dir);
+        let bitwarden_store = BitwardenStore::new(
+            self.profile
+                .bitwarden_note
+                .clone()
+                .or_else(|| conf.bitwarden_note.clone())
+                .unwrap_or_else(|| DEFAULT_BITWARDEN_NOTE.to_string()),
+        );
+
+        // Every resolved value, any backend, for templating this run. Only
+        // file_store's own table (below) ever reaches .uservariables.toml.
+        let mut resolved = self.user_variables.clone();
+
+        // The active profile's default backend wins; else the repo's;
+        // else `File`. This is a policy choice, not a per-prompt one.
+        let backend = self
+            .profile
+            .prompt_backend
+            .or(conf.prompt_backend)
+            .unwrap_or_default();
+        let store: &dyn PromptStore = match backend {
+            PromptBackend::File => &file_store,
+            PromptBackend::Keychain => &keychain_store,
+            PromptBackend::Bitwarden => &bitwarden_store,
+        };
+
+        for (key, message) in prompts.iter() {
+            if resolved.contains_key(key) {
+                continue;
+            }
+
+            let existing = match store.get(key) {
+                Ok(existing) => existing,
+                Err(e) => {
+                    cprintln(
+                        &format!(
+                            "Error reading prompted variable '{}' from the {} backend: {}",
+                            key,
+                            backend.as_str(),
+                            e
+                        ),
+                        &LogLevel::Warning,
+                    );
+                    continue;
+                }
+            };
+
+            let value = match existing {
+                Some(value) => value,
+                None => match get_prompted_variables(message, &mut *reader, &mut *writer) {
                     Ok(input) => {
-                        prompted_vars.insert(key.clone(), toml::Value::String(input));
-                        dirty = true;
+                        // File keeps its historical untrimmed value for
+                        // backward compatibility; other backends trim,
+                        // since a stray newline would break a real secret.
+                        let value = if backend == PromptBackend::File {
+                            input
+                        } else {
+                            input.trim().to_string()
+                        };
+                        if let Err(e) = store.set(key, &value) {
+                            cprintln(
+                                &format!(
+                                    "Error saving prompted variable '{}' to the {} backend: {}",
+                                    key,
+                                    backend.as_str(),
+                                    e
+                                ),
+                                &LogLevel::Warning,
+                            );
+                            continue;
+                        }
+                        value
                     }
                     Err(e) => {
                         cprintln(
                             &format!("Error getting prompted variable '{}': {}", key, e),
                             &LogLevel::Warning,
                         );
+                        continue;
                     }
-                }
-            }
+                },
+            };
+            resolved.insert(key.clone(), toml::Value::String(value));
         }
-        if !dirty {
-            return Ok(prompted_vars);
-        }
-        // Save prompted variables back to .uservariables.toml
-        let path = self.working_dir.join(".uservariables.toml");
-        let toml_string = toml::to_string(&prompted_vars)?;
-        fs::write(&path, toml_string)?;
-        self.user_variables = prompted_vars.clone();
-        Ok(prompted_vars)
+
+        self.user_variables = file_store.into_table();
+        Ok(resolved)
     }
 
     pub fn save_to_uservariables(

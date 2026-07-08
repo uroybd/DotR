@@ -43,6 +43,8 @@ in VS Code settings).
 ```toml
 banner = true
 symlink = false
+prompt_backend = "file"
+bitwarden_note = "dotr-secrets"
 
 [variables]
 # ...
@@ -63,6 +65,8 @@ symlink = false
 | `symlink`   | bool   | `false` | Deploy every directory package as a symlink, without setting `symlink = true` on each one individually — see [Symlinks](../concepts/symlinks.md#enabling-symlinking-globally). |
 | `variables` | table  | `{}`    | Config-level variables — see [Variables](../concepts/variables.md).   |
 | `prompts`   | table  | `{}`    | Config-level prompts — see [Prompts](../concepts/prompts.md).         |
+| `prompt_backend` | `"file"` \| `"keychain"` \| `"bitwarden"` | unset (behaves as `"file"`) | Repo-wide default storage backend for every prompt — see [Prompts](../concepts/prompts.md#where-answers-go-backends). A profile's own `prompt_backend` overrides this. |
+| `bitwarden_note` | string | `"dotr-secrets"` | Name of the Bitwarden secure note used when `prompt_backend = "bitwarden"` — see [Prompts](../concepts/prompts.md#where-answers-go-backends). |
 | `packages`  | table  | `{}`    | Package definitions, keyed by name — see below.                       |
 | `profiles`  | table  | `{ default = {} }` | Profile definitions, keyed by name — see below. A `default` profile always exists. |
 
@@ -112,6 +116,7 @@ NVIM_TOKEN = "Enter your plugin registry token"
 ```toml
 [profiles.work]
 dependencies = ["nvim", "git"]
+prompt_backend = "keychain"
 
 [profiles.work.variables]
 GIT_EMAIL = "work@company.com"
@@ -125,6 +130,8 @@ WORK_TOKEN = "Enter your work VPN token"
 | `dependencies` | list of strings | `[]`    | Packages deployed when this profile is active and no `--packages` is given — [Profiles](../concepts/profiles.md). |
 | `variables`    | table           | `{}`    | Profile-scoped variables — [Variables](../concepts/variables.md). |
 | `prompts`      | table           | `{}`    | Profile-scoped prompts — [Prompts](../concepts/prompts.md). |
+| `prompt_backend` | `"file"` \| `"keychain"` \| `"bitwarden"` | unset (follows the top-level `prompt_backend`) | Overrides the repo-wide default backend while this profile is active — [Prompts](../concepts/prompts.md#where-answers-go-backends). |
+| `bitwarden_note` | string          | unset (follows the top-level `bitwarden_note`) | Overrides which Bitwarden secure note this profile's `bitwarden`-backed prompts use — [Prompts](../concepts/prompts.md#where-answers-go-backends). |
 
 ## Other files DotR creates
 

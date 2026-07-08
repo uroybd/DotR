@@ -3,4 +3,5 @@ pub mod config;
 pub mod context;
 pub mod package;
 pub mod profile;
+pub mod prompt_store;
 pub mod utils;

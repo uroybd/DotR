@@ -91,6 +91,29 @@ Print every variable resolved for the given (or default) profile — see
 | ----------------------- | ------------------------------------ |
 | `-p, --profile <NAME>` | Resolve variables for this profile. |
 
+## `dotr dump-user-vars`
+
+Resolves every prompted (user) variable for the given (or default)
+profile — prompting for anything not yet answered, through whichever
+[backend](../concepts/prompts.md#where-answers-go-backends) is
+configured — and writes the full set as TOML to stdout, or to `--output`
+if given. Unlike `.uservariables.toml`, this includes keychain- and
+Bitwarden-backed values too, so it's an escape hatch for backup or for
+migrating a value from one backend to another: copy an entry into
+`.uservariables.toml` and drop `prompt_backend` (or set it to `"file"`)
+to move it there.
+
+| Flag                       | Description                                  |
+| ---------------------------- | ----------------------------------------------- |
+| `-p, --profile <NAME>`      | Resolve variables for this profile.            |
+| `--packages <NAMES>...`     | Only resolve prompts relevant to these packages. |
+| `-o, --output <PATH>`       | Write the dump to this file instead of stdout. |
+
+```bash
+dotr dump-user-vars > backup.toml
+dotr dump-user-vars -o backup.toml
+```
+
 ## `dotr packages`
 
 Groups package-scoped commands under one namespace. Each behaves the same

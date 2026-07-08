@@ -495,6 +495,8 @@ fn test_profile_level_prompts() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     profile.prompts.insert(
         "WORK_EMAIL".to_string(),
@@ -525,6 +527,8 @@ fn test_profile_multiple_prompts() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     profile.prompts.insert(
         "WORK_EMAIL".to_string(),
@@ -575,6 +579,8 @@ fn test_package_and_profile_prompts_together() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     profile.prompts.insert(
         "PROFILE_VAR".to_string(),
@@ -641,6 +647,8 @@ fn test_profile_prompts_do_not_interfere_with_variables() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     profile.variables.insert(
         "STATIC_VAR".to_string(),
@@ -699,6 +707,8 @@ fn test_empty_profile_prompts() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -745,6 +755,8 @@ fn test_three_level_prompts_hierarchy() {
         variables: toml::Table::new(),
         dependencies: vec![],
         prompts: HashMap::new(),
+        prompt_backend: None,
+        bitwarden_note: None,
     };
     profile.prompts.insert(
         "PROFILE_VAR".to_string(),

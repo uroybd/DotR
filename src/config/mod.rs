@@ -34,6 +34,14 @@ pub struct Config {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub prompts: HashMap<String, String>,
     pub symlink: bool,
+    /// Name of the Bitwarden secure note used when `prompt_backend =
+    /// "bitwarden"`. Defaults to `prompt_store::DEFAULT_BITWARDEN_NOTE` when unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bitwarden_note: Option<String>,
+    /// Repo-wide default backend for every prompt. A profile's own
+    /// `prompt_backend` overrides this when that profile is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_backend: Option<crate::prompt_store::PromptBackend>,
 }
 
 pub(crate) enum OpType {
@@ -93,14 +101,16 @@ impl Config {
                 variables.insert(k.clone(), v.clone());
             }
         }
-        let mut prompts: HashMap<String, String> = HashMap::new();
-        if let Some(prompts_table) = table.get("prompts").and_then(|v| v.as_table()) {
-            for (k, v) in prompts_table.iter() {
-                if let Some(prompt_str) = v.as_str() {
-                    prompts.insert(k.clone(), prompt_str.to_string());
-                }
-            }
-        }
+        let prompts = crate::utils::get_string_hashmap_from_value(table.get("prompts"))?;
+        let bitwarden_note = table
+            .get("bitwarden_note")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let prompt_backend = table
+            .get("prompt_backend")
+            .and_then(|v| v.as_str())
+            .map(crate::prompt_store::PromptBackend::parse)
+            .transpose()?;
         Ok(Self {
             banner: table
                 .get("banner")
@@ -114,6 +124,8 @@ impl Config {
             profiles,
             variables,
             prompts,
+            bitwarden_note,
+            prompt_backend,
         })
     }
 
@@ -380,6 +392,9 @@ impl Config {
                 if args.verbose {
                     println!("    Dependencies: {:?}", profile.dependencies);
                     println!("    Variables: {:?}", profile.variables);
+                    if let Some(backend) = profile.prompt_backend {
+                        println!("    Prompt backend: {}", backend.as_str());
+                    }
                     if !profile.prompts.is_empty() {
                         println!("    Prompts:");
                         for (var, prompt) in profile.prompts.iter() {

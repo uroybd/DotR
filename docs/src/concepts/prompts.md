@@ -29,13 +29,45 @@ package being operated on — and checked before `deploy`, `update`, and
 `diff`. Any key not already present in `.uservariables.toml` triggers an
 interactive prompt; the rest are skipped silently.
 
-## Where answers go
+## Where answers go: backends
 
-Answers are saved to `.uservariables.toml` in the repository root, which
-`dotr init` adds to `.gitignore`. Once a key has an answer there, it's never
-prompted for again — delete the line (or the whole file) to be asked again.
+By default, answers are saved to `.uservariables.toml` in the repository
+root, which `dotr init` adds to `.gitignore`. That's fine for low-stakes
+values, but real secrets (API tokens, passwords) then sit in plaintext on
+disk indefinitely. Two other backends are available:
 
-Values from `.uservariables.toml` become **user variables** — the
+```toml
+prompt_backend = "keychain"   # or "bitwarden" — repo-wide default
+
+[profiles.work]
+prompt_backend = "bitwarden"  # overrides the repo-wide default for this profile
+```
+
+- **`file`** (the default) — `.uservariables.toml`, as above.
+- **`keychain`** — the OS keychain (macOS Keychain, Windows Credential
+  Manager, Linux Secret Service), with entries namespaced per-repository
+  so two dotr repos on one machine never collide.
+- **`bitwarden`** — a single Bitwarden secure note shared by every
+  bitwarden-backed variable in the repository, via the `bw` CLI. The note
+  is named by the `bitwarden_note` setting (default `"dotr-secrets"`,
+  also overridable per-profile the same way as `prompt_backend`) and
+  created automatically the first time it's needed. If `bw` isn't logged
+  in or the vault is locked, dotr drives `bw login`/`bw unlock`
+  interactively right there in your terminal, and locks the vault back up
+  when the command finishes — but only if *it* was the one that unlocked
+  it; a session you already had open (e.g. an exported `BW_SESSION`) is
+  left alone.
+
+`prompt_backend` is deliberately **not** a per-prompt setting — it's a
+policy choice, either a repo-wide default or a machine-specific override
+via the active profile, not something that varies prompt by prompt.
+
+Whichever backend is active, the answer becomes a **user variable** — the
 highest-priority source in variable resolution, overriding profile,
 package, environment, and config variables. See
-[Variables](./variables.md#priority).
+[Variables](./variables.md#priority). Only file-backend answers ever
+appear in `.uservariables.toml`; keychain/Bitwarden values are resolved
+fresh each run and never written to the plaintext file. Use
+[`dotr dump-user-vars`](../reference/cli.md#dotr-dump-user-vars) to export
+every prompted variable — any backend — to a portable TOML file, e.g. to
+migrate a value from one backend to another.

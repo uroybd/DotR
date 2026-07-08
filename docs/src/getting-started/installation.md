@@ -123,6 +123,21 @@ equivalent `--profile` flag, and `dotr remove <TAB>`) complete with the
 actual packages and profiles in the repository at your current working
 directory, in any shell Carapace runs your completions in.
 
+## Bitwarden-backed prompts (optional)
+
+If you set `prompt_backend = "bitwarden"` (see
+[Prompts](../concepts/prompts.md#where-answers-go-backends)), you'll need
+the [Bitwarden CLI](https://bitwarden.com/help/cli/) (`bw`) installed and
+reachable on `PATH`:
+
+```bash
+brew install bitwarden-cli
+```
+
+Nothing else to set up ahead of time — dotr drives `bw login`/`bw unlock`
+interactively the first time it's needed, and creates its secure note
+automatically.
+
 ## Verifying the install
 
 ```bash

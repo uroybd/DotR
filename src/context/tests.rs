@@ -855,6 +855,8 @@ USER_NAME = "Enter your name"
             variables: toml::Table::new(),
             dependencies: vec![],
             prompts: profile_prompts,
+            prompt_backend: None,
+            bitwarden_note: None,
         };
 
         ctx.set_profile(profile);
@@ -1000,5 +1002,216 @@ USER_EMAIL = "Enter your email"
             modified_before, modified_after,
             "File should not be modified when no new prompts are answered"
         );
+    }
+
+    #[test]
+    fn test_get_prompted_variables_with_io_file_backend_untrimmed() {
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"CACHED = "cached-value""#,
+        )
+        .unwrap();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+[prompts]
+CACHED = "Enter cached"
+NEW = "Enter new"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::from_path(&temp_dir).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        let input = b"typed-value\n";
+        let mut output = Vec::new();
+        let resolved = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        assert_eq!(
+            resolved.get("CACHED"),
+            Some(&toml::Value::String("cached-value".to_string()))
+        );
+        assert_eq!(
+            resolved.get("NEW"),
+            Some(&toml::Value::String("typed-value\n".to_string())),
+            "the file backend keeps its historical untrimmed behavior"
+        );
+    }
+
+    #[test]
+    fn test_prompt_backend_config_default_applies_when_unset() {
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+prompt_backend = "file"
+
+[prompts]
+VAR = "Enter a value"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::from_path(&temp_dir).unwrap();
+        assert_eq!(
+            config.prompt_backend,
+            Some(crate::prompt_store::PromptBackend::File)
+        );
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        let input = b"a-value\n";
+        let mut output = Vec::new();
+        let resolved = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        assert_eq!(
+            resolved.get("VAR"),
+            Some(&toml::Value::String("a-value\n".to_string()))
+        );
+        let saved = fs::read_to_string(temp_dir.join(".uservariables.toml")).unwrap();
+        assert!(
+            saved.contains("VAR") && saved.contains("a-value"),
+            "explicit top-level prompt_backend = \"file\" should still save to the file"
+        );
+    }
+
+    #[test]
+    fn test_profile_prompt_backend_overrides_config_default() {
+        // Profile-level "file" should win over the repo-wide "keychain"
+        // default for prompts in that profile, again without touching a
+        // real keychain.
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+prompt_backend = "keychain"
+
+[prompts]
+VAR = "Enter a value"
+
+[profiles.default]
+dependencies = []
+prompt_backend = "file"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::from_path(&temp_dir).unwrap();
+        assert_eq!(
+            config.profiles.get("default").unwrap().prompt_backend,
+            Some(crate::prompt_store::PromptBackend::File)
+        );
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        let input = b"a-value\n";
+        let mut output = Vec::new();
+        let resolved = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .unwrap();
+
+        assert_eq!(
+            resolved.get("VAR"),
+            Some(&toml::Value::String("a-value\n".to_string()))
+        );
+        let saved = fs::read_to_string(temp_dir.join(".uservariables.toml")).unwrap();
+        assert!(
+            saved.contains("VAR") && saved.contains("a-value"),
+            "profile-level prompt_backend = \"file\" must win over the config-level \
+\"keychain\" default"
+        );
+    }
+
+    #[test]
+    #[ignore = "touches the real OS keychain; run manually with --ignored"]
+    fn test_get_prompted_variables_with_io_keychain_round_trip() {
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+prompt_backend = "keychain"
+
+[prompts]
+KEYCHAIN_SECRET = "Enter a secret"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::from_path(&temp_dir).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        let input = b"super-secret\n";
+        let mut output = Vec::new();
+        let resolved = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .expect("a real OS keychain must be available to run this test");
+        assert_eq!(
+            resolved.get("KEYCHAIN_SECRET"),
+            Some(&toml::Value::String("super-secret".to_string()))
+        );
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        assert!(
+            !uservars_path.exists()
+                || !fs::read_to_string(&uservars_path)
+                    .unwrap()
+                    .contains("KEYCHAIN_SECRET")
+        );
+
+        // Should read the cached entry back, not prompt again.
+        let input2 = b"";
+        let mut output2 = Vec::new();
+        let resolved2 = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input2[..], &mut output2)
+            .unwrap();
+        assert_eq!(
+            resolved2.get("KEYCHAIN_SECRET"),
+            Some(&toml::Value::String("super-secret".to_string()))
+        );
+
+        let service = format!("DOTR:{}", temp_dir.display());
+        let entry = keyring::Entry::new(&service, "DOTR_KEYCHAIN_SECRET").unwrap();
+        entry.delete_credential().ok();
+    }
+
+    #[test]
+    #[ignore = "needs the `bw` CLI installed, unlocked, and a pre-created 'dotr-secrets' \
+Secure Note; run manually with --ignored"]
+    fn test_get_prompted_variables_with_io_bitwarden_round_trip() {
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+prompt_backend = "bitwarden"
+
+[prompts]
+BW_SECRET = "Enter a secret"
+"#,
+        )
+        .unwrap();
+
+        let config = Config::from_path(&temp_dir).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+
+        let input = b"bw-secret-value\n";
+        let mut output = Vec::new();
+        let resolved = ctx
+            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .expect("bw must be installed, unlocked, with a 'dotr-secrets' note pre-created");
+        assert_eq!(
+            resolved.get("BW_SECRET"),
+            Some(&toml::Value::String("bw-secret-value".to_string()))
+        );
+
+        let uservars_path = temp_dir.join(".uservariables.toml");
+        let contents = if uservars_path.exists() {
+            fs::read_to_string(&uservars_path).unwrap()
+        } else {
+            String::new()
+        };
+        assert!(!contents.contains("BW_SECRET"));
     }
 }

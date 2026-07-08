@@ -27,6 +27,15 @@
       "additionalProperties": { "type": "string" },
       "description": "Config-level prompts: maps a variable name to the message shown when prompting for it."
     },
+    "bitwarden_note": {
+      "type": "string",
+      "default": "dotr-secrets",
+      "description": "Name of the Bitwarden secure note used when prompt_backend = \"bitwarden\". Every bitwarden-backed variable in the repository shares this one note; it's created automatically the first time it's needed if it doesn't already exist."
+    },
+    "prompt_backend": {
+      "$ref": "#/definitions/promptBackend",
+      "description": "Repo-wide default backend for every prompt. A profile's own prompt_backend overrides this when that profile is active."
+    },
     "packages": {
       "type": "object",
       "default": {},
@@ -126,8 +135,21 @@
           "type": "object",
           "additionalProperties": { "type": "string" },
           "description": "Profile-scoped prompts: maps a variable name to the message shown when prompting for it."
+        },
+        "prompt_backend": {
+          "$ref": "#/definitions/promptBackend",
+          "description": "Default backend for this profile's prompts. Overrides the top-level prompt_backend when this profile is active."
+        },
+        "bitwarden_note": {
+          "type": "string",
+          "description": "Overrides the top-level bitwarden_note when this profile is active."
         }
       }
+    },
+    "promptBackend": {
+      "type": "string",
+      "enum": ["file", "keychain", "bitwarden"],
+      "description": "file: .uservariables.toml (default). keychain: the OS keychain, namespaced per-repository. bitwarden: a single shared Bitwarden secure note - see the top-level bitwarden_note setting."
     }
   }
 }

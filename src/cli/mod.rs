@@ -5,6 +5,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use crate::{
     config::{self, Config},
     context::Context,
+    utils::{LogLevel, cprintln},
 };
 
 #[derive(Debug, Parser)]
@@ -37,6 +38,7 @@ pub enum Command {
     Diff(DiffArgs),
     Remove(RemovePackageArgs),
     PrintVars(PrintVarsArgs),
+    DumpUserVars(DumpUserVarsArgs),
     Packages(PackagesArgs),
     Profiles(ProfilesArgs),
     Completions(CompletionsArgs),
@@ -132,6 +134,33 @@ pub struct PrintVarsArgs {
     /// Resolve variables for this profile instead of the default.
     #[arg(short, long)]
     pub profile: Option<String>,
+}
+
+#[derive(Debug, Args, Default)]
+#[command(
+    name = "dump-user-vars",
+    about = "Dump user variables to a TOML file.",
+    long_about = "Resolves every prompted (user) variable for the given (or default) \
+profile - prompting for anything not yet answered, through whichever backend is \
+configured (file, keychain, or Bitwarden, via prompt_backend) - and writes the full \
+set as TOML to stdout, or to --output if given. Unlike .uservariables.toml, this \
+includes keychain- and Bitwarden-backed values too, so it's an escape hatch for \
+backup or migrating a value from one backend to another: copy an entry into \
+.uservariables.toml and drop (or change) prompt_backend to move it there."
+)]
+pub struct DumpUserVarsArgs {
+    /// Resolve variables for this profile instead of the default.
+    #[arg(short, long)]
+    pub profile: Option<String>,
+
+    /// Only resolve prompts relevant to these packages. Omit to use the
+    /// active profile's packages.
+    #[arg(num_args(0..), long)]
+    pub packages: Option<Vec<String>>,
+
+    /// Write the dump to this file instead of stdout.
+    #[arg(short, long)]
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -428,6 +457,26 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
         Some(Command::PrintVars(args)) => {
             let (_, ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.print_variables();
+        }
+        Some(Command::DumpUserVars(args)) => {
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
+            let resolved = ctx.get_prompted_variables_with_io(
+                &conf,
+                &args.packages,
+                &mut std::io::stdin().lock(),
+                &mut std::io::stdout(),
+            )?;
+            let toml_string = toml::to_string_pretty(&resolved)?;
+            match &args.output {
+                Some(path) => {
+                    std::fs::write(path, &toml_string)?;
+                    cprintln(
+                        &format!("Wrote {} prompted variable(s) to {}", resolved.len(), path),
+                        &LogLevel::Info,
+                    );
+                }
+                None => print!("{}", toml_string),
+            }
         }
         Some(Command::Remove(args)) => {
             let (mut conf, ctx) = init_config(&working_dir, &args.profile, false, true)?;
