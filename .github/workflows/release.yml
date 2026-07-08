@@ -58,10 +58,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: cross build --release --target ${{ matrix.target }}
 
+      - name: Generate man pages
+        run: cargo run --bin mangen --features mangen
+
       - name: Package binary
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.name }} ${{ env.BIN_NAME }}
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/${{ env.BIN_NAME }} dist/
+          cp man/*.1 dist/
+          cd dist
+          tar czf ../${{ matrix.name }} *
           cd -
 
       - name: Upload artifact
@@ -164,6 +170,7 @@ jobs:
 
             def install
               bin.install "dotr"
+              man1.install Dir["*.1"]
             end
 
             test do

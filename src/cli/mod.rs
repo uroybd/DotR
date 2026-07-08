@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
-#[command(version)]
+#[command(name = "dotr", version, about)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Command>,
@@ -140,7 +140,10 @@ pub struct DeployArgs {
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "packages", about = "List all managed packages.")]
+#[command(
+    name = "packages",
+    about = "Manage packages (list, import, deploy, update, remove, diff)."
+)]
 pub struct PackagesArgs {
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
@@ -165,6 +168,7 @@ pub struct PackagesListArgs {
 }
 
 #[derive(Debug, Args, Default)]
+#[command(name = "profiles", about = "Manage profiles (list, add, remove).")]
 pub struct ProfilesArgs {
     #[clap(subcommand)]
     pub command: Option<ProfilesCommand>,

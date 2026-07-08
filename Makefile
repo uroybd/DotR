@@ -1,13 +1,14 @@
 BUMP_TYPE?=patch
 CRATE_NAME?=dotr-dear
 
-.PHONY: help release release-minor release-major release-patch test lint lint-fix vet-whitelist
+.PHONY: help release release-minor release-major release-patch test lint lint-fix vet-whitelist man
 
 help:
 	@echo "Available targets:"
 	@echo "  make test             - Run all tests"
 	@echo "  make lint             - Run formatting and clippy checks"
 	@echo "  make lint-fix         - Auto-fix formatting and clippy issues"
+	@echo "  make man              - Regenerate man pages into man/"
 	@echo "  make release          - Release with patch version bump (default)"
 	@echo "  make release-minor    - Release with minor version bump"
 	@echo "  make release-major    - Release with major version bump"
@@ -16,6 +17,9 @@ help:
 	@echo ""
 	@echo "Variables:"
 	@echo "  BUMP_TYPE=<patch|minor|major>  - Override version bump type"
+
+man:
+	cargo run --bin mangen --features mangen
 
 # Bumping the version separately from the commit/publish/tag/push steps lets us
 # slot cargo-vet whitelisting in between: it must land in the same commit as the

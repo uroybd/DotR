@@ -45,6 +45,23 @@ tar xzf dotr-*.tar.gz
 sudo mv dotr /usr/local/bin/
 ```
 
+## Man pages
+
+`man dotr` (and `man dotr-deploy`, `man dotr-packages`, etc. for every
+subcommand) is available if you installed via Homebrew — the formula
+installs them automatically. The release tarballs also bundle the same
+`.1` files alongside the binary; move them into your local man path to
+use them:
+
+```bash
+tar xzf dotr-*.tar.gz
+sudo mv dotr /usr/local/bin/
+sudo mv dotr*.1 /usr/local/share/man/man1/
+```
+
+`cargo install` doesn't carry man pages — cargo has no mechanism for
+installing them — so they aren't available that way.
+
 ## Verifying the install
 
 ```bash
