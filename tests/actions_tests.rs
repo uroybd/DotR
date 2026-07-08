@@ -940,3 +940,53 @@ fn test_actions_run_by_default_without_skip_flags() {
         "Post-action marker should exist when no skip flags are set"
     );
 }
+
+#[test]
+fn test_pre_actions_run_once_for_multi_file_directory_package() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // A directory package with several files - pre_actions must run exactly
+    // once per deploy, not once per file walked.
+    fs::create_dir_all(fixture.cwd.join("dotfiles/f_multi_file_pre_test"))
+        .expect("Failed to create dotfiles dir");
+    for name in ["a.txt", "b.txt", "c.txt", "d.txt"] {
+        fs::write(
+            fixture
+                .cwd
+                .join("dotfiles/f_multi_file_pre_test")
+                .join(name),
+            "content\n",
+        )
+        .expect("Failed to create file");
+    }
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "f_multi_file_pre_test".to_string(),
+        src: "dotfiles/f_multi_file_pre_test/".to_string(),
+        dest: "src/.multi_file_pre_test/".to_string(),
+        pre_actions: vec!["echo 'ran' >> src/pre_run_count.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_multi_file_pre_test".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Guard against a leftover log from a prior run polluting the count below;
+    // common::teardown doesn't know about this ad-hoc filename.
+    let _ = fs::remove_file(fixture.cwd.join("src/pre_run_count.txt"));
+
+    fixture.deploy(Some(vec!["f_multi_file_pre_test".to_string()]));
+
+    let log_content = fs::read_to_string(fixture.cwd.join("src/pre_run_count.txt"))
+        .expect("Failed to read pre-action log");
+    let run_count = log_content.lines().count();
+    assert_eq!(
+        run_count, 1,
+        "pre_actions should run exactly once per deploy, regardless of how many \
+         files are in the package (ran {} times)",
+        run_count
+    );
+}
