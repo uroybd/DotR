@@ -9,6 +9,9 @@ src = "src"
 git-repository-url = "https://github.com/uroybd/DotR"
 edit-url-template = "https://github.com/uroybd/DotR/edit/main/docs/{path}"
 site-url = "/"
+additional-css = ["./theme/catppuccin.css"]
+default-theme = "latte"
+preferred-dark-theme = "frappe"
 
 [output.html.search]
 enable = true
