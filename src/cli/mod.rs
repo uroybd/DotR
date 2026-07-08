@@ -42,7 +42,7 @@ pub enum Command {
     Completions(CompletionsArgs),
 }
 
-/// Shells `dotr completions` can generate a script for.
+/// Shells `dotr completions` can generate a script for, plus the Carapace spec format.
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum CompletionShell {
     Bash,
@@ -52,7 +52,13 @@ pub enum CompletionShell {
     #[value(name = "powershell")]
     PowerShell,
     Nushell,
+    /// Carapace spec (YAML), not a shell script — see the `carapace` case below.
+    Carapace,
 }
+
+/// The Carapace spec YAML, kept in sync by hand alongside the `Cli` definition
+/// (unlike the other shells, which `clap_complete` generates automatically).
+const CARAPACE_SPEC: &str = include_str!("../../completions/carapace/dotr.yaml");
 
 #[derive(Debug, Args)]
 #[command(
@@ -63,10 +69,15 @@ into your shell's completion directory, e.g.:\n\n\
 dotr completions bash > ~/.local/share/bash-completion/completions/dotr\n\n\
 dotr completions zsh > ~/.zfunc/_dotr\n\n\
 dotr completions fish > ~/.config/fish/completions/dotr.fish\n\n\
-dotr completions nushell > ~/.config/nushell/completions/dotr.nu"
+dotr completions nushell > ~/.config/nushell/completions/dotr.nu\n\n\
+`carapace` is not a shell but a spec file for the Carapace completion \
+engine (https://carapace.sh), which adds dynamic completion of real \
+package/profile names from config.toml on top of the static commands and \
+flags below:\n\n\
+dotr completions carapace > ~/.config/carapace/specs/dotr.yaml"
 )]
 pub struct CompletionsArgs {
-    /// Shell to generate a completion script for.
+    /// Shell (or `carapace` for a Carapace spec) to generate completions for.
     pub shell: CompletionShell,
 }
 
@@ -511,6 +522,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     bin_name,
                     &mut stdout,
                 ),
+                CompletionShell::Carapace => print!("{}", CARAPACE_SPEC),
             }
         }
         None => {

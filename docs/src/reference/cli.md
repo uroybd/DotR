@@ -136,15 +136,22 @@ printing bare profile names only.
 Prints a shell completion script to stdout, covering every command shown
 on this page — including the nested `packages` and `profiles`
 subcommands. `SHELL` is one of `bash`, `zsh`, `fish`, `elvish`,
-`powershell`, `nushell`.
+`powershell`, `nushell`, `carapace`.
 
 ```bash
 dotr completions bash > ~/.local/share/bash-completion/completions/dotr
 dotr completions zsh > ~/.zfunc/_dotr
 dotr completions fish > ~/.config/fish/completions/dotr.fish
 dotr completions nushell > ~/.config/nushell/completions/dotr.nu
+dotr completions carapace > ~/.config/carapace/specs/dotr.yaml
 ```
 
 The script always reflects whatever version of `dotr` generated it —
 regenerate it after upgrading if a new command doesn't show up in
 completions yet.
+
+`carapace` is not a shell — it prints a spec file for the
+[Carapace](https://carapace.sh) completion engine, which adds dynamic
+completion of real package/profile names on top of the static commands
+and flags. See [Dynamic package/profile name
+completion](../getting-started/installation.md#dynamic-packageprofile-name-completion-carapace).

@@ -133,6 +133,7 @@ fn test_completions_all_shells_succeed() {
         CompletionShell::Elvish,
         CompletionShell::PowerShell,
         CompletionShell::Nushell,
+        CompletionShell::Carapace,
     ] {
         let result =
             run_cli(fixture.get_cli(Some(Command::Completions(CompletionsArgs { shell }))));
@@ -177,6 +178,36 @@ fn test_completions_include_nested_packages_and_profiles_subcommands() {
             sub
         );
     }
+}
+
+#[test]
+fn test_completions_carapace_matches_source_spec_file() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dotr"))
+        .args(["completions", "carapace"])
+        .output()
+        .expect("Failed to run dotr completions carapace");
+    assert!(
+        output.status.success(),
+        "completions carapace command should succeed"
+    );
+    let generated = String::from_utf8(output.stdout).expect("Output should be valid UTF-8");
+
+    let source = fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/completions/carapace/dotr.yaml"
+    ))
+    .expect("Failed to read completions/carapace/dotr.yaml");
+
+    assert_eq!(
+        generated, source,
+        "`dotr completions carapace` must print exactly the checked-in spec file, \
+since the two are expected to stay embedded/identical (see include_str! in cli/mod.rs)"
+    );
+
+    // Sanity-check it's the spec we expect, not an empty/truncated file.
+    assert!(generated.contains("name: dotr"));
+    assert!(generated.contains("$(dotr packages list --plain)"));
+    assert!(generated.contains("$(dotr profiles list --plain)"));
 }
 
 #[test]

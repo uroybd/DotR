@@ -97,20 +97,25 @@ completion time.
 
 If you use [Carapace](https://carapace.sh) as your completion engine (it
 supports bash, zsh, fish, nushell, elvish, powershell, and more from one
-binary), DotR ships a [Carapace
-spec](https://github.com/uroybd/DotR/blob/main/completions/carapace/dotr.yaml)
-that adds real, live completion of package and profile names by calling
+binary), `dotr completions carapace` prints a Carapace spec that adds
+real, live completion of package and profile names by calling
 `dotr packages list --plain` / `dotr profiles list --plain` under the hood.
-Install it by copying the file into Carapace's specs directory:
+Save it directly into Carapace's specs directory:
 
 ```bash
 # macOS
-cp completions/carapace/dotr.yaml \
+dotr completions carapace > \
   ~/Library/Application\ Support/carapace/specs/dotr.yaml
 
 # Linux
-cp completions/carapace/dotr.yaml ~/.config/carapace/specs/dotr.yaml
+dotr completions carapace > ~/.config/carapace/specs/dotr.yaml
 ```
+
+Unlike the other shells, this spec isn't generated from `dotr`'s own
+argument definitions (Carapace has no Rust/clap integration to hook into),
+so it's hand-maintained in the DotR source and simply embedded into the
+binary — regenerate it the same way after upgrading `dotr` to pick up any
+new commands or flags.
 
 `carapace --help` prints the exact specs directory it's currently using if
 you're unsure. Once installed, `dotr deploy --packages <TAB>` (and the
