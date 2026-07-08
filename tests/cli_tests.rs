@@ -1,7 +1,10 @@
 use std::{collections::HashMap, fs, path::PathBuf};
 
 use dotr_dear::{
-    cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
+    cli::{
+        Cli, Command, CompletionShell, CompletionsArgs, DeployArgs, ImportArgs, InitArgs,
+        PrintVarsArgs, UpdateArgs, run_cli,
+    },
     config::Config,
     package::Package,
 };
@@ -117,6 +120,63 @@ fn test_init_writes_schema_directive() {
         loaded.profiles.contains_key("default"),
         "Config should still parse correctly with the schema directive present"
     );
+}
+
+#[test]
+fn test_completions_all_shells_succeed() {
+    let fixture = TestFixture::new();
+
+    for shell in [
+        CompletionShell::Bash,
+        CompletionShell::Zsh,
+        CompletionShell::Fish,
+        CompletionShell::Elvish,
+        CompletionShell::PowerShell,
+        CompletionShell::Nushell,
+    ] {
+        let result =
+            run_cli(fixture.get_cli(Some(Command::Completions(CompletionsArgs { shell }))));
+        assert!(
+            result.is_ok(),
+            "completions generation should succeed for {:?}",
+            shell
+        );
+    }
+}
+
+#[test]
+fn test_completions_include_nested_packages_and_profiles_subcommands() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_dotr"))
+        .args(["completions", "bash"])
+        .output()
+        .expect("Failed to run dotr completions bash");
+    assert!(
+        output.status.success(),
+        "completions command should succeed"
+    );
+    let script = String::from_utf8(output.stdout).expect("Output should be valid UTF-8");
+
+    // Top-level subcommand groups.
+    assert!(script.contains("packages"), "Should mention packages");
+    assert!(script.contains("profiles"), "Should mention profiles");
+
+    // Nested `packages` subcommands.
+    for sub in ["list", "import", "deploy", "update", "remove", "diff"] {
+        assert!(
+            script.contains(sub),
+            "Bash completions should include 'packages {}'",
+            sub
+        );
+    }
+
+    // Nested `profiles` subcommands.
+    for sub in ["add", "list", "remove"] {
+        assert!(
+            script.contains(sub),
+            "Bash completions should include 'profiles {}'",
+            sub
+        );
+    }
 }
 
 #[test]

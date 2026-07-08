@@ -62,6 +62,32 @@ sudo mv dotr*.1 /usr/local/share/man/man1/
 `cargo install` doesn't carry man pages — cargo has no mechanism for
 installing them — so they aren't available that way.
 
+## Shell completions
+
+Unlike man pages, completions are generated at runtime by `dotr` itself,
+so they work the same way no matter how you installed it:
+
+```bash
+# Bash
+dotr completions bash > ~/.local/share/bash-completion/completions/dotr
+
+# Zsh (any directory on your $fpath)
+dotr completions zsh > ~/.zfunc/_dotr
+
+# Fish
+dotr completions fish > ~/.config/fish/completions/dotr.fish
+
+# Nushell
+dotr completions nushell > ~/.config/nushell/completions/dotr.nu
+
+# Elvish and PowerShell are supported too — see their own docs for where
+# to put a generated completion script.
+```
+
+Completions cover every command, including the nested `dotr packages` and
+`dotr profiles` subcommands. See the
+[CLI reference](../reference/cli.md#dotr-completions-shell) for details.
+
 ## Verifying the install
 
 ```bash

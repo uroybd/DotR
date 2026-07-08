@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 
 use crate::{
     config::{self, Config},
@@ -39,6 +39,35 @@ pub enum Command {
     PrintVars(PrintVarsArgs),
     Packages(PackagesArgs),
     Profiles(ProfilesArgs),
+    Completions(CompletionsArgs),
+}
+
+/// Shells `dotr completions` can generate a script for.
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+    Elvish,
+    #[value(name = "powershell")]
+    PowerShell,
+    Nushell,
+}
+
+#[derive(Debug, Args)]
+#[command(
+    name = "completions",
+    about = "Print a shell completion script to stdout.",
+    long_about = "Prints a completion script for the given shell to stdout. Redirect it \
+into your shell's completion directory, e.g.:\n\n\
+dotr completions bash > ~/.local/share/bash-completion/completions/dotr\n\n\
+dotr completions zsh > ~/.zfunc/_dotr\n\n\
+dotr completions fish > ~/.config/fish/completions/dotr.fish\n\n\
+dotr completions nushell > ~/.config/nushell/completions/dotr.nu"
+)]
+pub struct CompletionsArgs {
+    /// Shell to generate a completion script for.
+    pub shell: CompletionShell,
 }
 
 #[derive(Debug, Args, Default)]
@@ -426,6 +455,49 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                 None => {
                     println!("No profiles command provided. Use --help for more information.");
                 }
+            }
+        }
+        Some(Command::Completions(args)) => {
+            let mut cmd = Cli::command();
+            let bin_name = cmd.get_name().to_string();
+            let mut stdout = std::io::stdout();
+            match args.shell {
+                CompletionShell::Bash => clap_complete::generate(
+                    clap_complete::Shell::Bash,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
+                CompletionShell::Zsh => clap_complete::generate(
+                    clap_complete::Shell::Zsh,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
+                CompletionShell::Fish => clap_complete::generate(
+                    clap_complete::Shell::Fish,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
+                CompletionShell::Elvish => clap_complete::generate(
+                    clap_complete::Shell::Elvish,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
+                CompletionShell::PowerShell => clap_complete::generate(
+                    clap_complete::Shell::PowerShell,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
+                CompletionShell::Nushell => clap_complete::generate(
+                    clap_complete_nushell::Nushell,
+                    &mut cmd,
+                    bin_name,
+                    &mut stdout,
+                ),
             }
         }
         None => {

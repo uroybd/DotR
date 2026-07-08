@@ -123,3 +123,21 @@ dotr profiles remove <PROFILE_NAME> [--dry-run] [--remove-orphans]
   making the new profile the implicit default on this machine.
 - `remove` cannot remove the `default` profile. `--remove-orphans` also
   removes packages that were only referenced by the removed profile.
+
+## `dotr completions <SHELL>`
+
+Prints a shell completion script to stdout, covering every command shown
+on this page — including the nested `packages` and `profiles`
+subcommands. `SHELL` is one of `bash`, `zsh`, `fish`, `elvish`,
+`powershell`, `nushell`.
+
+```bash
+dotr completions bash > ~/.local/share/bash-completion/completions/dotr
+dotr completions zsh > ~/.zfunc/_dotr
+dotr completions fish > ~/.config/fish/completions/dotr.fish
+dotr completions nushell > ~/.config/nushell/completions/dotr.nu
+```
+
+The script always reflects whatever version of `dotr` generated it —
+regenerate it after upgrading if a new command doesn't show up in
+completions yet.
