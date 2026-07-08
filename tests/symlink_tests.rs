@@ -591,3 +591,195 @@ fn test_symlink_directory_preserves_structure() {
     let content = fs::read_to_string(&init_lua).expect("Failed to read init.lua");
     assert!(!content.is_empty(), "File should have content");
 }
+
+#[test]
+fn test_global_symlink_flag_defaults_to_false() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let config = fixture.get_config();
+    assert!(
+        !config.symlink,
+        "Global symlink flag should default to false"
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_deploys_package_without_own_flag() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Import without the package-level symlink flag
+    fixture.import(BASHRC_PATH, false);
+
+    // Enable symlinking globally instead
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    // The package itself was never marked for symlinking...
+    let config = fixture.get_config();
+    let package = config
+        .packages
+        .values()
+        .next()
+        .expect("Should have a package");
+    assert!(
+        !package.symlink,
+        "Package-level symlink flag should remain untouched by the global setting"
+    );
+
+    // ...yet the global flag should still cause it to be symlinked.
+    fixture.assert_is_symlink(
+        BASHRC_PATH,
+        "Destination should be a symlink when the global symlink flag is enabled",
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_creates_deployed_folder() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_file_exists(
+        SYMLINK_FOLDER,
+        "deployed folder should be created when the global symlink flag is enabled",
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_target_points_to_deployed_folder() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    let config = fixture.get_config();
+    let package_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have a package");
+    let expected_target = format!("{}/{}", SYMLINK_FOLDER, package_name);
+
+    fixture.assert_symlink_target(
+        BASHRC_PATH,
+        &expected_target,
+        "Symlink created via the global flag should point to the deployed folder",
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_applies_to_directory_package() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(NVIM_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_is_symlink(
+        NVIM_PATH,
+        "Directory package should be symlinked when the global symlink flag is enabled",
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_persists_after_save() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let reloaded = fixture.get_config();
+    assert!(
+        reloaded.symlink,
+        "Global symlink flag should persist across a config reload"
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_does_not_leak_into_package_config() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+    fixture.deploy(None);
+
+    // Only one top-level `symlink = true` should exist (the global one) -
+    // the package itself must not have been mutated to carry its own flag.
+    let config_content = fixture.read_file("config.toml");
+    let occurrences = config_content.matches("symlink = true").count();
+    assert_eq!(
+        occurrences, 1,
+        "Only the global symlink flag should be set, not a package-level one"
+    );
+}
+
+#[test]
+fn test_global_symlink_flag_skips_backup_on_redeploy() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // First deploy creates the symlink and populates the deployed folder.
+    fixture.deploy(None);
+
+    let config = fixture.get_config();
+    let package_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have a package")
+        .clone();
+
+    // Change the source so the next deploy has to overwrite the deployed copy.
+    fixture.write_file(&package_name_src(&config), "# Changed content\n");
+
+    fixture.deploy(None);
+
+    fixture.assert_file_not_exists(
+        &format!("{}/{}.dotrbak", SYMLINK_FOLDER, package_name),
+        "Redeploying via the global symlink flag should not create a backup in the deployed folder",
+    );
+    fixture.assert_file_not_exists(
+        &format!("{}.dotrbak", BASHRC_PATH),
+        "Redeploying via the global symlink flag should not create a backup at the destination",
+    );
+}
+
+fn package_name_src(config: &Config) -> String {
+    config
+        .packages
+        .values()
+        .next()
+        .expect("Should have a package")
+        .src
+        .clone()
+}
