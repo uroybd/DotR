@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/uroybd/DotR/main/schema/config.schema.json",
+  "title": "DotR config.toml",
+  "description": "Configuration file for DotR (https://dotr.utsob.me/), a dotfiles manager.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "banner": {
+      "type": "boolean",
+      "default": true,
+      "description": "Print the DotR ASCII banner on commands. Set false for quiet output."
+    },
+    "symlink": {
+      "type": "boolean",
+      "default": false,
+      "description": "Deploy every directory package as a symlink, without setting symlink = true on each one individually. A package's own `symlink` field always overrides this, in either direction."
+    },
+    "variables": {
+      "type": "object",
+      "default": {},
+      "description": "Config-level variables, available to all templates, packages, and actions."
+    },
+    "prompts": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": { "type": "string" },
+      "description": "Config-level prompts: maps a variable name to the message shown when prompting for it."
+    },
+    "packages": {
+      "type": "object",
+      "default": {},
+      "description": "Package definitions, keyed by package name.",
+      "additionalProperties": { "$ref": "#/definitions/package" }
+    },
+    "profiles": {
+      "type": "object",
+      "default": {},
+      "description": "Profile definitions, keyed by profile name. A `default` profile always exists.",
+      "additionalProperties": { "$ref": "#/definitions/profile" }
+    }
+  },
+  "definitions": {
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["src", "dest"],
+      "properties": {
+        "src": {
+          "type": "string",
+          "description": "Path to the file/directory in the repository."
+        },
+        "dest": {
+          "type": "string",
+          "description": "Deployment destination. `~` and template variables are expanded."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Other packages deployed alongside this one whenever this package is selected."
+        },
+        "variables": {
+          "type": "object",
+          "description": "Package-scoped variables. Override config-level and environment variables of the same name."
+        },
+        "pre_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run before this package is deployed, in order."
+        },
+        "post_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run after this package is deployed, in order."
+        },
+        "targets": {
+          "type": "object",
+          "description": "Per-profile destination override: maps a profile name to a destination path used instead of `dest` when that profile is active.",
+          "additionalProperties": { "type": "string" }
+        },
+        "skip": {
+          "type": "boolean",
+          "default": false,
+          "description": "Exclude this package from profile-driven (implicit) selection. It's still deployed if named explicitly with --packages."
+        },
+        "prompts": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Package-scoped prompts: maps a variable name to the message shown when prompting for it."
+        },
+        "ignore": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns (relative to `src`) excluded from deployment and cleaning. A non-empty list implies `unfold_symlink`, since an ignored path has nowhere real to live under a single whole-directory symlink."
+        },
+        "symlink": {
+          "type": "boolean",
+          "description": "Deploy this package as a symlink instead of a copy. An explicit true/false here always overrides the top-level `symlink` setting, in either direction; leave unset to follow it."
+        },
+        "unfold_symlink": {
+          "type": "boolean",
+          "default": false,
+          "description": "Symlink individual files instead of the whole directory, so untracked, unmanaged content can coexist at `dest`. Only meaningful when this package is deployed as a symlink."
+        },
+        "clean": {
+          "type": "boolean",
+          "default": true,
+          "description": "Remove files at the destination that no longer exist in the source. Set false to leave extra files alone."
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dependencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Packages deployed when this profile is active and no --packages is given."
+        },
+        "variables": {
+          "type": "object",
+          "description": "Profile-scoped variables. Override package, config-level, and environment variables of the same name."
+        },
+        "prompts": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Profile-scoped prompts: maps a variable name to the message shown when prompting for it."
+        }
+      }
+    }
+  }
+}

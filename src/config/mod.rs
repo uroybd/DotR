@@ -17,6 +17,11 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
+/// JSON Schema for `config.toml`, referenced via a `#:schema` directive at
+/// the top of newly-generated config files (see `Config::init`).
+const SCHEMA_URL: &str =
+    "https://raw.githubusercontent.com/uroybd/DotR/main/schema/config.schema.json";
+
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Config {
     pub banner: bool,
@@ -300,6 +305,12 @@ impl Config {
         }
         let default_config = Config::new();
         let toml_string = toml::to_string(&default_config)?;
+        // The `#:schema` directive is understood by taplo (the LSP behind VS
+        // Code's "Even Better TOML", Neovim's nvim-lspconfig taplo preset,
+        // and other taplo-based editor integrations) to associate this file
+        // with a JSON Schema for validation and autocomplete, without
+        // relying on ambiguous filename-based catalog matching.
+        let toml_string = format!("#:schema {}\n{}", SCHEMA_URL, toml_string);
         std::fs::write(config_path, toml_string)?;
         std::fs::create_dir_all(cwd.join("dotfiles"))?;
 

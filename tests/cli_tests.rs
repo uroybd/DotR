@@ -95,6 +95,31 @@ fn test_init_idempotent() {
 }
 
 #[test]
+fn test_init_writes_schema_directive() {
+    let fixture = TestFixture::new();
+
+    fixture.init();
+
+    let config = fixture.read_file("config.toml");
+    let first_line = config
+        .lines()
+        .next()
+        .expect("config.toml should not be empty");
+    assert_eq!(
+        first_line,
+        "#:schema https://raw.githubusercontent.com/uroybd/DotR/main/schema/config.schema.json",
+        "First line should be the taplo #:schema directive for editor validation/autocomplete"
+    );
+
+    // A leading comment must not break normal parsing.
+    let loaded = fixture.get_config();
+    assert!(
+        loaded.profiles.contains_key("default"),
+        "Config should still parse correctly with the schema directive present"
+    );
+}
+
+#[test]
 fn test_import_creates_package() {
     let fixture = TestFixture::new();
 

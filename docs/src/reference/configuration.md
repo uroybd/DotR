@@ -3,6 +3,41 @@
 Everything DotR manages is described in a single `config.toml` at the
 repository root, created by `dotr init`.
 
+## Editor support (schema validation)
+
+`dotr init` writes a [taplo](https://taplo.tamasfe.dev/) `#:schema`
+directive as the first line of the generated `config.toml`:
+
+```toml
+#:schema https://raw.githubusercontent.com/uroybd/DotR/main/schema/config.schema.json
+```
+
+This associates the file with a [JSON Schema](https://github.com/uroybd/DotR/blob/main/schema/config.schema.json)
+describing every field on this page — giving you inline validation,
+autocomplete, and hover documentation as you edit, in any editor that uses
+taplo as its TOML language server:
+
+- **VS Code** — install the [Even Better TOML](https://marketplace.visualstudio.com/items?itemName=tamasfe.even-better-toml)
+  extension; it picks up the directive automatically.
+- **Neovim** — via [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig)'s
+  built-in `taplo` preset: `require('lspconfig').taplo.setup {}`.
+- **Vim, Emacs, Helix, Sublime** — any setup that runs `taplo` as the TOML
+  language server (via `vim-lsp`/`coc.nvim`, `lsp-mode`, etc.) picks it up
+  the same way, since the directive is parsed by taplo itself, not by a
+  particular editor plugin.
+
+This isn't published on [SchemaStore](https://www.schemastore.org/) —
+`config.toml` is too generic a filename for filename-based catalog
+matching (Hugo's own `config.toml` is SchemaStore's canonical example of a
+pattern they reject for exactly this reason). The inline directive avoids
+that ambiguity entirely, since it points at a specific schema explicitly
+rather than relying on the filename.
+
+If you have a `config.toml` from before this was added, add the line
+above to the top of the file yourself, or configure your editor's schema
+association for the file manually (e.g. `evenBetterToml.schema.associations`
+in VS Code settings).
+
 ## Top level
 
 ```toml
