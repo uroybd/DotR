@@ -58,10 +58,6 @@ prompt_backend = "bitwarden"  # overrides the repo-wide default for this profile
   it; a session you already had open (e.g. an exported `BW_SESSION`) is
   left alone.
 
-`prompt_backend` is deliberately **not** a per-prompt setting — it's a
-policy choice, either a repo-wide default or a machine-specific override
-via the active profile, not something that varies prompt by prompt.
-
 Whichever backend is active, the answer becomes a **user variable** — the
 highest-priority source in variable resolution, overriding profile,
 package, environment, and config variables. See
