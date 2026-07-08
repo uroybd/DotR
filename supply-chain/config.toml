@@ -76,6 +76,11 @@ version = "1.0.7"
 criteria = "safe-to-deploy"
 suggest = false
 
+[[exemptions.dotr-dear]]
+version = "1.1.0"
+criteria = "safe-to-deploy"
+suggest = false
+
 [[exemptions.equivalent]]
 version = "1.0.2"
 criteria = "safe-to-deploy"
