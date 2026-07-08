@@ -8,10 +8,22 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = "dotr", version, about)]
+#[command(
+    name = "dotr",
+    version,
+    about,
+    long_about = "DotR keeps a repository of your dotfiles separate from where they're \
+actually used, and manages copying or symlinking them into place.\n\n\
+Packages describe individual files or directories with a source and \
+destination; profiles let the same repository describe different \
+machines (work, home, server) with different packages, variables, and \
+destinations. Config files can embed Tera template syntax compiled at \
+deploy time, and pre/post shell hooks can run around each deployment."
+)]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Option<Command>,
+    /// Run as if invoked from this directory instead of the current one.
     #[clap(short, long, global = true)]
     pub working_dir: Option<String>,
 }
@@ -30,111 +42,179 @@ pub enum Command {
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "remove", about = "Remove a managed package.")]
+#[command(
+    name = "remove",
+    about = "Remove a managed package.",
+    long_about = "Deletes a package's entry from config.toml and its files from \
+dotfiles/. Refuses to remove a package that another package or profile still depends \
+on unless --force is given."
+)]
 pub struct RemovePackageArgs {
+    /// Packages to remove.
     #[arg(num_args(0..))]
     pub packages: Option<Vec<String>>,
 
+    /// Remove even if another package or profile still depends on it.
     #[arg(short, long, default_value_t = false)]
     pub force: bool,
 
+    /// Also remove dependencies left unreferenced after this removal.
     #[arg(long, default_value_t = false)]
     pub remove_orphans: bool,
 
+    /// Preview what would be removed without making changes.
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
 
+    /// Profile context used to resolve dependencies.
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
-#[command(name = "init", about = "Intialize dotfiles repository.")]
+#[command(
+    name = "init",
+    about = "Initialize dotfiles repository.",
+    long_about = "Creates config.toml, a dotfiles/ directory, and a .gitignore in the \
+working directory. Safe to re-run - if config.toml already exists, it's left untouched."
+)]
 pub struct InitArgs {}
 
 #[derive(Debug, Args, Default)]
-#[command(name = "print-vars", about = "Print all user variables.")]
+#[command(
+    name = "print-vars",
+    about = "Print all user variables.",
+    long_about = "Prints every variable resolved for the given (or default) profile - \
+config, environment, package, profile, and prompt-sourced - useful for debugging why a \
+template rendered the way it did."
+)]
 pub struct PrintVarsArgs {
+    /// Resolve variables for this profile instead of the default.
     #[arg(short, long)]
     pub profile: Option<String>,
 }
 
 #[derive(Debug, Args)]
-#[command(name = "import", about = "Import dotfile and update configuration.")]
+#[command(
+    name = "import",
+    about = "Import dotfile and update configuration.",
+    long_about = "Copies a file or directory into the repository and registers it as a \
+package in config.toml, with a source and destination. Use --symlink to also deploy it \
+immediately as a symlink instead of a copy."
+)]
 #[derive(Default)]
 pub struct ImportArgs {
+    /// Path to the file or directory to import.
     #[arg(value_name = "IMPORT_PATH")]
     pub path: String,
 
+    /// Deploy as a symlink instead of a copy, and deploy immediately.
     #[arg(short, long, default_value_t = false)]
     pub symlink: bool,
 
+    /// Override the auto-derived package name.
     #[arg(short, long)]
     pub name: Option<String>,
 
+    /// Add the package to this profile's dependencies instead of default.
     #[arg(short, long)]
     pub profile: Option<String>,
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "diff", about = "Show differences between dotfiles.")]
+#[command(
+    name = "diff",
+    about = "Show differences between dotfiles.",
+    long_about = "Shows a colored, line-by-line diff between what's in the repository \
+and what's currently deployed, without changing anything."
+)]
 pub struct DiffArgs {
+    /// Diff only these packages. Omit to diff the active profile's packages.
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
 
+    /// Use this profile instead of the resolved default.
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
 
+    /// Keep diffing remaining packages if one fails.
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "update", about = "Update dotfiles from deployed versions.")]
+#[command(
+    name = "update",
+    about = "Update dotfiles from deployed versions.",
+    long_about = "Copies changes made to deployed files back into the repository, so \
+dotfiles/ keeps reflecting what's actually deployed. Templated packages are skipped, \
+since the template file is the source of truth."
+)]
 pub struct UpdateArgs {
+    /// Update only these packages. Omit to update the active profile's packages.
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
 
+    /// Use this profile instead of the resolved default.
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
 
+    /// Keep updating remaining packages if one fails.
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
 
+    /// Override the clean mode setting for this run.
     #[arg(long)]
     pub clean: Option<bool>,
 
+    /// Preview without changing anything.
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "deploy", about = "Deploy dotfiles from repository.")]
+#[command(
+    name = "deploy",
+    about = "Deploy dotfiles from repository.",
+    long_about = "Copies (or symlinks) every selected package from the repository to \
+its destination. Selects the active profile's packages by default, or a specific set \
+via --packages."
+)]
 pub struct DeployArgs {
+    /// Deploy only these packages (plus dependencies, unless
+    /// --ignore-dependencies). Omit to deploy the active profile's packages.
     #[arg(num_args(0..), short, long)]
     pub packages: Option<Vec<String>>,
 
+    /// Use this profile instead of the resolved default.
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
 
+    /// Keep deploying remaining packages if one fails.
     #[arg(long, default_value_t = false)]
     pub ignore_errors: bool,
 
+    /// Override the clean mode setting for this run.
     #[arg(long)]
     pub clean: Option<bool>,
 
+    /// Preview without changing anything.
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
 
+    /// Skip both pre- and post-actions.
     #[arg(long, default_value_t = false)]
     pub skip_actions: bool,
 
+    /// Skip only pre-actions.
     #[arg(long, default_value_t = false)]
     pub skip_pre_actions: bool,
 
+    /// Skip only post-actions.
     #[arg(long, default_value_t = false)]
     pub skip_post_actions: bool,
 
+    /// Deploy only the selected packages, without pulling in dependencies.
     #[arg(long, default_value_t = false)]
     pub ignore_dependencies: bool,
 }
@@ -142,9 +222,12 @@ pub struct DeployArgs {
 #[derive(Debug, Args, Default)]
 #[command(
     name = "packages",
-    about = "Manage packages (list, import, deploy, update, remove, diff)."
+    about = "Manage packages (list, import, deploy, update, remove, diff).",
+    long_about = "Groups package-scoped commands under one namespace. Each subcommand \
+behaves the same as its top-level equivalent, plus list for viewing all managed packages."
 )]
 pub struct PackagesArgs {
+    /// Profile context for the packages subcommand.
     #[arg(short = 'P', long)]
     pub profile: Option<String>,
     #[clap(subcommand)]
@@ -162,13 +245,26 @@ pub enum PackagesCommand {
 }
 
 #[derive(Debug, Args, Default)]
+#[command(
+    name = "list",
+    about = "List all managed packages.",
+    long_about = "Lists every package currently tracked in config.toml. Use --verbose \
+to also show each package's source, destination, and other fields."
+)]
 pub struct PackagesListArgs {
+    /// Show detailed information for each package.
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
 }
 
 #[derive(Debug, Args, Default)]
-#[command(name = "profiles", about = "Manage profiles (list, add, remove).")]
+#[command(
+    name = "profiles",
+    about = "Manage profiles (list, add, remove).",
+    long_about = "Profiles describe an environment (work, home, a server) as a set of \
+packages, variables, and prompts, so the same repository can deploy differently \
+depending on which profile is active."
+)]
 pub struct ProfilesArgs {
     #[clap(subcommand)]
     pub command: Option<ProfilesCommand>,
@@ -182,28 +278,53 @@ pub enum ProfilesCommand {
 }
 
 #[derive(Debug, Args, Default)]
+#[command(
+    name = "remove",
+    about = "Remove a profile.",
+    long_about = "Deletes a profile from config.toml. The default profile cannot be \
+removed. Use --remove-orphans to also clean up packages that were only referenced by \
+this profile."
+)]
 pub struct ProfileRemoveArgs {
+    /// Name of the profile to remove.
     #[arg(value_name = "PROFILE_NAME")]
     pub name: String,
 
+    /// Preview what would be removed without making changes.
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
 
+    /// Also remove packages that were only referenced by this profile.
     #[arg(long, default_value_t = false)]
     pub remove_orphans: bool,
 }
 
 #[derive(Debug, Args, Default)]
+#[command(
+    name = "list",
+    about = "List all profiles.",
+    long_about = "Lists every profile defined in config.toml. Use --verbose to also \
+show each profile's dependencies and variables."
+)]
 pub struct ProfilesListArgs {
+    /// Show detailed information for each profile.
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
 }
 
 #[derive(Debug, Args, Default)]
+#[command(
+    name = "add",
+    about = "Add a new profile.",
+    long_about = "Creates a new, empty profile in config.toml. Use --set-as-current to \
+make it the default on this machine by writing DOTR_PROFILE into .uservariables.toml."
+)]
 pub struct ProfilesAddArgs {
+    /// Name for the new profile.
     #[arg(value_name = "PROFILE_NAME")]
     pub name: String,
 
+    /// Save this profile as the default (writes DOTR_PROFILE to .uservariables.toml).
     #[arg(long, default_value_t = false)]
     pub set_as_current: bool,
 }
