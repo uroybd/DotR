@@ -54,6 +54,11 @@ impl Config {
 
     pub fn save(&self, cwd: &Path) -> anyhow::Result<()> {
         let config_content = toml::to_string_pretty(self)?;
+        // Every write needs the `#:schema` directive, not just the one from
+        // `init()` - otherwise the very next save (import, deploy, profiles
+        // add/remove, ...) drops it, since serializing `Config` back to TOML
+        // has no way to preserve a leading comment on its own.
+        let config_content = format!("#:schema {}\n{}", SCHEMA_URL, config_content);
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
@@ -304,14 +309,13 @@ impl Config {
             return Self::from_path(cwd);
         }
         let default_config = Config::new();
-        let toml_string = toml::to_string(&default_config)?;
-        // The `#:schema` directive is understood by taplo (the LSP behind VS
-        // Code's "Even Better TOML", Neovim's nvim-lspconfig taplo preset,
-        // and other taplo-based editor integrations) to associate this file
-        // with a JSON Schema for validation and autocomplete, without
-        // relying on ambiguous filename-based catalog matching.
-        let toml_string = format!("#:schema {}\n{}", SCHEMA_URL, toml_string);
-        std::fs::write(config_path, toml_string)?;
+        // `save()` prepends the `#:schema` directive understood by taplo (the
+        // LSP behind VS Code's "Even Better TOML", Neovim's nvim-lspconfig
+        // taplo preset, and other taplo-based editor integrations) to
+        // associate this file with a JSON Schema for validation and
+        // autocomplete, without relying on ambiguous filename-based catalog
+        // matching.
+        default_config.save(cwd)?;
         std::fs::create_dir_all(cwd.join("dotfiles"))?;
 
         let gitignore_path = cwd.join(".gitignore");

@@ -7,6 +7,7 @@ use dotr_dear::{
     },
     config::Config,
     package::Package,
+    profile::Profile,
 };
 
 struct TestFixture {
@@ -119,6 +120,34 @@ fn test_init_writes_schema_directive() {
     assert!(
         loaded.profiles.contains_key("default"),
         "Config should still parse correctly with the schema directive present"
+    );
+}
+
+#[test]
+fn test_schema_directive_persists_across_saves() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Any mutating command re-saves config.toml. `Config::save()` has no
+    // way to preserve a leading comment through serde round-tripping, so
+    // it must re-add the directive itself on every write, not just the
+    // one from `init()`.
+    let mut config = fixture.get_config();
+    config
+        .profiles
+        .entry("default".to_string())
+        .or_insert_with(|| Profile::new("default"));
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let content = fixture.read_file("config.toml");
+    let first_line = content
+        .lines()
+        .next()
+        .expect("config.toml should not be empty");
+    assert_eq!(
+        first_line,
+        "#:schema https://raw.githubusercontent.com/uroybd/DotR/main/schema/config.schema.json",
+        "The schema directive must survive a normal save(), not just the initial init()"
     );
 }
 
