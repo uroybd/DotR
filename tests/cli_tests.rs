@@ -637,7 +637,6 @@ fn test_update_with_invalid_profile_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -702,7 +701,6 @@ fn test_update_nonexistent_package_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
-        ..Default::default()
     }))));
 
     // Update should fail with error for nonexistent package
@@ -1039,7 +1037,6 @@ fn test_dotr_profile_env_var_update() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(
@@ -1373,7 +1370,6 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         ignore_errors: true,
         clean: Some(false),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(
@@ -1591,7 +1587,6 @@ fn test_backup_with_clean_removes_extra_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");
@@ -2167,7 +2162,6 @@ fn test_clean_ignore_patterns_in_backup() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");

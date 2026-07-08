@@ -146,7 +146,6 @@ fn test_update_clean_by_default() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -406,7 +405,6 @@ fn test_update_with_package_clean_false() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -458,7 +456,6 @@ fn test_update_cli_override_package_clean() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
-        ..Default::default()
     }))));
 
     assert!(result.is_ok(), "Update should succeed");

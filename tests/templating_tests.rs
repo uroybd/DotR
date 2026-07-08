@@ -66,7 +66,6 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
-                ..Default::default()
             }))),
         )
         .expect("Update failed");
