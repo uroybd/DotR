@@ -438,7 +438,6 @@ impl Package {
         } else {
             self.resolve_dest(ctx)?
         };
-        let mut pre_action_executed = false;
         let mut result = BackupDeployResult::Skipped;
         if copy_from.is_dir() {
             let mut all_deployed_paths = vec![];
@@ -449,9 +448,8 @@ impl Package {
                     continue;
                 }
                 let dest_path = copy_to.join(relative_path);
-                if !pre_action_executed {
+                if !args.skip_pre_actions && !args.skip_actions {
                     self.execute_pre_actions(ctx, args.dry_run)?;
-                    pre_action_executed = true;
                 }
                 if entry.path().is_dir() && !args.dry_run {
                     std::fs::create_dir_all(&dest_path)?;
@@ -474,8 +472,9 @@ impl Package {
                 clean(&copy_to, &all_deployed_paths, &self.ignore, args.dry_run)?;
             }
         } else {
-            self.execute_pre_actions(ctx, args.dry_run)?;
-            pre_action_executed = true;
+            if !args.skip_pre_actions && !args.skip_actions {
+                self.execute_pre_actions(ctx, args.dry_run)?;
+            }
             if self.symlink
                 && !args.dry_run
                 && let Some(parent) = copy_to.parent()
@@ -518,7 +517,7 @@ impl Package {
             &format!("Package '{}' deployed", self.name),
             &LogLevel::Info,
         );
-        if pre_action_executed {
+        if !args.skip_post_actions || !args.skip_actions {
             self.execute_post_actions(ctx, args.dry_run)?;
         }
         Ok(result)

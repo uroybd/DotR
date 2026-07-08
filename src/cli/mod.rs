@@ -125,6 +125,18 @@ pub struct DeployArgs {
 
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub skip_actions: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub skip_pre_actions: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub skip_post_actions: bool,
+
+    #[arg(long, default_value_t = false)]
+    pub ignore_dependencies: bool,
 }
 
 #[derive(Debug, Args, Default)]
