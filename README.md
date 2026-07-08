@@ -48,6 +48,8 @@ for details.
 
 ## 🚀 Quick Start
 
+![DotR quick start demo](docs/src/assets/quick-start.gif)
+
 ```bash
 dotr init                        # initialize a repository
 dotr import ~/.bashrc            # bring an existing dotfile under management

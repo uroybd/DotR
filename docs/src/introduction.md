@@ -7,6 +7,19 @@ where they're actually used on disk, and manages copying — or symlinking —
 them into place. The repository is the source of truth; your `~/.bashrc`,
 `~/.config/nvim/`, and friends are deployments of it.
 
+<div id="intro-cast"></div>
+<script>
+  // asciinema-player.min.js loads at the end of <body>, after this inline
+  // script in document order, so defer the create() call until load.
+  window.addEventListener("load", function () {
+    AsciinemaPlayer.create(
+      "/assets/casts/quick-start.cast",
+      document.getElementById("intro-cast"),
+      { theme: "monokai", fit: "width", terminalFontSize: "14px" }
+    );
+  });
+</script>
+
 ## Why DotR?
 
 - **Plain files, not magic.** Your dotfiles repository is just files and
