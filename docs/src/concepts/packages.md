@@ -44,7 +44,8 @@ with `f_`), or you can set it explicitly with `--name`.
 | `skip`         | bool                  | If `true`, excluded from profile-driven deploys (see below)             |
 | `prompts`      | table                 | Package-scoped prompts — see [Prompts](./prompts.md)                    |
 | `ignore`       | list of glob patterns | Files to exclude from deployment/cleaning — see [Ignoring Files](./ignoring-files.md) |
-| `symlink`      | bool                  | Deploy as a symlink instead of a copy — see [Symlinks](./symlinks.md)   |
+| `symlink`      | bool                  | Deploy as a symlink instead of a copy; overrides the global `symlink` setting either way when set explicitly — see [Symlinks](./symlinks.md#opting-a-package-out) |
+| `unfold_symlink` | bool                | Symlink individual files rather than the whole directory — see [Symlinks](./symlinks.md#unfolding-per-file-symlinks) |
 | `clean`        | bool (default `true`) | Remove stray files in the destination — see [Clean Mode](./clean-mode.md) |
 
 ## Per-profile destinations (`targets`)

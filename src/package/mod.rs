@@ -59,8 +59,10 @@ pub struct Package {
     pub prompts: HashMap<String, String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symlink: Option<bool>,
     #[serde(skip_serializing_if = "is_false", default)]
-    pub symlink: bool,
+    pub unfold_symlink: bool,
     #[serde(skip_serializing_if = "is_true", default = "default_clean")]
     pub clean: bool,
 }
@@ -92,7 +94,8 @@ impl Package {
             skip: false,
             prompts: HashMap::new(),
             ignore: Vec::new(),
-            symlink: false,
+            symlink: None,
+            unfold_symlink: false,
             clean: true,
         }
     }
@@ -116,7 +119,12 @@ impl Package {
         }
 
         let mut pkg = Self::new(&package_name, &src_path_str, &dest_path_str);
-        pkg.symlink = args.symlink;
+        // Only force it on explicitly; leaving it unset (rather than `Some(false)`)
+        // lets a newly imported package still pick up a global `symlink = true`
+        // by default, the same as any other package would.
+        if args.symlink {
+            pkg.symlink = Some(true);
+        }
         Ok(pkg)
     }
 
@@ -141,8 +149,9 @@ impl Package {
             .unwrap_or(false);
         let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))?;
         let ignore = get_vec_string_from_value(pkg_val.get("ignore"))?;
-        let symlink = pkg_val
-            .get("symlink")
+        let symlink = pkg_val.get("symlink").and_then(|v| v.as_bool());
+        let unfold_symlink = pkg_val
+            .get("unfold_symlink")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
         let clean = pkg_val
@@ -163,6 +172,7 @@ impl Package {
             prompts,
             ignore,
             symlink,
+            unfold_symlink,
             clean,
         })
     }
@@ -228,8 +238,25 @@ impl Package {
         should_ignore(&self.ignore, rel_path)
     }
 
+    /// Whether a directory package should be deployed as individual per-file
+    /// symlinks (leaving the destination a real directory) rather than a
+    /// single symlink for the whole directory. Non-empty `ignore` implies
+    /// this, since an ignored path has nowhere real to live under a single
+    /// whole-directory symlink.
+    pub fn should_unfold(&self) -> bool {
+        self.unfold_symlink || !self.ignore.is_empty()
+    }
+
+    /// Whether this package should be deployed as a symlink. An explicit
+    /// per-package `symlink` setting always wins - `Some(true)` forces it on
+    /// and `Some(false)` opts out - regardless of the global config flag;
+    /// only when the package leaves it unset does the global flag apply.
+    pub fn effective_symlink(&self, ctx: &Context) -> bool {
+        self.symlink.unwrap_or(ctx.symlink)
+    }
+
     pub fn resolve_deployment_path(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
-        if !self.symlink && !ctx.symlink {
+        if !self.effective_symlink(ctx) {
             anyhow::bail!("Package '{}' is not configured for symlinking", self.name);
         }
         Ok(ctx.working_dir.join(utils::SYMLINK_FOLDER).join(&self.name))
@@ -246,12 +273,25 @@ impl Package {
         }
         let copy_from = self.resolve_dest(ctx)?;
         let copy_to = ctx.working_dir.join(self.src.clone());
+        let unfolded_staging_root = if self.effective_symlink(ctx) && self.should_unfold() {
+            Some(self.resolve_deployment_path(ctx)?)
+        } else {
+            None
+        };
         if copy_from.is_dir() {
             let mut all_copied_paths = vec![];
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
                 if self.should_ignore(relative_path) {
+                    continue;
+                }
+                if let Some(staged_root) = &unfolded_staging_root
+                    && !entry.path().is_dir()
+                    && !is_managed_symlink(entry.path(), staged_root)
+                {
+                    // Foreign, untracked content living alongside unfolded
+                    // symlinks - never pull it into the tracked repo.
                     continue;
                 }
                 let dest_path = copy_to.clone().join(relative_path);
@@ -404,7 +444,7 @@ impl Package {
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                if backup && dest.exists() && !self.symlink && !ctx.symlink {
+                if backup && dest.exists() && !self.effective_symlink(ctx) {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -416,7 +456,7 @@ impl Package {
                 if let Some(parent) = dest.parent() {
                     std::fs::create_dir_all(parent)?;
                 }
-                if backup && dest.exists() && !self.symlink && !ctx.symlink {
+                if backup && dest.exists() && !self.effective_symlink(ctx) {
                     let backup_path = create_backup_path(dest);
                     std::fs::copy(dest, &backup_path)?;
                 }
@@ -433,7 +473,7 @@ impl Package {
         args: &DeployArgs,
     ) -> Result<BackupDeployResult, anyhow::Error> {
         let copy_from = resolve_path(&self.src, &ctx.working_dir)?;
-        let copy_to = if self.symlink || ctx.symlink {
+        let copy_to = if self.effective_symlink(ctx) {
             self.resolve_deployment_path(ctx)?
         } else {
             self.resolve_dest(ctx)?
@@ -475,7 +515,7 @@ impl Package {
             if !args.skip_pre_actions && !args.skip_actions {
                 self.execute_pre_actions(ctx, args.dry_run)?;
             }
-            if (self.symlink || ctx.symlink)
+            if self.effective_symlink(ctx)
                 && !args.dry_run
                 && let Some(parent) = copy_to.parent()
             {
@@ -487,9 +527,17 @@ impl Package {
                 println!("=> Deployed {}", copy_to.display());
             }
         }
-        if self.symlink || ctx.symlink {
+        if self.effective_symlink(ctx) {
             let symlink_to = self.resolve_dest(ctx)?;
-            if !args.dry_run {
+            if copy_from.is_dir() && self.should_unfold() {
+                if !args.dry_run {
+                    self.deploy_unfolded_symlinks(
+                        &copy_to,
+                        &symlink_to,
+                        self.should_clean(args.clean),
+                    )?;
+                }
+            } else if !args.dry_run {
                 if symlink_to.exists() {
                     if symlink_to.is_symlink() {
                         std::fs::remove_file(&symlink_to)?;
@@ -521,6 +569,67 @@ impl Package {
             self.execute_post_actions(ctx, args.dry_run)?;
         }
         Ok(result)
+    }
+
+    /// Deploy a directory package as individual per-file symlinks rather than
+    /// one symlink for the whole directory, leaving `dest_root` a real
+    /// directory so untracked, unmanaged content can coexist in it.
+    ///
+    /// Never overwrites a path that already exists at `dest_root` unless it
+    /// is itself a symlink we created (i.e. resolves into `staged_root`) -
+    /// anything else is left completely alone.
+    fn deploy_unfolded_symlinks(
+        &self,
+        staged_root: &Path,
+        dest_root: &Path,
+        should_clean: bool,
+    ) -> anyhow::Result<()> {
+        if dest_root.is_symlink() || (dest_root.exists() && !dest_root.is_dir()) {
+            std::fs::remove_file(dest_root)?;
+        }
+        std::fs::create_dir_all(dest_root)?;
+
+        let mut linked = vec![];
+        for entry in walkdir::WalkDir::new(staged_root) {
+            let entry = entry?;
+            let path = entry.path();
+            if path == staged_root {
+                continue;
+            }
+            let relative_path = path.strip_prefix(staged_root)?;
+            let target_path = dest_root.join(relative_path);
+            if path.is_dir() {
+                std::fs::create_dir_all(&target_path)?;
+                continue;
+            }
+            if target_path.is_symlink() {
+                let current_target = std::fs::read_link(&target_path)?;
+                if current_target == path {
+                    linked.push(target_path);
+                    continue;
+                }
+                std::fs::remove_file(&target_path)?;
+            } else if target_path.is_dir() {
+                // Pre-existing real content at a path we manage (e.g. the
+                // first deploy after enabling symlinking) - replace it, the
+                // same way whole-directory symlinking replaces existing
+                // content. This never touches paths outside `staged_root`,
+                // which is what keeps genuinely foreign files untouched.
+                std::fs::remove_dir_all(&target_path)?;
+            } else if target_path.exists() {
+                std::fs::remove_file(&target_path)?;
+            }
+            if let Some(parent) = target_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::os::unix::fs::symlink(path, &target_path)?;
+            linked.push(target_path);
+        }
+
+        if should_clean {
+            clean_unfolded(dest_root, staged_root, &linked, &self.ignore)?;
+        }
+        Ok(())
     }
 
     pub fn package_is_templated(&self, cwd: &Path) -> bool {
@@ -679,6 +788,67 @@ pub fn clean(
         }
     }
     Ok(())
+}
+
+/// Remove stale per-file symlinks left over from a previous unfolded deploy.
+///
+/// Unlike `clean`, this only ever touches entries at `dest_root` that are
+/// themselves symlinks resolving into `staged_root` (i.e. ones this package
+/// created). Real files/directories - anyone else's content living
+/// alongside the managed symlinks - are always left untouched, and a
+/// directory is only removed once it's completely empty (never
+/// `remove_dir_all`, since it may still hold foreign content).
+pub fn clean_unfolded(
+    dest_root: &Path,
+    staged_root: &Path,
+    keep: &[PathBuf],
+    ignore: &[String],
+) -> anyhow::Result<()> {
+    if !dest_root.exists() {
+        return Ok(());
+    }
+
+    let mut dirs = vec![];
+    for entry in walkdir::WalkDir::new(dest_root) {
+        let entry = entry?;
+        let path = entry.path().to_path_buf();
+        if path == *dest_root {
+            continue;
+        }
+        let rel_path = path.strip_prefix(dest_root)?;
+        if should_ignore(ignore, rel_path) {
+            continue;
+        }
+        if path.is_symlink() {
+            if keep.contains(&path) {
+                continue;
+            }
+            if is_managed_symlink(&path, staged_root) {
+                std::fs::remove_file(&path)?;
+            }
+        } else if path.is_dir() {
+            dirs.push(path);
+        }
+    }
+    dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+    for dir in dirs {
+        if !dir.exists() {
+            continue;
+        }
+        if dir.read_dir()?.next().is_none() {
+            std::fs::remove_dir(&dir)?;
+        }
+    }
+    Ok(())
+}
+
+/// Whether `path` is a symlink this package created - i.e. one that
+/// resolves into `staged_root` - as opposed to unrelated/foreign content.
+pub fn is_managed_symlink(path: &Path, staged_root: &Path) -> bool {
+    path.is_symlink()
+        && std::fs::read_link(path)
+            .map(|target| target.starts_with(staged_root))
+            .unwrap_or(false)
 }
 
 pub fn should_ignore(ignore: &[String], rel_path: &Path) -> bool {

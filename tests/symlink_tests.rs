@@ -12,6 +12,7 @@ const PLAYGROUND_DIR: &str = "tests/playground";
 const BASHRC_PATH: &str = "src/.bashrc";
 const NVIM_PATH: &str = "src/nvim";
 const ZSHRC_PATH: &str = "src/.zshrc";
+const TMUX_PATH: &str = "src/tmux";
 
 struct TestFixture {
     cwd: PathBuf,
@@ -144,6 +145,12 @@ impl Drop for TestFixture {
             if deployed_dir.exists() {
                 let _ = fs::remove_dir_all(&deployed_dir);
             }
+            // Ad-hoc foreign files created by unfold_symlink tests aren't known
+            // to `common::teardown`'s restore list; remove them explicitly so a
+            // panicking test can't leave a dangling symlink for the next run.
+            // `remove_file` works on both real files and (possibly broken)
+            // symlinks, so this is safe even if nothing was ever created.
+            let _ = fs::remove_file(self.cwd.join("src/tmux/foreign.txt"));
         }
         common::teardown(&self.cwd);
     }
@@ -162,7 +169,11 @@ fn test_import_with_symlink_flag() {
         .next()
         .expect("Should have a package");
 
-    assert!(package.symlink, "Package should have symlink flag enabled");
+    assert_eq!(
+        package.symlink,
+        Some(true),
+        "Package should have symlink flag enabled"
+    );
 }
 
 #[test]
@@ -178,9 +189,9 @@ fn test_import_without_symlink_flag() {
         .next()
         .expect("Should have a package");
 
-    assert!(
-        !package.symlink,
-        "Package should not have symlink flag enabled"
+    assert_eq!(
+        package.symlink, None,
+        "Package should not have an explicit symlink flag set"
     );
 }
 
@@ -532,7 +543,7 @@ fn test_symlink_dry_run() {
         .next()
         .expect("Should have package")
         .clone();
-    config.packages.get_mut(&pkg_name).unwrap().symlink = true;
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with dry run
@@ -626,8 +637,8 @@ fn test_global_symlink_flag_deploys_package_without_own_flag() {
         .values()
         .next()
         .expect("Should have a package");
-    assert!(
-        !package.symlink,
+    assert_eq!(
+        package.symlink, None,
         "Package-level symlink flag should remain untouched by the global setting"
     );
 
@@ -782,4 +793,419 @@ fn package_name_src(config: &Config) -> String {
         .expect("Should have a package")
         .src
         .clone()
+}
+
+#[test]
+fn test_unfold_symlink_defaults_to_false() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let config = fixture.get_config();
+    let package = config
+        .packages
+        .values()
+        .next()
+        .expect("Should have a package");
+    assert!(
+        !package.unfold_symlink,
+        "unfold_symlink should default to false"
+    );
+}
+
+#[test]
+fn test_unfold_symlink_creates_real_directory_with_symlinked_files() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_not_symlink(
+        TMUX_PATH,
+        "The destination directory itself should remain real, not a symlink",
+    );
+    assert!(
+        fixture.cwd.join(TMUX_PATH).is_dir(),
+        "Destination should exist as a real directory"
+    );
+    fixture.assert_is_symlink(
+        "src/tmux/tmux.conf",
+        "Individual file should be symlinked when unfolded",
+    );
+    fixture.assert_is_symlink(
+        "src/tmux/theme.conf",
+        "Individual file should be symlinked when unfolded",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_target_points_to_staged_file() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    let expected_target = format!("{}/{}/tmux.conf", SYMLINK_FOLDER, pkg_name);
+    fixture.assert_symlink_target(
+        "src/tmux/tmux.conf",
+        &expected_target,
+        "Unfolded symlink should point at the staged file, not the whole staged directory",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_preserves_foreign_file_on_redeploy() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    // Drop an untracked file directly into the (now real) destination directory.
+    fixture.write_file("src/tmux/foreign.txt", "not managed by dotr\n");
+
+    fixture.deploy(None);
+
+    fixture.assert_not_symlink(
+        "src/tmux/foreign.txt",
+        "Foreign file should never become a symlink",
+    );
+    assert_eq!(
+        fixture.read_file("src/tmux/foreign.txt"),
+        "not managed by dotr\n",
+        "Foreign file content should survive a redeploy untouched"
+    );
+    // Managed files should still be correctly symlinked alongside it.
+    fixture.assert_is_symlink("src/tmux/tmux.conf", "Managed file should remain symlinked");
+}
+
+#[test]
+fn test_ignore_non_empty_implies_unfold_without_explicit_flag() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    let package = config.packages.get_mut(&pkg_name).unwrap();
+    package.symlink = Some(true);
+    package.ignore = vec!["theme.conf".to_string()];
+    // unfold_symlink deliberately left at its default (false).
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_not_symlink(
+        TMUX_PATH,
+        "A non-empty ignore list should imply unfolding even without the explicit flag",
+    );
+    fixture.assert_is_symlink("src/tmux/tmux.conf", "Non-ignored file should be symlinked");
+    fixture.assert_not_symlink(
+        "src/tmux/theme.conf",
+        "Ignored file should be left as the original real file, never symlinked",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_removes_stale_symlink_after_source_file_removed() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+    fixture.assert_is_symlink("src/tmux/theme.conf", "Should be symlinked initially");
+
+    // Remove the source file from the repository and redeploy with cleaning
+    // enabled (the `deploy` helper hardcodes `clean: Some(false)`, so call
+    // run_cli directly here).
+    let config = fixture.get_config();
+    let src = package_name_src(&config);
+    fs::remove_file(fixture.cwd.join(&src).join("theme.conf"))
+        .expect("Failed to remove source file");
+
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: None,
+            profile: None,
+            ignore_errors: false,
+            clean: Some(true),
+            dry_run: false,
+            ..Default::default()
+        }))),
+    )
+    .expect("Deploy failed");
+
+    fixture.assert_file_not_exists(
+        "src/tmux/theme.conf",
+        "Stale symlink should be removed once its source file is gone",
+    );
+    fixture.assert_is_symlink(
+        "src/tmux/tmux.conf",
+        "Unrelated managed file should be unaffected",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_clean_does_not_remove_foreign_file() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+    fixture.write_file("src/tmux/foreign.txt", "not managed by dotr\n");
+
+    // Remove a source file so clean has a stale managed symlink to remove.
+    // Deploy with cleaning enabled directly (the `deploy` helper hardcodes
+    // `clean: Some(false)`).
+    let config = fixture.get_config();
+    let src = package_name_src(&config);
+    fs::remove_file(fixture.cwd.join(&src).join("theme.conf"))
+        .expect("Failed to remove source file");
+
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: None,
+            profile: None,
+            ignore_errors: false,
+            clean: Some(true),
+            dry_run: false,
+            ..Default::default()
+        }))),
+    )
+    .expect("Deploy failed");
+
+    fixture.assert_file_not_exists(
+        "src/tmux/theme.conf",
+        "Stale managed symlink should still be cleaned up",
+    );
+    fixture.assert_file_exists(
+        "src/tmux/foreign.txt",
+        "Clean must never remove foreign, unmanaged files",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_update_pulls_changes_without_absorbing_foreign_file() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    // A foreign file living alongside the managed symlinks...
+    fixture.write_file("src/tmux/foreign.txt", "not managed by dotr\n");
+    // ...and an edit made through one of the managed symlinks.
+    fixture.write_file("src/tmux/tmux.conf", "# Modified through symlink\n");
+
+    fixture.update(None);
+
+    let config = fixture.get_config();
+    let src = package_name_src(&config);
+    let repo_content = fixture.read_file(&format!("{}/tmux.conf", src));
+    assert_eq!(
+        repo_content, "# Modified through symlink\n",
+        "Edits made through a managed symlink should be pulled back into the repo"
+    );
+    fixture.assert_file_not_exists(
+        &format!("{}/foreign.txt", src),
+        "Foreign files must never be pulled into the tracked repository",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_dry_run_makes_no_changes() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: None,
+            profile: None,
+            ignore_errors: false,
+            clean: Some(false),
+            dry_run: true,
+            ..Default::default()
+        }))),
+    )
+    .expect("Dry run deploy failed");
+
+    fixture.assert_file_not_exists(
+        SYMLINK_FOLDER,
+        "Dry run should not create the deployed staging folder",
+    );
+    fixture.assert_not_symlink(
+        "src/tmux/tmux.conf",
+        "Dry run should not create any symlinks",
+    );
+}
+
+#[test]
+fn test_unfold_symlink_field_omitted_when_false() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let config_content = fixture.read_file("config.toml");
+    assert!(
+        !config_content.contains("unfold_symlink"),
+        "unfold_symlink should be omitted from serialized config when false"
+    );
+}
+
+#[test]
+fn test_unfold_symlink_field_present_when_true() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(TMUX_PATH, false);
+
+    let mut config = fixture.get_config();
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(true);
+    config.packages.get_mut(&pkg_name).unwrap().unfold_symlink = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let config_content = fixture.read_file("config.toml");
+    assert!(
+        config_content.contains("unfold_symlink = true"),
+        "unfold_symlink should be present in serialized config when true"
+    );
+}
+
+#[test]
+fn test_package_can_opt_out_of_global_symlink_flag() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    let pkg_name = config
+        .packages
+        .keys()
+        .next()
+        .expect("Should have package")
+        .clone();
+    // Explicitly opt this package out of the global symlink setting.
+    config.packages.get_mut(&pkg_name).unwrap().symlink = Some(false);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_not_symlink(
+        BASHRC_PATH,
+        "A package that explicitly sets symlink = false should opt out of the global symlink flag",
+    );
+    fixture.assert_file_not_exists(
+        SYMLINK_FOLDER,
+        "An opted-out package should never stage anything under the deployed folder",
+    );
+}
+
+#[test]
+fn test_package_without_explicit_symlink_follows_global_flag() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    fixture.import(BASHRC_PATH, false);
+
+    let mut config = fixture.get_config();
+    config.symlink = true;
+    // Leave the package's own `symlink` field unset entirely.
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.deploy(None);
+
+    fixture.assert_is_symlink(
+        BASHRC_PATH,
+        "A package with no explicit symlink setting should follow the global flag",
+    );
 }

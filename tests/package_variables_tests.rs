@@ -90,7 +90,8 @@ fn test_package_variables_basic() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
     config
@@ -157,7 +158,8 @@ fn test_package_variables_override_config_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
     config
@@ -220,7 +222,9 @@ MY_VAR = "user_value"
         prompts: HashMap::new(),
         ignore: Vec::new(),
 
-        symlink: false,
+        symlink: None,
+
+        unfold_symlink: false,
         clean: true,
     };
     config
@@ -276,7 +280,8 @@ fn test_package_variables_with_nested_structures() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
     config.packages.insert("f_nested_test".to_string(), package);
@@ -327,7 +332,8 @@ fn test_package_variables_persist_after_save() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
     config.packages.insert("test_package".to_string(), package);
@@ -400,7 +406,8 @@ TEST_VAR = "user_value"
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
     config
@@ -458,7 +465,8 @@ fn test_multiple_packages_with_different_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
 
@@ -481,7 +489,8 @@ fn test_multiple_packages_with_different_variables() {
         skip: false,
         prompts: HashMap::new(),
         ignore: Vec::new(),
-        symlink: false,
+        symlink: None,
+        unfold_symlink: false,
         clean: true,
     };
 

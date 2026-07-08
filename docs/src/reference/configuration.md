@@ -7,6 +7,7 @@ repository root, created by `dotr init`.
 
 ```toml
 banner = true
+symlink = false
 
 [variables]
 # ...
@@ -24,6 +25,7 @@ banner = true
 | Field       | Type   | Default | Purpose                                                             |
 | ----------- | ------ | ------- | --------------------------------------------------------------------- |
 | `banner`    | bool   | `true`  | Print the DotR ASCII banner on commands. Set `false` for quiet output. |
+| `symlink`   | bool   | `false` | Deploy every directory package as a symlink, without setting `symlink = true` on each one individually — see [Symlinks](../concepts/symlinks.md#enabling-symlinking-globally). |
 | `variables` | table  | `{}`    | Config-level variables — see [Variables](../concepts/variables.md).   |
 | `prompts`   | table  | `{}`    | Config-level prompts — see [Prompts](../concepts/prompts.md).         |
 | `packages`  | table  | `{}`    | Package definitions, keyed by name — see below.                       |
@@ -40,6 +42,7 @@ pre_actions = ["mkdir -p ~/.local/share/nvim"]
 post_actions = ["nvim --headless +PluginInstall +qall"]
 skip = false
 symlink = false
+unfold_symlink = false
 clean = true
 ignore = ["*.log"]
 
@@ -65,7 +68,8 @@ NVIM_TOKEN = "Enter your plugin registry token"
 | `skip`         | bool                     | `false` | Excluded from profile-driven (implicit) selection — [Packages](../concepts/packages.md#skipping-a-package-by-default-skip). |
 | `prompts`      | table                    | `{}`    | Package-scoped prompts — [Prompts](../concepts/prompts.md). |
 | `ignore`       | list of glob patterns    | `[]`    | Files excluded from deploy/clean — [Ignoring Files](../concepts/ignoring-files.md). |
-| `symlink`      | bool                     | `false` | Deploy as a symlink instead of a copy — [Symlinks](../concepts/symlinks.md). |
+| `symlink`      | bool                     | unset (follows the global `symlink` setting) | Deploy as a symlink instead of a copy. An explicit `true`/`false` here always overrides the global flag — [Symlinks](../concepts/symlinks.md#opting-a-package-out). |
+| `unfold_symlink` | bool                   | `false` | Symlink individual files instead of the whole directory, so untracked content can coexist at `dest` — implied by a non-empty `ignore` — [Symlinks](../concepts/symlinks.md#unfolding-per-file-symlinks). |
 | `clean`        | bool                     | `true`  | Remove stray files at the destination — [Clean Mode](../concepts/clean-mode.md). |
 
 ## `[profiles.<name>]`
