@@ -228,6 +228,16 @@ complete in this terminal.",
             .map_err(|e| anyhow::anyhow!("Failed to run `bw {}`: {e}", args.join(" ")))
     }
 
+    /// Pulls the latest vault data from the server before we read/write,
+    /// so a note edited elsewhere (another device, the web vault) isn't
+    /// missed by a stale local cache. Best-effort and silent: called
+    /// speculatively before we necessarily know we're authenticated, so a
+    /// failure here isn't itself noteworthy - a real problem still
+    /// surfaces properly from the get/set call that follows it.
+    fn sync(&self) {
+        let _ = self.bw(&["sync"]);
+    }
+
     /// Drives `bw login`/`bw unlock` interactively and caches the
     /// resulting session for subsequent `bw` calls.
     fn authenticate_interactively(&self) -> anyhow::Result<()> {
@@ -275,6 +285,9 @@ complete in this terminal.",
                 .trim()
                 .to_string(),
         );
+        // Fresh session — pull the latest vault data before reading/writing,
+        // so a note edited elsewhere isn't missed by a stale local cache.
+        self.sync();
         Ok(())
     }
 
@@ -283,6 +296,12 @@ complete in this terminal.",
             return Ok(());
         }
 
+        // Covers the "already had a valid session" case (e.g. an exported
+        // BW_SESSION) - if we end up authenticating below instead, that
+        // path syncs again right after, once we know it's worth reporting
+        // a failure.
+        self.sync();
+
         let mut output = self.bw(&["get", "item", &self.note])?;
         if !output.status.success() || output.stdout.is_empty() {
             self.authenticate_interactively()
@@ -290,7 +309,25 @@ complete in this terminal.",
             output = self.bw(&["get", "item", &self.note])?;
         }
         if !output.status.success() || output.stdout.is_empty() {
-            output = self.create_note()?;
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            // Only auto-create on a genuine "doesn't exist yet" - anything
+            // else (ambiguous name match, permissions, ...) must surface as
+            // an error instead, or a lookup failure for any other reason
+            // would silently spawn a brand-new empty note, shadowing
+            // whatever real note/values you already had.
+            if stderr.trim() == "Not found." {
+                output = self.create_note()?;
+            } else {
+                anyhow::bail!(
+                    "`bw get item {}` failed: {}\nThis isn't a \"note doesn't exist yet\" \
+case, so dotr won't create a new note automatically - fix the underlying issue (e.g. \
+if multiple items are named '{}', rename or delete the extras so the name is unique) \
+and try again.",
+                    self.note,
+                    stderr.trim(),
+                    self.note
+                );
+            }
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);

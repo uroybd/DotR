@@ -53,10 +53,12 @@ prompt_backend = "bitwarden"  # overrides the repo-wide default for this profile
   also overridable per-profile the same way as `prompt_backend`) and
   created automatically the first time it's needed. If `bw` isn't logged
   in or the vault is locked, dotr drives `bw login`/`bw unlock`
-  interactively right there in your terminal, and locks the vault back up
-  when the command finishes — but only if *it* was the one that unlocked
-  it; a session you already had open (e.g. an exported `BW_SESSION`) is
-  left alone.
+  interactively right there in your terminal, syncs the latest vault data
+  down before reading or writing (so a note edited on another device or
+  the web vault isn't missed), and locks the vault back up when the
+  command finishes — but only if *it* was the one that unlocked it; a
+  session you already had open (e.g. an exported `BW_SESSION`) is left
+  alone.
 
 Whichever backend is active, the answer becomes a **user variable** — the
 highest-priority source in variable resolution, overriding profile,
