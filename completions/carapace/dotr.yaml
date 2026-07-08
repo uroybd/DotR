@@ -1,0 +1,211 @@
+# yaml-language-server: $schema=https://carapace.sh/schemas/command.json
+#
+# Carapace spec for dotr, providing dynamic completion of real package and
+# profile names (read live from config.toml via `dotr packages/profiles list
+# --plain`) in every shell carapace supports, including nushell.
+#
+# `dotr completions <shell>` already covers the static command tree for
+# bash/zsh/fish/elvish/powershell/nushell directly from dotr itself. This
+# spec is only needed when completions are routed through carapace and you
+# want --packages/--profile/positional package name completion to reflect
+# the actual repository contents instead of stopping at flag names.
+#
+# Install: copy (or symlink) this file into carapace's specs directory, e.g.
+#   macOS:  ~/Library/Application Support/carapace/specs/dotr.yaml
+#   Linux:  ~/.config/carapace/specs/dotr.yaml
+# `carapace --help` prints the exact path carapace is currently using.
+name: dotr
+description: A dotfiles manager as dear as a daughter.
+persistentflags:
+  -w, --working-dir=: Run as if invoked from this directory instead of the current one
+completion:
+  flag:
+    working-dir: ["$directories"]
+commands:
+  - name: init
+    description: Initialize a dotfiles repository in the working directory
+
+  - name: import
+    description: Copy a file or directory into the repository and register it as a package
+    flags:
+      -s, --symlink: Deploy as a symlink instead of a copy, and deploy immediately
+      -n, --name=: Override the auto-derived package name
+      -p, --profile=: Add the package to this profile's dependencies instead of default
+    completion:
+      positional:
+        - ["$files", "$directories"]
+      flag:
+        profile: ["$(dotr profiles list --plain)"]
+
+  - name: deploy
+    description: Deploy packages from the repository to their destinations
+    flags:
+      -p, --packages=: { description: "Deploy only these packages", nargs: -1 }
+      -P, --profile=: Use this profile instead of the resolved default
+      --ignore-errors: Keep deploying remaining packages if one fails
+      --clean=: Override the clean mode setting for this run
+      --dry-run: Preview without changing anything
+      --skip-actions: Skip both pre- and post-actions
+      --skip-pre-actions: Skip only pre-actions
+      --skip-post-actions: Skip only post-actions
+      --ignore-dependencies: Deploy only the named/selected packages, without pulling in dependencies
+    completion:
+      flag:
+        packages: ["$(dotr packages list --plain)"]
+        profile: ["$(dotr profiles list --plain)"]
+        clean: ["true", "false"]
+
+  - name: update
+    description: Copy changes from deployed files back into the repository
+    flags:
+      -p, --packages=: { description: "Update only these packages", nargs: -1 }
+      -P, --profile=: Use this profile instead of the resolved default
+      --ignore-errors: Keep updating remaining packages if one fails
+      --clean=: Override clean mode for this run
+      --dry-run: Preview without changing anything
+    completion:
+      flag:
+        packages: ["$(dotr packages list --plain)"]
+        profile: ["$(dotr profiles list --plain)"]
+        clean: ["true", "false"]
+
+  - name: diff
+    description: Show a colored, line-by-line diff between the repository and what's currently deployed
+    flags:
+      -p, --packages=: { description: "Diff only these packages", nargs: -1 }
+      -P, --profile=: Use this profile instead of the resolved default
+      --ignore-errors: Keep diffing remaining packages if one fails
+    completion:
+      flag:
+        packages: ["$(dotr packages list --plain)"]
+        profile: ["$(dotr profiles list --plain)"]
+
+  - name: remove
+    description: Remove one or more managed packages
+    flags:
+      -f, --force: Remove even if another package or profile still depends on it
+      --remove-orphans: Also remove dependencies that end up unreferenced after this removal
+      --dry-run: Preview what would be removed
+      -P, --profile=: Profile context for dependency checks
+    completion:
+      positionalany: ["$(dotr packages list --plain)"]
+      flag:
+        profile: ["$(dotr profiles list --plain)"]
+
+  - name: print-vars
+    description: Print every variable resolved for the given (or default) profile
+    flags:
+      -p, --profile=: Resolve variables for this profile
+    completion:
+      flag:
+        profile: ["$(dotr profiles list --plain)"]
+
+  - name: packages
+    description: Groups package-scoped commands under one namespace
+    flags:
+      -P, --profile=: Profile context for the packages subcommand
+    completion:
+      flag:
+        profile: ["$(dotr profiles list --plain)"]
+    commands:
+      - name: list
+        description: List all managed packages
+        flags:
+          -v, --verbose: Show detailed information for each package
+          --plain: Print only package names, one per line, with no other output
+
+      - name: import
+        description: Copy a file or directory into the repository and register it as a package
+        flags:
+          -s, --symlink: Deploy as a symlink instead of a copy, and deploy immediately
+          -n, --name=: Override the auto-derived package name
+          -p, --profile=: Add the package to this profile's dependencies instead of default
+        completion:
+          positional:
+            - ["$files", "$directories"]
+          flag:
+            profile: ["$(dotr profiles list --plain)"]
+
+      - name: deploy
+        description: Deploy packages from the repository to their destinations
+        flags:
+          -p, --packages=: { description: "Deploy only these packages", nargs: -1 }
+          -P, --profile=: Use this profile instead of the resolved default
+          --ignore-errors: Keep deploying remaining packages if one fails
+          --clean=: Override the clean mode setting for this run
+          --dry-run: Preview without changing anything
+          --skip-actions: Skip both pre- and post-actions
+          --skip-pre-actions: Skip only pre-actions
+          --skip-post-actions: Skip only post-actions
+          --ignore-dependencies: Deploy only the named/selected packages, without pulling in dependencies
+        completion:
+          flag:
+            packages: ["$(dotr packages list --plain)"]
+            profile: ["$(dotr profiles list --plain)"]
+            clean: ["true", "false"]
+
+      - name: update
+        description: Copy changes from deployed files back into the repository
+        flags:
+          -p, --packages=: { description: "Update only these packages", nargs: -1 }
+          -P, --profile=: Use this profile instead of the resolved default
+          --ignore-errors: Keep updating remaining packages if one fails
+          --clean=: Override clean mode for this run
+          --dry-run: Preview without changing anything
+        completion:
+          flag:
+            packages: ["$(dotr packages list --plain)"]
+            profile: ["$(dotr profiles list --plain)"]
+            clean: ["true", "false"]
+
+      - name: diff
+        description: Show a colored, line-by-line diff between the repository and what's currently deployed
+        flags:
+          -p, --packages=: { description: "Diff only these packages", nargs: -1 }
+          -P, --profile=: Use this profile instead of the resolved default
+          --ignore-errors: Keep diffing remaining packages if one fails
+        completion:
+          flag:
+            packages: ["$(dotr packages list --plain)"]
+            profile: ["$(dotr profiles list --plain)"]
+
+      - name: remove
+        description: Remove one or more managed packages
+        flags:
+          -f, --force: Remove even if another package or profile still depends on it
+          --remove-orphans: Also remove dependencies that end up unreferenced after this removal
+          --dry-run: Preview what would be removed
+          -P, --profile=: Profile context for dependency checks
+        completion:
+          positionalany: ["$(dotr packages list --plain)"]
+          flag:
+            profile: ["$(dotr profiles list --plain)"]
+
+  - name: profiles
+    description: Manage profiles (list, add, remove)
+    commands:
+      - name: list
+        description: List all profiles
+        flags:
+          -v, --verbose: Show detailed information for each profile
+          --plain: Print only profile names, one per line, with no other output
+
+      - name: add
+        description: Add a new profile
+        flags:
+          --set-as-current: Make this the default profile on this machine
+
+      - name: remove
+        description: Remove a profile
+        flags:
+          --dry-run: Preview what would be removed
+          --remove-orphans: Also remove packages that were only referenced by this profile
+        completion:
+          positional:
+            - ["$(dotr profiles list --plain)"]
+
+  - name: completions
+    description: Print a shell completion script to stdout
+    completion:
+      positional:
+        - [bash, zsh, fish, elvish, powershell, nushell]

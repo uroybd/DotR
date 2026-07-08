@@ -97,7 +97,7 @@ Groups package-scoped commands under one namespace. Each behaves the same
 as its top-level equivalent, plus `list`:
 
 ```
-dotr packages list [-v|--verbose]
+dotr packages list [-v|--verbose] [--plain]
 dotr packages import <IMPORT_PATH> [-s|--symlink] [-n|--name <NAME>] [-p|--profile <NAME>]
 dotr packages deploy [same flags as `dotr deploy`]
 dotr packages update [same flags as `dotr update`]
@@ -107,17 +107,24 @@ dotr packages remove [same flags as `dotr remove`]
 
 `dotr packages` itself also accepts `-P, --profile <NAME>` as context for
 its subcommands. `packages list --verbose` additionally prints each
-package's `src`, `dest`, dependencies, and other fields.
+package's `src`, `dest`, dependencies, and other fields. `packages list
+--plain` prints just the bare package names, one per line, with no banner
+and no other output — meant for scripting and shell completion (see
+[Shell completions](../getting-started/installation.md#shell-completions)).
+`--plain` and `--verbose` are mutually exclusive.
 
 ## `dotr profiles`
 
 Manage profiles — see [Profiles](../concepts/profiles.md).
 
 ```
-dotr profiles list [-v|--verbose]
+dotr profiles list [-v|--verbose] [--plain]
 dotr profiles add <PROFILE_NAME> [--set-as-current]
 dotr profiles remove <PROFILE_NAME> [--dry-run] [--remove-orphans]
 ```
+
+`profiles list --plain` behaves the same way as `packages list --plain`,
+printing bare profile names only.
 
 - `add --set-as-current` writes `DOTR_PROFILE` into `.uservariables.toml`,
   making the new profile the implicit default on this machine.

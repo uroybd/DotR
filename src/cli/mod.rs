@@ -278,12 +278,18 @@ pub enum PackagesCommand {
     name = "list",
     about = "List all managed packages.",
     long_about = "Lists every package currently tracked in config.toml. Use --verbose \
-to also show each package's source, destination, and other fields."
+to also show each package's source, destination, and other fields. Use --plain for a bare, \
+newline-separated list of names with no other output, suitable for scripting or shell \
+completion."
 )]
 pub struct PackagesListArgs {
     /// Show detailed information for each package.
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// Print only package names, one per line, with no other output.
+    #[arg(long, default_value_t = false, conflicts_with = "verbose")]
+    pub plain: bool,
 }
 
 #[derive(Debug, Args, Default)]
@@ -333,12 +339,17 @@ pub struct ProfileRemoveArgs {
     name = "list",
     about = "List all profiles.",
     long_about = "Lists every profile defined in config.toml. Use --verbose to also \
-show each profile's dependencies and variables."
+show each profile's dependencies and variables. Use --plain for a bare, newline-separated \
+list of names with no other output, suitable for scripting or shell completion."
 )]
 pub struct ProfilesListArgs {
     /// Show detailed information for each profile.
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// Print only profile names, one per line, with no other output.
+    #[arg(long, default_value_t = false, conflicts_with = "verbose")]
+    pub plain: bool,
 }
 
 #[derive(Debug, Args, Default)]
@@ -385,34 +396,35 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             println!("Configuration initialized successfully.");
         }
         Some(Command::Import(args)) => {
-            let (mut conf, ctx) = init_config(&working_dir, &args.profile, true)?;
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, true, true)?;
             conf.import_package(&args, &ctx)?;
         }
         Some(Command::Deploy(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.deploy_packages(&ctx, &args)?;
         }
         Some(Command::Update(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.backup_packages(&ctx, &args)?;
         }
         Some(Command::Diff(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.diff_packages(&ctx, &args)?;
         }
         Some(Command::PrintVars(args)) => {
-            let (_, ctx) = init_config(&working_dir, &args.profile, false)?;
+            let (_, ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.print_variables();
         }
         Some(Command::Remove(args)) => {
-            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false)?;
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false, true)?;
             conf.remove_packages(&args, &ctx)?;
         }
         Some(Command::Packages(args)) => {
-            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false)?;
+            let show_banner = !matches!(&args.command, Some(PackagesCommand::List(a)) if a.plain);
+            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false, show_banner)?;
             match args.command {
                 Some(PackagesCommand::List(args)) => {
                     conf.list_packages(&ctx, &args)?;
@@ -441,7 +453,8 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             }
         }
         Some(Command::Profiles(args)) => {
-            let (mut conf, mut ctx) = init_config(&working_dir, &None, false)?;
+            let show_banner = !matches!(&args.command, Some(ProfilesCommand::List(a)) if a.plain);
+            let (mut conf, mut ctx) = init_config(&working_dir, &None, false, show_banner)?;
             match args.command {
                 Some(ProfilesCommand::List(list_args)) => {
                     conf.list_profiles(&list_args)?;
@@ -511,9 +524,10 @@ fn init_config(
     working_dir: &Path,
     profile: &Option<String>,
     create_if_missing: bool,
+    show_banner: bool,
 ) -> anyhow::Result<(Config, Context)> {
     let mut conf = config::Config::from_path(working_dir)?;
-    if conf.banner {
+    if conf.banner && show_banner {
         println!("{}", BANNER);
     }
     let (ctx, profile_created) = Context::new(working_dir, &conf, profile, create_if_missing)?;

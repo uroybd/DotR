@@ -180,6 +180,89 @@ fn test_completions_include_nested_packages_and_profiles_subcommands() {
 }
 
 #[test]
+fn test_packages_and_profiles_list_plain_output_is_scriptable() {
+    let fixture = TestFixture::new();
+    let bin = env!("CARGO_BIN_EXE_dotr");
+    let cwd = fixture.cwd.to_str().unwrap();
+
+    let run = |args: &[&str]| {
+        let output = std::process::Command::new(bin)
+            .args(["-w", cwd])
+            .args(args)
+            .output()
+            .unwrap_or_else(|e| panic!("Failed to run dotr {:?}: {}", args, e));
+        assert!(
+            output.status.success(),
+            "dotr {:?} should succeed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("Output should be valid UTF-8")
+    };
+
+    run(&["init"]);
+    fixture.write_file("f1.txt", "one");
+    fixture.write_file("f2.txt", "two");
+    run(&["import", "f1.txt", "-n", "pkg-a"]);
+    run(&["import", "f2.txt", "-n", "pkg-b"]);
+    run(&["profiles", "add", "work"]);
+
+    let packages_plain = run(&["packages", "list", "--plain"]);
+    let mut package_lines: Vec<&str> = packages_plain.lines().collect();
+    package_lines.sort();
+    assert_eq!(
+        package_lines,
+        // Names get the usual `f_`/`d_` prefix and `-`-to-`_` sanitization.
+        vec!["f_pkg_a", "f_pkg_b"],
+        "packages list --plain should print exactly the package names, nothing else \
+(no banner, no decoration)"
+    );
+
+    let profiles_plain = run(&["profiles", "list", "--plain"]);
+    let mut profile_lines: Vec<&str> = profiles_plain.lines().collect();
+    profile_lines.sort();
+    assert_eq!(
+        profile_lines,
+        vec!["default", "work"],
+        "profiles list --plain should print exactly the profile names, nothing else"
+    );
+
+    // --plain and --verbose are mutually exclusive.
+    let conflict = std::process::Command::new(bin)
+        .args(["-w", cwd, "packages", "list", "--plain", "--verbose"])
+        .output()
+        .expect("Failed to run dotr packages list --plain --verbose");
+    assert!(
+        !conflict.status.success(),
+        "--plain and --verbose should conflict"
+    );
+}
+
+#[test]
+fn test_packages_list_plain_suppresses_banner_even_when_enabled() {
+    let fixture = TestFixture::new();
+    let bin = env!("CARGO_BIN_EXE_dotr");
+    let cwd = fixture.cwd.to_str().unwrap();
+
+    fixture.init();
+    let mut config = fixture.get_config();
+    config.banner = true;
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let output = std::process::Command::new(bin)
+        .args(["-w", cwd, "packages", "list", "--plain"])
+        .output()
+        .expect("Failed to run dotr packages list --plain");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("Output should be valid UTF-8");
+    assert!(
+        !stdout.contains('█'),
+        "--plain output must never include the banner, even when banner = true: {:?}",
+        stdout
+    );
+}
+
+#[test]
 fn test_import_creates_package() {
     let fixture = TestFixture::new();
 

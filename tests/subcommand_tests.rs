@@ -73,7 +73,10 @@ fn test_packages_list_empty() {
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
         profile: None,
-        command: Some(PackagesCommand::List(PackagesListArgs { verbose: false })),
+        command: Some(PackagesCommand::List(PackagesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -110,7 +113,10 @@ fn test_packages_list_with_packages() {
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
         profile: None,
-        command: Some(PackagesCommand::List(PackagesListArgs { verbose: false })),
+        command: Some(PackagesCommand::List(PackagesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -148,7 +154,10 @@ fn test_packages_list_verbose() {
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
         profile: None,
-        command: Some(PackagesCommand::List(PackagesListArgs { verbose: true })),
+        command: Some(PackagesCommand::List(PackagesListArgs {
+            verbose: true,
+            plain: false,
+        })),
     }))));
 
     if let Err(e) = &result {
@@ -179,7 +188,10 @@ fn test_packages_list_with_specific_profile() {
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
         profile: Some("test-profile".to_string()),
-        command: Some(PackagesCommand::List(PackagesListArgs { verbose: false })),
+        command: Some(PackagesCommand::List(PackagesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -210,7 +222,10 @@ fn test_packages_list_skipped_packages() {
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
         profile: None,
-        command: Some(PackagesCommand::List(PackagesListArgs { verbose: false })),
+        command: Some(PackagesCommand::List(PackagesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -227,7 +242,10 @@ fn test_profiles_list_empty() {
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
-        command: Some(ProfilesCommand::List(ProfilesListArgs { verbose: false })),
+        command: Some(ProfilesCommand::List(ProfilesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -249,7 +267,10 @@ fn test_profiles_list_with_profiles() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
-        command: Some(ProfilesCommand::List(ProfilesListArgs { verbose: false })),
+        command: Some(ProfilesCommand::List(ProfilesListArgs {
+            verbose: false,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());
@@ -276,7 +297,10 @@ fn test_profiles_list_verbose() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
-        command: Some(ProfilesCommand::List(ProfilesListArgs { verbose: true })),
+        command: Some(ProfilesCommand::List(ProfilesListArgs {
+            verbose: true,
+            plain: false,
+        })),
     }))));
 
     assert!(result.is_ok());

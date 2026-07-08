@@ -88,6 +88,36 @@ Completions cover every command, including the nested `dotr packages` and
 `dotr profiles` subcommands. See the
 [CLI reference](../reference/cli.md#dotr-completions-shell) for details.
 
+### Dynamic package/profile name completion (Carapace)
+
+The scripts above are static — they know every command and flag, but
+`--packages`/`--profile` values aren't completed with real names from your
+`config.toml`, since that would require shelling out to `dotr` at
+completion time.
+
+If you use [Carapace](https://carapace.sh) as your completion engine (it
+supports bash, zsh, fish, nushell, elvish, powershell, and more from one
+binary), DotR ships a [Carapace
+spec](https://github.com/uroybd/DotR/blob/main/completions/carapace/dotr.yaml)
+that adds real, live completion of package and profile names by calling
+`dotr packages list --plain` / `dotr profiles list --plain` under the hood.
+Install it by copying the file into Carapace's specs directory:
+
+```bash
+# macOS
+cp completions/carapace/dotr.yaml \
+  ~/Library/Application\ Support/carapace/specs/dotr.yaml
+
+# Linux
+cp completions/carapace/dotr.yaml ~/.config/carapace/specs/dotr.yaml
+```
+
+`carapace --help` prints the exact specs directory it's currently using if
+you're unsure. Once installed, `dotr deploy --packages <TAB>` (and the
+equivalent `--profile` flag, and `dotr remove <TAB>`) complete with the
+actual packages and profiles in the repository at your current working
+directory, in any shell Carapace runs your completions in.
+
 ## Verifying the install
 
 ```bash

@@ -334,7 +334,11 @@ impl Config {
 
     pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
         let packages = self.filter_packages(ctx, &None, false)?;
-        if packages.is_empty() {
+        if args.plain {
+            for pkg in packages.values() {
+                println!("{}", pkg.name);
+            }
+        } else if packages.is_empty() {
             cprintln("No packages found.", &LogLevel::Info);
         } else {
             for pkg in packages.values() {
@@ -360,7 +364,11 @@ impl Config {
     }
 
     pub fn list_profiles(&self, args: &crate::cli::ProfilesListArgs) -> anyhow::Result<()> {
-        if self.profiles.is_empty() {
+        if args.plain {
+            for profile in self.profiles.values() {
+                println!("{}", profile.name);
+            }
+        } else if self.profiles.is_empty() {
             cprintln("No profiles found.", &LogLevel::Info);
         } else {
             for profile in self.profiles.values() {
