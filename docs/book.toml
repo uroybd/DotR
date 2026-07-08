@@ -8,7 +8,7 @@ src = "src"
 [output.html]
 git-repository-url = "https://github.com/uroybd/DotR"
 edit-url-template = "https://github.com/uroybd/DotR/edit/main/docs/{path}"
-site-url = "/DotR/"
+site-url = "/"
 
 [output.html.search]
 enable = true

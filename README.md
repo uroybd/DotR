@@ -11,7 +11,7 @@
 
 A dotfiles manager that is as dear as a daughter.
 
-📖 **[Read the full documentation →](https://uroybd.github.io/DotR/)**
+📖 **[Read the full documentation →](https://dotr.utsob.me/)**
 
 ## ✨ Features
 
@@ -25,7 +25,7 @@ A dotfiles manager that is as dear as a daughter.
 - 🧹 **Clean mode** — deployed directories stay in sync, stray files get removed automatically
 - 🔍 **Diff & dry run** — preview every change before it happens
 
-Full details for all of the above are in the [documentation](https://uroybd.github.io/DotR/).
+Full details for all of the above are in the [documentation](https://dotr.utsob.me/).
 
 ## 📦 Installation
 
@@ -43,7 +43,7 @@ cargo install --git https://github.com/uroybd/DotR
 
 Pre-built binaries for macOS and Linux (glibc and musl, x86_64 and aarch64)
 are on the [releases page](https://github.com/uroybd/DotR/releases). See the
-[installation guide](https://uroybd.github.io/DotR/getting-started/installation.html)
+[installation guide](https://dotr.utsob.me/getting-started/installation.html)
 for details.
 
 ## 🚀 Quick Start
@@ -56,8 +56,8 @@ dotr diff                        # preview changes before deploying
 dotr update                      # pull local edits back into the repository
 ```
 
-See the [Quick Start guide](https://uroybd.github.io/DotR/getting-started/quick-start.html)
-for a complete walkthrough, and the [CLI reference](https://uroybd.github.io/DotR/reference/cli.html)
+See the [Quick Start guide](https://dotr.utsob.me/getting-started/quick-start.html)
+for a complete walkthrough, and the [CLI reference](https://dotr.utsob.me/reference/cli.html)
 for every command and flag.
 
 ## 🤝 Contributing
