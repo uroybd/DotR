@@ -92,13 +92,15 @@ impl Context {
         // `set` rewrites the whole file from its own in-memory cache.
         let file_store = FileStore::new(self.working_dir.clone(), self.user_variables.clone());
         let keychain_store = KeychainStore::new(&self.working_dir);
-        let bitwarden_store = BitwardenStore::new(
-            self.profile
-                .bitwarden_note
-                .clone()
-                .or_else(|| conf.bitwarden_note.clone())
-                .unwrap_or_else(|| DEFAULT_BITWARDEN_NOTE.to_string()),
-        );
+        let mut bitwarden_note_name = DEFAULT_BITWARDEN_NOTE.to_string();
+        if env::var("DOTR_BITWARDEN_NOTE").is_ok() {
+            bitwarden_note_name = env::var("DOTR_BITWARDEN_NOTE").unwrap();
+        } else if let Some(note) = &self.profile.bitwarden_note {
+            bitwarden_note_name = note.clone();
+        } else if let Some(note) = &conf.bitwarden_note {
+            bitwarden_note_name = note.clone();
+        }
+        let bitwarden_store = BitwardenStore::new(bitwarden_note_name);
 
         // Every resolved value, any backend, for templating this run. Only
         // file_store's own table (below) ever reaches .uservariables.toml.
