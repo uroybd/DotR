@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    env, fs,
     io::{self},
     path::{Path, PathBuf},
 };
@@ -15,6 +15,11 @@ use crate::{
 
 #[cfg(test)]
 mod tests;
+
+/// Machine-local override for the Bitwarden note name, checked as an env
+/// var first, then as a key in `.uservariables.toml` - same name either
+/// way, so it's one thing to remember.
+const BITWARDEN_NOTE_OVERRIDE_KEY: &str = "DOTR_BITWARDEN_NOTE";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
@@ -71,8 +76,7 @@ impl Context {
         writer: &mut W,
     ) -> Result<Table, anyhow::Error> {
         use crate::prompt_store::{
-            BitwardenStore, DEFAULT_BITWARDEN_NOTE, FileStore, KeychainStore, PromptBackend,
-            PromptStore,
+            BitwardenStore, FileStore, KeychainStore, PromptBackend, PromptStore,
         };
 
         // config -> profile -> package, later wins.
@@ -92,14 +96,12 @@ impl Context {
         // `set` rewrites the whole file from its own in-memory cache.
         let file_store = FileStore::new(self.working_dir.clone(), self.user_variables.clone());
         let keychain_store = KeychainStore::new(&self.working_dir);
-        let mut bitwarden_note_name = DEFAULT_BITWARDEN_NOTE.to_string();
-        if env::var("DOTR_BITWARDEN_NOTE").is_ok() {
-            bitwarden_note_name = env::var("DOTR_BITWARDEN_NOTE").unwrap();
-        } else if let Some(note) = &self.profile.bitwarden_note {
-            bitwarden_note_name = note.clone();
-        } else if let Some(note) = &conf.bitwarden_note {
-            bitwarden_note_name = note.clone();
-        }
+        let bitwarden_note_name = resolve_bitwarden_note(
+            env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
+            &self.user_variables,
+            self.profile.bitwarden_note.as_deref(),
+            conf.bitwarden_note.as_deref(),
+        );
         let bitwarden_store = BitwardenStore::new(bitwarden_note_name);
 
         // Every resolved value, any backend, for templating this run. Only
@@ -360,6 +362,30 @@ pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
             println!("{}{} = {:?}", indent, key, value);
         }
     }
+}
+
+/// env override -> .uservariables.toml override -> profile -> config ->
+/// built-in default. Pure and env-free by design (the caller passes the
+/// already-read env var in), so the precedence chain is directly testable
+/// without mutating process env.
+fn resolve_bitwarden_note(
+    env_override: Option<String>,
+    user_variables: &Table,
+    profile_note: Option<&str>,
+    config_note: Option<&str>,
+) -> String {
+    use crate::prompt_store::DEFAULT_BITWARDEN_NOTE;
+
+    env_override
+        .or_else(|| {
+            user_variables
+                .get(BITWARDEN_NOTE_OVERRIDE_KEY)
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        })
+        .or_else(|| profile_note.map(|s| s.to_string()))
+        .or_else(|| config_note.map(|s| s.to_string()))
+        .unwrap_or_else(|| DEFAULT_BITWARDEN_NOTE.to_string())
 }
 
 fn get_prompted_variables<R: io::BufRead, W: io::Write>(

@@ -60,6 +60,26 @@ prompt_backend = "bitwarden"  # overrides the repo-wide default for this profile
   session you already had open (e.g. an exported `BW_SESSION`) is left
   alone.
 
+### Machine-local override for `bitwarden_note`
+
+`bitwarden_note` (config- and profile-level) picks the note by policy —
+the same for every machine using that profile. But which note a given
+machine should use can differ even *within* the same profile — e.g. a
+personal note on your laptop vs. a work note on a work machine sharing
+the same `work` profile. For that, set `DOTR_BITWARDEN_NOTE` either as an
+environment variable, or as a key in `.uservariables.toml` (so it
+persists without exporting it every session — same idea as the
+[`DOTR_PROFILE` override](./profiles.md)):
+
+```toml
+# .uservariables.toml — gitignored, machine-local
+DOTR_BITWARDEN_NOTE = "my-work-laptop-secrets"
+```
+
+Resolution order, highest priority first: environment variable →
+`.uservariables.toml` → profile's `bitwarden_note` → config's
+`bitwarden_note` → built-in default `"dotr-secrets"`.
+
 Whichever backend is active, the answer becomes a **user variable** — the
 highest-priority source in variable resolution, overriding profile,
 package, environment, and config variables. See

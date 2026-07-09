@@ -1214,4 +1214,87 @@ BW_SECRET = "Enter a secret"
         };
         assert!(!contents.contains("BW_SECRET"));
     }
+
+    mod resolve_bitwarden_note_tests {
+        use crate::context::resolve_bitwarden_note;
+        use toml::Table;
+
+        #[test]
+        fn falls_back_to_default_when_nothing_set() {
+            assert_eq!(
+                resolve_bitwarden_note(None, &Table::new(), None, None),
+                "dotr-secrets"
+            );
+        }
+
+        #[test]
+        fn config_level_used_when_only_config_set() {
+            assert_eq!(
+                resolve_bitwarden_note(None, &Table::new(), None, Some("config-note")),
+                "config-note"
+            );
+        }
+
+        #[test]
+        fn profile_level_overrides_config_level() {
+            assert_eq!(
+                resolve_bitwarden_note(
+                    None,
+                    &Table::new(),
+                    Some("profile-note"),
+                    Some("config-note")
+                ),
+                "profile-note"
+            );
+        }
+
+        #[test]
+        fn uservariables_override_wins_over_profile_and_config() {
+            let mut user_variables = Table::new();
+            user_variables.insert(
+                "DOTR_BITWARDEN_NOTE".to_string(),
+                toml::Value::String("local-note".to_string()),
+            );
+
+            assert_eq!(
+                resolve_bitwarden_note(
+                    None,
+                    &user_variables,
+                    Some("profile-note"),
+                    Some("config-note")
+                ),
+                "local-note"
+            );
+        }
+
+        #[test]
+        fn env_override_wins_over_uservariables_override() {
+            let mut user_variables = Table::new();
+            user_variables.insert(
+                "DOTR_BITWARDEN_NOTE".to_string(),
+                toml::Value::String("local-note".to_string()),
+            );
+
+            assert_eq!(
+                resolve_bitwarden_note(
+                    Some("env-note".to_string()),
+                    &user_variables,
+                    Some("profile-note"),
+                    Some("config-note")
+                ),
+                "env-note"
+            );
+        }
+
+        #[test]
+        fn uservariables_key_with_non_string_value_is_ignored() {
+            let mut user_variables = Table::new();
+            user_variables.insert("DOTR_BITWARDEN_NOTE".to_string(), toml::Value::Integer(42));
+
+            assert_eq!(
+                resolve_bitwarden_note(None, &user_variables, Some("profile-note"), None),
+                "profile-note"
+            );
+        }
+    }
 }
