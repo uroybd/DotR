@@ -21,6 +21,8 @@ pub struct Profile {
     /// Overrides `Config.bitwarden_note` when this profile is active.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bitwarden_note: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
 }
 
 impl Profile {
@@ -32,6 +34,7 @@ impl Profile {
             prompts: HashMap::new(),
             prompt_backend: None,
             bitwarden_note: None,
+            platform: None,
         }
     }
 
@@ -54,6 +57,10 @@ impl Profile {
             .get("bitwarden_note")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
+        let platform = table
+            .get("platform")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
         Ok(Self {
             name: name.to_string(),
             variables,
@@ -61,6 +68,7 @@ impl Profile {
             prompts,
             prompt_backend,
             bitwarden_note,
+            platform,
         })
     }
 }

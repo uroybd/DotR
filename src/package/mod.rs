@@ -331,6 +331,11 @@ impl Package {
             Some(d) => d.clone(),
             None => self.dest.clone(),
         };
+        if ctx.profile.platform.is_some() {
+            if let Some(platform_dest) = self.targets.get(ctx.profile.platform.as_ref().unwrap()) {
+                dest = platform_dest.clone();
+            }
+        }
         dest = compile_string(&dest, &self.get_context_variables(ctx))?;
         resolve_path(&dest, &ctx.working_dir)
     }
