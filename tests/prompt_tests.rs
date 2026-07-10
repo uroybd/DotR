@@ -490,14 +490,7 @@ fn test_profile_level_prompts() {
 
     // Add profile with prompts
     let mut config = fixture.get_config();
-    let mut profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let mut profile = dotr_dear::profile::Profile::new("work");
     profile.prompts.insert(
         "WORK_EMAIL".to_string(),
         "Enter your work email".to_string(),
@@ -522,14 +515,7 @@ fn test_profile_multiple_prompts() {
 
     // Add profile with multiple prompts
     let mut config = fixture.get_config();
-    let mut profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let mut profile = dotr_dear::profile::Profile::new("work");
     profile.prompts.insert(
         "WORK_EMAIL".to_string(),
         "Enter your work email".to_string(),
@@ -574,14 +560,7 @@ fn test_package_and_profile_prompts_together() {
     config.packages.insert("f_test".to_string(), package);
 
     // Add profile with prompts
-    let mut profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let mut profile = dotr_dear::profile::Profile::new("work");
     profile.prompts.insert(
         "PROFILE_VAR".to_string(),
         "Enter profile variable".to_string(),
@@ -642,14 +621,7 @@ fn test_profile_prompts_do_not_interfere_with_variables() {
 
     // Add profile with both prompts and variables
     let mut config = fixture.get_config();
-    let mut profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let mut profile = dotr_dear::profile::Profile::new("work");
     profile.variables.insert(
         "STATIC_VAR".to_string(),
         toml::Value::String("static_value".to_string()),
@@ -702,14 +674,7 @@ fn test_empty_profile_prompts() {
 
     // Add profile without prompts
     let mut config = fixture.get_config();
-    let profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let profile = dotr_dear::profile::Profile::new("work");
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
@@ -750,14 +715,7 @@ fn test_three_level_prompts_hierarchy() {
     config.packages.insert("f_test".to_string(), package);
 
     // Add profile with prompt
-    let mut profile = dotr_dear::profile::Profile {
-        name: "work".to_string(),
-        variables: toml::Table::new(),
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
-    };
+    let mut profile = dotr_dear::profile::Profile::new("work");
     profile.prompts.insert(
         "PROFILE_VAR".to_string(),
         "Enter profile variable".to_string(),

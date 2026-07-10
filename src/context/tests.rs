@@ -852,11 +852,8 @@ USER_NAME = "Enter your name"
 
         let profile = Profile {
             name: "work".to_string(),
-            variables: toml::Table::new(),
-            dependencies: vec![],
             prompts: profile_prompts,
-            prompt_backend: None,
-            bitwarden_note: None,
+            ..Default::default()
         };
 
         ctx.set_profile(profile);

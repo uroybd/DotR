@@ -40,7 +40,7 @@ with `f_`), or you can set it explicitly with `--name`.
 | `variables`    | table                 | Package-scoped variables — see [Variables](./variables.md)              |
 | `pre_actions`  | list of strings       | Shell commands run before deploying — see [Actions](./actions.md)       |
 | `post_actions` | list of strings       | Shell commands run after deploying — see [Actions](./actions.md)        |
-| `targets`      | table (profile → path)| Per-profile destination override, see below                             |
+| `targets`      | table (profile/platform → path)| Per-profile (or per-platform) destination override, see below  |
 | `skip`         | bool                  | If `true`, excluded from profile-driven deploys (see below)             |
 | `prompts`      | table                 | Package-scoped prompts — see [Prompts](./prompts.md)                    |
 | `ignore`       | list of glob patterns | Files to exclude from deployment/cleaning — see [Ignoring Files](./ignoring-files.md) |
@@ -64,6 +64,28 @@ work = "~/.gitconfig-work"
 When the `work` profile is active, `gitconfig` deploys to
 `~/.gitconfig-work` instead of the default `dest`. Any profile not listed in
 `targets` falls back to `dest`.
+
+### Sharing a target across profiles by platform
+
+`targets` can also be keyed by a profile's
+[`platform`](./profiles.md) value instead of its name, so multiple profiles
+that set the same `platform` share one override without repeating it under
+each profile's own name:
+
+```toml
+[profiles.home]
+platform = "macos"
+
+[profiles.work]
+platform = "macos"
+
+[packages.gitconfig.targets]
+macos = "~/.gitconfig-mac"
+```
+
+Both `home` and `work` deploy `gitconfig` to `~/.gitconfig-mac`. If a
+package's `targets` has entries for both a profile's own name *and* its
+platform, the profile-name entry wins — it's the more specific override.
 
 ## Skipping a package by default (`skip`)
 

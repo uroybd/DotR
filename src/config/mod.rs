@@ -395,6 +395,9 @@ impl Config {
                     if let Some(backend) = profile.prompt_backend {
                         println!("    Prompt backend: {}", backend.as_str());
                     }
+                    if let Some(platform) = &profile.platform {
+                        println!("    Platform: {}", platform);
+                    }
                     if !profile.prompts.is_empty() {
                         println!("    Prompts:");
                         for (var, prompt) in profile.prompts.iter() {

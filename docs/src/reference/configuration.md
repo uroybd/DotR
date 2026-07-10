@@ -103,7 +103,7 @@ NVIM_TOKEN = "Enter your plugin registry token"
 | `variables`    | table                    | `{}`    | Package-scoped variables — [Variables](../concepts/variables.md). |
 | `pre_actions`  | list of strings          | `[]`    | Shell commands run before deploy — [Actions](../concepts/actions.md). |
 | `post_actions` | list of strings          | `[]`    | Shell commands run after deploy — [Actions](../concepts/actions.md). |
-| `targets`      | table (profile → path)   | `{}`    | Per-profile destination override — [Packages](../concepts/packages.md#per-profile-destinations-targets). |
+| `targets`      | table (profile/platform → path) | `{}` | Per-profile (or per-platform) destination override — [Packages](../concepts/packages.md#per-profile-destinations-targets). |
 | `skip`         | bool                     | `false` | Excluded from profile-driven (implicit) selection — [Packages](../concepts/packages.md#skipping-a-package-by-default-skip). |
 | `prompts`      | table                    | `{}`    | Package-scoped prompts — [Prompts](../concepts/prompts.md). |
 | `ignore`       | list of glob patterns    | `[]`    | Files excluded from deploy/clean — [Ignoring Files](../concepts/ignoring-files.md). |
@@ -117,6 +117,7 @@ NVIM_TOKEN = "Enter your plugin registry token"
 [profiles.work]
 dependencies = ["nvim", "git"]
 prompt_backend = "keychain"
+platform = "macos"
 
 [profiles.work.variables]
 GIT_EMAIL = "work@company.com"
@@ -132,6 +133,7 @@ WORK_TOKEN = "Enter your work VPN token"
 | `prompts`      | table           | `{}`    | Profile-scoped prompts — [Prompts](../concepts/prompts.md). |
 | `prompt_backend` | `"file"` \| `"keychain"` \| `"bitwarden"` | unset (follows the top-level `prompt_backend`) | Overrides the repo-wide default backend while this profile is active — [Prompts](../concepts/prompts.md#where-answers-go-backends). |
 | `bitwarden_note` | string          | unset (follows the top-level `bitwarden_note`) | Overrides which Bitwarden secure note this profile's `bitwarden`-backed prompts use — [Prompts](../concepts/prompts.md#where-answers-go-backends). Can itself be overridden per-machine via `DOTR_BITWARDEN_NOTE` — see [machine-local override](../concepts/prompts.md#machine-local-override-for-bitwarden_note). |
+| `platform`     | string          | unset           | Shares a package's `targets` destination with every other profile that sets the same value — [Packages](../concepts/packages.md#sharing-a-target-across-profiles-by-platform). |
 
 ## Other files DotR creates
 

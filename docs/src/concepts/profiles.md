@@ -48,6 +48,9 @@ which is created on the fly if missing).
 | `dependencies` | list of strings  | Packages deployed when this profile is active and no `--packages` is given |
 | `variables`    | table            | Profile-scoped variables — override package/config/env variables, see [Variables](./variables.md) |
 | `prompts`      | table            | Profile-scoped prompts — see [Prompts](./prompts.md)            |
+| `prompt_backend` | string         | Overrides the top-level `prompt_backend` when this profile is active — see [Prompts](./prompts.md#where-answers-go-backends) |
+| `bitwarden_note` | string         | Overrides the top-level `bitwarden_note` when this profile is active — see [Prompts](./prompts.md#machine-local-override-for-bitwarden_note) |
+| `platform`     | string           | Shares a package's [`targets`](./packages.md#per-profile-destinations-targets) destination with every other profile that sets the same value |
 
 ## How a profile decides which packages deploy
 

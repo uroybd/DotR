@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{
@@ -451,11 +451,8 @@ fn test_deploy_with_profile() {
 
     let profile = dotr_dear::profile::Profile {
         name: "work".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_app".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -734,11 +731,8 @@ fn test_profile_dependencies_deployment() {
     // Profile with only dep1 as dependency
     let profile = dotr_dear::profile::Profile {
         name: "minimal".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_dep1".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
     config.profiles.insert("minimal".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
@@ -1181,11 +1175,8 @@ fn test_dotr_profile_env_var_deploy() {
 
     let profile = dotr_dear::profile::Profile {
         name: "testenv".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_profile_test".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
 
     config
@@ -1232,11 +1223,8 @@ fn test_dotr_profile_env_var_update() {
 
     let profile = dotr_dear::profile::Profile {
         name: "updateenv".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_env_update".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
 
     config.packages.insert("f_env_update".to_string(), package);
@@ -1297,10 +1285,7 @@ fn test_dotr_profile_env_var_print_vars() {
     let profile = dotr_dear::profile::Profile {
         name: "printenv".to_string(),
         variables: profile_vars,
-        dependencies: vec![],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
 
     config.profiles.insert("printenv".to_string(), profile);
@@ -1336,20 +1321,14 @@ fn test_cli_profile_overrides_env_var() {
 
     let profile1 = dotr_dear::profile::Profile {
         name: "envprofile".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
 
     let profile2 = dotr_dear::profile::Profile {
         name: "cliprofile".to_string(),
-        variables: toml::Table::new(),
         dependencies: vec!["f_override".to_string()],
-        prompts: HashMap::new(),
-        prompt_backend: None,
-        bitwarden_note: None,
+        ..Default::default()
     };
 
     config.packages.insert("f_override".to_string(), package);

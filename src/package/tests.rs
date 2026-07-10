@@ -217,3 +217,170 @@ mod package_name_tests {
         std::fs::remove_dir_all(&temp_dir).ok();
     }
 }
+
+#[cfg(test)]
+mod resolve_dest_tests {
+    use crate::context::Context;
+    use crate::package::Package;
+    use crate::profile::Profile;
+    use std::env;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = env::temp_dir().join(format!("dotr_test_resolve_dest_{}", name));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn ctx_with_profile(working_dir: &std::path::Path, profile: Profile) -> Context {
+        let config = crate::config::Config::new();
+        let (mut ctx, _) = Context::new(working_dir, &config, &None, false).unwrap();
+        ctx.set_profile(profile);
+        ctx
+    }
+
+    #[test]
+    fn falls_back_to_dest_with_no_targets_or_platform() {
+        let dir = temp_dir("1");
+        let pkg = Package::new("pkg", "src", "/dest/default");
+        let ctx = ctx_with_profile(&dir, Profile::new("work"));
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/default"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn profile_name_keyed_target_is_used_when_platform_is_unset() {
+        let dir = temp_dir("2");
+        let mut pkg = Package::new("pkg", "src", "/dest/default");
+        pkg.targets
+            .insert("work".to_string(), "/dest/work".to_string());
+        let ctx = ctx_with_profile(&dir, Profile::new("work"));
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/work"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn platform_keyed_target_is_used_when_no_profile_name_match() {
+        let dir = temp_dir("3");
+        let mut pkg = Package::new("pkg", "src", "/dest/default");
+        pkg.targets
+            .insert("macos".to_string(), "/dest/macos".to_string());
+        let profile = Profile {
+            name: "work-laptop".to_string(),
+            platform: Some("macos".to_string()),
+            ..Default::default()
+        };
+        let ctx = ctx_with_profile(&dir, profile);
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/macos"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A profile-specific target is more specific than a platform-shared one,
+    /// so it must win even when both are defined for the same package -
+    /// otherwise there'd be no way to override the shared platform path for
+    /// just one profile.
+    #[test]
+    fn profile_name_target_takes_precedence_over_platform_target() {
+        let dir = temp_dir("4");
+        let mut pkg = Package::new("pkg", "src", "/dest/default");
+        pkg.targets
+            .insert("macos".to_string(), "/dest/macos-shared".to_string());
+        pkg.targets
+            .insert("work-laptop".to_string(), "/dest/work-only".to_string());
+        let profile = Profile {
+            name: "work-laptop".to_string(),
+            platform: Some("macos".to_string()),
+            ..Default::default()
+        };
+        let ctx = ctx_with_profile(&dir, profile);
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/work-only"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn falls_back_to_dest_when_platform_set_but_no_matching_target() {
+        let dir = temp_dir("5");
+        let pkg = Package::new("pkg", "src", "/dest/default");
+        let profile = Profile {
+            name: "work-laptop".to_string(),
+            platform: Some("macos".to_string()),
+            ..Default::default()
+        };
+        let ctx = ctx_with_profile(&dir, profile);
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/default"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Two different profiles sharing one platform both resolve to the same
+    /// platform-keyed target - the actual use case the `platform` field
+    /// exists for (sharing a destination across profiles without repeating
+    /// it under each profile's own name).
+    #[test]
+    fn two_profiles_sharing_a_platform_resolve_to_the_same_target() {
+        let dir = temp_dir("6");
+        let mut pkg = Package::new("pkg", "src", "/dest/default");
+        pkg.targets
+            .insert("linux".to_string(), "/dest/linux-shared".to_string());
+
+        let home_profile = Profile {
+            name: "home".to_string(),
+            platform: Some("linux".to_string()),
+            ..Default::default()
+        };
+        let work_profile = Profile {
+            name: "work".to_string(),
+            platform: Some("linux".to_string()),
+            ..Default::default()
+        };
+
+        let home_ctx = ctx_with_profile(&dir, home_profile);
+        let work_ctx = ctx_with_profile(&dir, work_profile);
+
+        assert_eq!(
+            pkg.resolve_dest(&home_ctx).unwrap(),
+            std::path::PathBuf::from("/dest/linux-shared")
+        );
+        assert_eq!(
+            pkg.resolve_dest(&work_ctx).unwrap(),
+            std::path::PathBuf::from("/dest/linux-shared")
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn platform_keyed_target_is_templated() {
+        let dir = temp_dir("7");
+        let mut pkg = Package::new("pkg", "src", "/dest/default");
+        pkg.targets
+            .insert("macos".to_string(), "{{ HOME_LABEL }}/target".to_string());
+        pkg.variables.insert(
+            "HOME_LABEL".to_string(),
+            toml::Value::String("/dest/rendered".to_string()),
+        );
+        let profile = Profile {
+            name: "work-laptop".to_string(),
+            platform: Some("macos".to_string()),
+            ..Default::default()
+        };
+        let ctx = ctx_with_profile(&dir, profile);
+
+        let resolved = pkg.resolve_dest(&ctx).unwrap();
+
+        assert_eq!(resolved, std::path::PathBuf::from("/dest/rendered/target"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

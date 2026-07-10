@@ -143,6 +143,10 @@
         "bitwarden_note": {
           "type": "string",
           "description": "Overrides the top-level bitwarden_note when this profile is active."
+        },
+        "platform": {
+          "type": "string",
+          "description": "Shares a package's per-profile `targets` destination with every other profile that sets the same platform value. A `targets` entry keyed by this profile's own name still takes precedence over one keyed by its platform."
         }
       }
     },

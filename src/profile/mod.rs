@@ -5,7 +5,7 @@ use toml::Table;
 use crate::prompt_store::PromptBackend;
 use crate::utils::{get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Profile {
     #[serde(skip)]
     pub name: String,
@@ -29,12 +29,7 @@ impl Profile {
     pub fn new(name: &str) -> Self {
         Profile {
             name: name.to_string(),
-            variables: Table::new(),
-            dependencies: Vec::new(),
-            prompts: HashMap::new(),
-            prompt_backend: None,
-            bitwarden_note: None,
-            platform: None,
+            ..Default::default()
         }
     }
 

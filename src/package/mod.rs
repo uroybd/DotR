@@ -326,17 +326,22 @@ impl Package {
         }
     }
 
+    /// Resolves this package's effective deployment path for the active
+    /// profile: an entry in `targets` keyed by the profile's own name wins
+    /// (most specific), then one keyed by the profile's `platform` (shared
+    /// across every profile with that platform), then the package's `dest`.
     pub fn resolve_dest(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
-        let mut dest = match self.targets.get(ctx.profile.name.as_str()) {
-            Some(d) => d.clone(),
-            None => self.dest.clone(),
-        };
-        if ctx.profile.platform.is_some() {
-            if let Some(platform_dest) = self.targets.get(ctx.profile.platform.as_ref().unwrap()) {
-                dest = platform_dest.clone();
-            }
-        }
-        dest = compile_string(&dest, &self.get_context_variables(ctx))?;
+        let dest = self
+            .targets
+            .get(ctx.profile.name.as_str())
+            .or_else(|| {
+                ctx.profile
+                    .platform
+                    .as_ref()
+                    .and_then(|platform| self.targets.get(platform.as_str()))
+            })
+            .unwrap_or(&self.dest);
+        let dest = compile_string(dest, &self.get_context_variables(ctx))?;
         resolve_path(&dest, &ctx.working_dir)
     }
 
