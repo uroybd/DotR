@@ -32,6 +32,24 @@ jobs:
       - name: Build
         run: mdbook build docs
 
+      - name: Generate sitemap
+        run: |
+          set -euo pipefail
+          domain="https://dotr.utsob.me"
+          sitemap="docs/book/sitemap.xml"
+          {
+            echo '<?xml version="1.0" encoding="UTF-8"?>'
+            echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            echo "  <url><loc>${domain}/</loc></url>"
+            find docs/book -name '*.html' \
+              ! -name 'index.html' ! -name '404.html' ! -name 'print.html' ! -name 'toc.html' \
+              | sed 's#^docs/book/##' | sort \
+              | while read -r path; do
+                  echo "  <url><loc>${domain}/${path}</loc></url>"
+                done
+            echo '</urlset>'
+          } > "$sitemap"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
