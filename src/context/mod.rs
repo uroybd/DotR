@@ -85,7 +85,7 @@ impl Context {
             prompts.insert(key.clone(), prompt.clone());
         }
         if let Ok(filtered_packages) = conf.filter_packages(self, packages, false) {
-            for (_, package) in filtered_packages.iter() {
+            for package in filtered_packages.values() {
                 for (key, prompt) in package.prompts.iter() {
                     prompts.insert(key.clone(), prompt.clone());
                 }
