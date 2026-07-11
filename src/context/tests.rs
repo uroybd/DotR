@@ -1272,8 +1272,11 @@ BW_SECRET = "Enter a secret"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
 
-        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
-            .expect("Failed to write .uservariables.toml");
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"DOTR_PROFILE = "default""#,
+        )
+        .expect("Failed to write .uservariables.toml");
 
         let (ctx, _) =
             Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
@@ -1350,8 +1353,11 @@ dependencies = []
         .unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
 
-        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
-            .expect("Failed to write .uservariables.toml");
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"DOTR_PROFILE = "default""#,
+        )
+        .expect("Failed to write .uservariables.toml");
 
         let (ctx, _) = Context::new(&temp_dir, &config, &Some("work".to_string()), false)
             .expect("Failed to create context");
@@ -1367,8 +1373,11 @@ dependencies = []
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
 
-        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
-            .expect("Failed to write .uservariables.toml");
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"DOTR_PROFILE = "default""#,
+        )
+        .expect("Failed to write .uservariables.toml");
 
         // SAFETY: single-threaded within this test; restored immediately
         // after constructing the context.
