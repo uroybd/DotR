@@ -12,9 +12,13 @@ Variables come from five places:
 - **Package-level** — `[packages.<name>.variables]`, scoped to that package.
 - **Profile-level** — `[profiles.<name>.variables]`, active only when that
   profile is selected.
-- **User variables** — answers to [prompts](./prompts.md), saved to the
-  gitignored `.uservariables.toml` so secrets never end up in the
-  repository.
+- **User variables** — everything in the gitignored `.uservariables.toml`:
+  values you add there by hand, plus answers to
+  [prompts](./prompts.md) that use the `file` backend. Prompted answers
+  from the `keychain`/`bitwarden` backends are resolved into user
+  variables too, at the same priority, but stored elsewhere and never
+  written into this file — see
+  [Prompts § Where answers go](./prompts.md#where-answers-go-backends).
 
 `DOTR_PROFILE` and `DOTR_BITWARDEN_NOTE` are a special case: whichever
 value wins during [profile](./profiles.md#selecting-a-profile) or
@@ -67,19 +71,18 @@ debugging why a template rendered the way it did.
 
 ## `.uservariables.toml`
 
-Created automatically the first time a [prompt](./prompts.md) is answered,
-and listed in `.gitignore` by `dotr init`. It's the right place for
-secrets — API tokens, personal emails, machine-specific paths — that
-shouldn't be committed to the dotfiles repository.
+The gitignored (by `dotr init`), machine-local home for anything that
+shouldn't be committed to the repository — secrets, personal emails,
+machine-specific paths. Every key in it becomes a user variable, whether
+you typed it in yourself or it's a saved prompt answer:
 
-> **Changed in 2.0:** a key in `.uservariables.toml` only applies if it
-> matches a declared `[prompts]` entry (config-, profile-, or
-> package-level). Before 2.0, any key you hand-added here would apply
-> regardless. If a value you added manually stopped taking effect after
-> upgrading, add a matching prompt entry for it — the existing value is
-> picked up automatically, without re-prompting:
->
-> ```toml
-> [prompts]
-> MY_KEY = "Enter MY_KEY"
-> ```
+```toml
+# .uservariables.toml — edit freely, no [prompts] entry required
+EDITOR_OVERRIDE = "hx"
+```
+
+Answers to [prompts](./prompts.md) only land here for the `file` backend
+(the default). With `keychain` or `bitwarden` configured, an answer is
+stored in that backend instead and never appears in this file in
+plaintext — but it still resolves into a user variable at the same
+priority, so templates and `dotr print-vars` see it either way.

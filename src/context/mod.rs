@@ -216,22 +216,19 @@ impl Context {
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
         }
-        // .uservariables.toml is always plaintext on disk regardless of the
-        // configured backend, so DOTR_PROFILE / DOTR_BITWARDEN_NOTE
-        // overrides live here specifically - profile (and therefore
-        // backend) selection needs to read them before it knows which
-        // backend to ask. Folded into `variables` as a fallback tier (not
-        // `user_variables` - these are bootstrap settings, not prompted
-        // secrets), so profile resolution and `get_backend`'s Bitwarden
-        // note resolution can both read them from `self.variables` from
-        // here on, without re-parsing the file. `user_variables` itself
-        // always starts empty and is resolved lazily through the
-        // designated backend, inside `get_prompted_variables_with_io` -
-        // every caller asks for it explicitly before reading user
-        // variables (see `get_prompted_variables` call sites in
-        // `cli/mod.rs`), so there's nothing to eagerly load there, and
-        // `Context::new` (run for every command) never touches Keychain or
-        // triggers a Bitwarden unlock on its own.
+        // .uservariables.toml is always plaintext on disk, regardless of
+        // the configured backend - reading it is always cheap and never
+        // touches Keychain or triggers a Bitwarden unlock, unlike actually
+        // constructing those backends (which stays lazy, deferred to
+        // `get_prompted_variables_with_io`). So the whole file becomes
+        // `user_variables` unconditionally here: users can define any
+        // variable in it directly (not just answers to declared prompts),
+        // same as before - it's only *prompted* variables that route to
+        // whichever backend is configured instead of landing here when
+        // that backend isn't `file`. DOTR_PROFILE / DOTR_BITWARDEN_NOTE
+        // bootstrap overrides are also read from here, since profile (and
+        // therefore backend) selection needs them before it knows which
+        // backend to ask.
         let raw_user_variables = Self::parse_uservariables(working_dir)?;
         // DOTR_PROFILE: the file wins over the environment if both are set,
         // for *resolving* which profile is active below - `variables` gets
@@ -271,7 +268,7 @@ impl Context {
             Self {
                 working_dir: working_dir.to_path_buf(),
                 variables,
-                user_variables: Table::new(),
+                user_variables: raw_user_variables,
                 profile,
                 symlink: conf.symlink,
             },

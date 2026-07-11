@@ -1281,14 +1281,20 @@ BW_SECRET = "Enter a secret"
         let (ctx, _) =
             Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
-        // The bootstrap override is a fallback variable, not a user
-        // variable - it's visible generally, not gated behind an explicit
-        // `get_prompted_variables` call.
+        // The resolved profile is always folded into `variables` as a
+        // fallback (see below), independent of whatever's in the file -
+        // but since the whole file also loads into `user_variables`
+        // unconditionally, an explicit `DOTR_PROFILE` entry shows up
+        // there too (it's a real, ordinary key in the file, from
+        // `user_variables`'s perspective).
         assert_eq!(
             ctx.get_variable("DOTR_PROFILE"),
             Some(&toml::Value::String("default".to_string()))
         );
-        assert_eq!(ctx.get_user_variable("DOTR_PROFILE"), None);
+        assert_eq!(
+            ctx.get_user_variable("DOTR_PROFILE"),
+            Some(&toml::Value::String("default".to_string()))
+        );
     }
 
     #[test]
@@ -1309,7 +1315,10 @@ BW_SECRET = "Enter a secret"
             ctx.get_variable("DOTR_BITWARDEN_NOTE"),
             Some(&toml::Value::String("custom-note".to_string()))
         );
-        assert_eq!(ctx.get_user_variable("DOTR_BITWARDEN_NOTE"), None);
+        assert_eq!(
+            ctx.get_user_variable("DOTR_BITWARDEN_NOTE"),
+            Some(&toml::Value::String("custom-note".to_string()))
+        );
     }
 
     #[test]
