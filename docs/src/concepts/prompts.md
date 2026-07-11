@@ -4,6 +4,10 @@ Prompts ask for a value interactively the first time it's needed, then
 remember the answer — so secrets and machine-specific values never have to
 be hard-coded in `config.toml`.
 
+> **Changed in 2.0:** hand-editing `.uservariables.toml` with a key that
+> has no matching `[prompts]` entry no longer has any effect — see
+> [the note in Variables](./variables.md#uservariablestoml).
+
 ```toml
 # Config-level (global)
 [prompts]

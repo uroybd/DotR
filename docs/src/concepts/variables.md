@@ -64,3 +64,15 @@ Created automatically the first time a [prompt](./prompts.md) is answered,
 and listed in `.gitignore` by `dotr init`. It's the right place for
 secrets — API tokens, personal emails, machine-specific paths — that
 shouldn't be committed to the dotfiles repository.
+
+> **Changed in 2.0:** a key in `.uservariables.toml` only applies if it
+> matches a declared `[prompts]` entry (config-, profile-, or
+> package-level). Before 2.0, any key you hand-added here would apply
+> regardless. If a value you added manually stopped taking effect after
+> upgrading, add a matching prompt entry for it — the existing value is
+> picked up automatically, without re-prompting:
+>
+> ```toml
+> [prompts]
+> MY_KEY = "Enter MY_KEY"
+> ```
