@@ -25,8 +25,12 @@ Each entry maps a variable name to the message shown when prompting for it.
 ## When prompts run
 
 Prompts are collected — from config-level, the active profile, and every
-package being operated on — and checked before `deploy`, `update`, and
-`diff`. Any key not already present in `.uservariables.toml` triggers an
+package being operated on — and checked before any command that reads
+variables: `deploy`, `update`, `diff`, `import` (including `packages
+import`), `packages list`, `print-vars`, and `dump-user-vars` — plus their
+`packages` equivalents. `remove` and the `profiles` commands never touch
+prompts, since neither reads variables. Any key not already answered (via
+whichever [backend](#where-answers-go-backends) is configured) triggers an
 interactive prompt; the rest are skipped silently.
 
 ## Where answers go: backends
