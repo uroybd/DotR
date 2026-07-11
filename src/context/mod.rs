@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env, fs,
     io::{self},
     path::{Path, PathBuf},
@@ -10,6 +11,7 @@ use toml::Table;
 use crate::{
     config::Config,
     profile::Profile,
+    prompt_store,
     utils::{LogLevel, cprintln},
 };
 
@@ -28,6 +30,12 @@ pub struct Context {
     user_variables: Table,
     pub profile: Profile,
     pub symlink: bool,
+    /// A backend's `get_session()` snapshot, round-tripped through
+    /// `get_backend` so a `bw unlock` session survives across the
+    /// per-call backend reconstructions in this `Context`'s lifetime.
+    /// Skipped from `Serialize` since it can carry a live credential.
+    #[serde(skip)]
+    session: Option<Table>,
 }
 
 impl Context {
@@ -68,6 +76,55 @@ impl Context {
         Ok(())
     }
 
+    fn get_backend(
+        profile: &Profile,
+        conf: &Config,
+        user_variables: &Table,
+        session: Option<&Table>,
+    ) -> Box<dyn prompt_store::PromptStoreBackend> {
+        let backend_type = profile
+            .prompt_backend
+            .or(conf.prompt_backend)
+            .unwrap_or_default();
+        let mut backend: Box<dyn prompt_store::PromptStoreBackend> = match backend_type {
+            prompt_store::PromptBackendType::File => Box::new(prompt_store::FileStore::new()),
+            prompt_store::PromptBackendType::Keychain => {
+                Box::new(prompt_store::KeychainStore::new())
+            }
+            prompt_store::PromptBackendType::Bitwarden => {
+                let note = resolve_bitwarden_note(
+                    env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
+                    user_variables,
+                    profile.bitwarden_note.as_deref(),
+                    conf.bitwarden_note.as_deref(),
+                );
+                Box::new(prompt_store::BitwardenStore::new(note))
+            }
+        };
+        backend.set_session(session.cloned());
+        backend
+    }
+
+    pub fn get_prompts(
+        profile: &Profile,
+        conf: &Config,
+        packages: &Option<Vec<String>>,
+    ) -> HashMap<String, String> {
+        // config -> profile -> package, later wins.
+        let mut prompts = conf.prompts.clone();
+        for (key, prompt) in profile.prompts.iter() {
+            prompts.insert(key.clone(), prompt.clone());
+        }
+        if let Ok(filtered_packages) = conf.filter_packages(profile, packages, false) {
+            for package in filtered_packages.values() {
+                for (key, prompt) in package.prompts.iter() {
+                    prompts.insert(key.clone(), prompt.clone());
+                }
+            }
+        }
+        prompts
+    }
+
     pub(crate) fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
         &mut self,
         conf: &Config,
@@ -75,113 +132,41 @@ impl Context {
         reader: &mut R,
         writer: &mut W,
     ) -> Result<Table, anyhow::Error> {
-        use crate::prompt_store::{
-            BitwardenStore, FileStore, KeychainStore, PromptBackend, PromptStore,
-        };
-
         // config -> profile -> package, later wins.
-        let mut prompts = conf.prompts.clone();
-        for (key, prompt) in self.profile.prompts.iter() {
-            prompts.insert(key.clone(), prompt.clone());
-        }
-        if let Ok(filtered_packages) = conf.filter_packages(self, packages, false) {
-            for package in filtered_packages.values() {
-                for (key, prompt) in package.prompts.iter() {
-                    prompts.insert(key.clone(), prompt.clone());
+        let prompts = Self::get_prompts(&self.profile, conf, packages);
+        let missing = prompts
+            .iter()
+            .filter(|(key, _)| !self.user_variables.contains_key(*key));
+        let mut store = self.user_variables.clone();
+        let mut dirty = false;
+
+        for (key, message) in missing {
+            match get_prompted_variables(message, &mut *reader, &mut *writer) {
+                Ok(input) => {
+                    store.insert(key.clone(), toml::Value::String(input));
+                    dirty = true;
                 }
-            }
-        }
-
-        // Built once, reused per key — file_store especially, since each
-        // `set` rewrites the whole file from its own in-memory cache.
-        let file_store = FileStore::new(self.working_dir.clone(), self.user_variables.clone());
-        let keychain_store = KeychainStore::new(&self.working_dir);
-        let bitwarden_note_name = resolve_bitwarden_note(
-            env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
-            &self.user_variables,
-            self.profile.bitwarden_note.as_deref(),
-            conf.bitwarden_note.as_deref(),
-        );
-        let bitwarden_store = BitwardenStore::new(bitwarden_note_name);
-
-        // Every resolved value, any backend, for templating this run. Only
-        // file_store's own table (below) ever reaches .uservariables.toml.
-        let mut resolved = self.user_variables.clone();
-
-        // The active profile's default backend wins; else the repo's;
-        // else `File`. This is a policy choice, not a per-prompt one.
-        let backend = self
-            .profile
-            .prompt_backend
-            .or(conf.prompt_backend)
-            .unwrap_or_default();
-        let store: &dyn PromptStore = match backend {
-            PromptBackend::File => &file_store,
-            PromptBackend::Keychain => &keychain_store,
-            PromptBackend::Bitwarden => &bitwarden_store,
-        };
-
-        for (key, message) in prompts.iter() {
-            if resolved.contains_key(key) {
-                continue;
-            }
-
-            let existing = match store.get(key) {
-                Ok(existing) => existing,
                 Err(e) => {
                     cprintln(
-                        &format!(
-                            "Error reading prompted variable '{}' from the {} backend: {}",
-                            key,
-                            backend.as_str(),
-                            e
-                        ),
+                        &format!("Error getting prompted variable '{}': {}", key, e),
                         &LogLevel::Warning,
                     );
-                    continue;
                 }
-            };
-
-            let value = match existing {
-                Some(value) => value,
-                None => match get_prompted_variables(message, &mut *reader, &mut *writer) {
-                    Ok(input) => {
-                        // File keeps its historical untrimmed value for
-                        // backward compatibility; other backends trim,
-                        // since a stray newline would break a real secret.
-                        let value = if backend == PromptBackend::File {
-                            input
-                        } else {
-                            input.trim().to_string()
-                        };
-                        if let Err(e) = store.set(key, &value) {
-                            cprintln(
-                                &format!(
-                                    "Error saving prompted variable '{}' to the {} backend: {}",
-                                    key,
-                                    backend.as_str(),
-                                    e
-                                ),
-                                &LogLevel::Warning,
-                            );
-                            continue;
-                        }
-                        value
-                    }
-                    Err(e) => {
-                        cprintln(
-                            &format!("Error getting prompted variable '{}': {}", key, e),
-                            &LogLevel::Warning,
-                        );
-                        continue;
-                    }
-                },
-            };
-            resolved.insert(key.clone(), toml::Value::String(value));
+            }
         }
 
-        self.user_variables = file_store.into_table();
-        Ok(resolved)
+        if dirty {
+            let mut backend = Self::get_backend(
+                &self.profile,
+                conf,
+                &self.user_variables,
+                self.session.as_ref(),
+            );
+            backend.save(&self.working_dir, &store)?;
+            self.session = backend.get_session();
+            self.user_variables = store.clone();
+        }
+        Ok(store)
     }
 
     pub fn save_to_uservariables(
@@ -219,22 +204,34 @@ impl Context {
         working_dir: &Path,
         conf: &Config,
         profile_name: &Option<String>,
+        packages: &Option<Vec<String>>,
         create_profile_if_missing: bool,
     ) -> Result<(Self, bool), anyhow::Error> {
         let mut variables = conf.variables.clone();
         for (key, value) in std::env::vars() {
             variables.insert(key, toml::Value::String(value));
         }
-        // User variables file must parse correctly if it exists
-        let user_variables = Self::parse_uservariables(working_dir)?;
+        // .uservariables.toml is always plaintext on disk regardless of the
+        // configured backend, so DOTR_PROFILE / DOTR_BITWARDEN_NOTE
+        // overrides live here specifically - profile (and therefore
+        // backend) selection needs to read them before it knows which
+        // backend to ask.
+        let raw_user_variables = Self::parse_uservariables(working_dir)?;
         let mut all_variables = variables.clone();
-        all_variables.extend(user_variables.clone());
+        all_variables.extend(raw_user_variables.clone());
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
             create_profile_if_missing,
             &all_variables,
         )?;
+        let prompt_keys = Self::get_prompts(&profile, conf, packages)
+            .keys()
+            .cloned()
+            .collect::<Vec<String>>();
+        let mut backend = Self::get_backend(&profile, conf, &raw_user_variables, None);
+        let user_variables = backend.get(working_dir, &prompt_keys)?;
+        let session = backend.get_session();
         Ok((
             Self {
                 working_dir: working_dir.to_path_buf(),
@@ -242,6 +239,7 @@ impl Context {
                 user_variables,
                 profile,
                 symlink: conf.symlink,
+                session,
             },
             created,
         ))

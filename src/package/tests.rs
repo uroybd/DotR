@@ -233,7 +233,7 @@ mod resolve_dest_tests {
 
     fn ctx_with_profile(working_dir: &std::path::Path, profile: Profile) -> Context {
         let config = crate::config::Config::new();
-        let (mut ctx, _) = Context::new(working_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(working_dir, &config, &None, &None, false).unwrap();
         ctx.set_profile(profile);
         ctx
     }

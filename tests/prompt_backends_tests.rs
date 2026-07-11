@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use dotr_dear::{
     cli::{InitArgs, run_cli},
     config::Config,
-    prompt_store::PromptBackend,
+    prompt_store::PromptBackendType,
 };
 
 mod common;
@@ -72,11 +72,11 @@ fn test_config_level_prompt_backend_round_trips() {
     fixture.init();
 
     let mut config = fixture.get_config();
-    config.prompt_backend = Some(PromptBackend::Keychain);
+    config.prompt_backend = Some(PromptBackendType::Keychain);
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let reloaded = fixture.get_config();
-    assert_eq!(reloaded.prompt_backend, Some(PromptBackend::Keychain));
+    assert_eq!(reloaded.prompt_backend, Some(PromptBackendType::Keychain));
 
     let raw = fs::read_to_string(fixture.cwd.join("config.toml")).unwrap();
     assert!(raw.contains("prompt_backend = \"keychain\""));
@@ -89,13 +89,13 @@ fn test_profile_level_prompt_backend_round_trips() {
 
     let mut config = fixture.get_config();
     let mut profile = dotr_dear::profile::Profile::new("work");
-    profile.prompt_backend = Some(PromptBackend::Bitwarden);
+    profile.prompt_backend = Some(PromptBackendType::Bitwarden);
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let reloaded = fixture.get_config();
     let profile = reloaded.profiles.get("work").unwrap();
-    assert_eq!(profile.prompt_backend, Some(PromptBackend::Bitwarden));
+    assert_eq!(profile.prompt_backend, Some(PromptBackendType::Bitwarden));
 }
 
 #[test]

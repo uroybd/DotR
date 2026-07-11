@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use toml::Table;
 
-use crate::prompt_store::PromptBackend;
+use crate::prompt_store::PromptBackendType;
 use crate::utils::{get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct Profile {
     /// Default backend for this profile's prompts. Overrides
     /// `Config.prompt_backend` when this profile is active.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub prompt_backend: Option<PromptBackend>,
+    pub prompt_backend: Option<PromptBackendType>,
     /// Overrides `Config.bitwarden_note` when this profile is active.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bitwarden_note: Option<String>,
@@ -46,7 +46,7 @@ impl Profile {
         let prompt_backend = table
             .get("prompt_backend")
             .and_then(|v| v.as_str())
-            .map(PromptBackend::parse)
+            .map(PromptBackendType::parse)
             .transpose()?;
         let bitwarden_note = table
             .get("bitwarden_note")

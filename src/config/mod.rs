@@ -41,7 +41,7 @@ pub struct Config {
     /// Repo-wide default backend for every prompt. A profile's own
     /// `prompt_backend` overrides this when that profile is active.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prompt_backend: Option<crate::prompt_store::PromptBackend>,
+    pub prompt_backend: Option<crate::prompt_store::PromptBackendType>,
 }
 
 pub(crate) enum OpType {
@@ -109,7 +109,7 @@ impl Config {
         let prompt_backend = table
             .get("prompt_backend")
             .and_then(|v| v.as_str())
-            .map(crate::prompt_store::PromptBackend::parse)
+            .map(crate::prompt_store::PromptBackendType::parse)
             .transpose()?;
         Ok(Self {
             banner: table
@@ -179,7 +179,7 @@ impl Config {
 
     pub fn filter_packages(
         &self,
-        ctx: &Context,
+        ctx: &Profile,
         names: &Option<Vec<String>>,
         ignore_dependencies: bool,
     ) -> anyhow::Result<HashMap<String, Package>> {
@@ -193,17 +193,13 @@ impl Config {
                 }
             }
         } else {
-            for dep in &ctx.profile.dependencies {
+            for dep in &ctx.dependencies {
                 if let Some(pkg) = self.packages.get(dep) {
                     if !pkg.skip {
                         packages.insert(dep.clone(), pkg.clone());
                     }
                 } else {
-                    anyhow::bail!(
-                        "Package '{}' not found for profile '{}'",
-                        dep,
-                        ctx.profile.name
-                    );
+                    anyhow::bail!("Package '{}' not found for profile '{}'", dep, ctx.name);
                 }
             }
         }
@@ -229,7 +225,10 @@ impl Config {
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
         cprintln("Backing up packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for pkg in self.filter_packages(ctx, &args.packages, false)?.values() {
+        for pkg in self
+            .filter_packages(&ctx.profile, &args.packages, false)?
+            .values()
+        {
             match pkg.backup(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
@@ -255,7 +254,7 @@ impl Config {
         cprintln("Deploying packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for pkg in self
-            .filter_packages(ctx, &args.packages, args.ignore_dependencies)?
+            .filter_packages(&ctx.profile, &args.packages, args.ignore_dependencies)?
             .values()
         {
             match pkg.deploy(ctx, args) {
@@ -281,7 +280,10 @@ impl Config {
 
     pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::Info);
-        for pkg in self.filter_packages(ctx, &args.packages, false)?.values() {
+        for pkg in self
+            .filter_packages(&ctx.profile, &args.packages, false)?
+            .values()
+        {
             cprintln(&format!("Package: {}", pkg.name), &LogLevel::Info);
             if let Err(e) = pkg.diff(ctx) {
                 if args.ignore_errors {
@@ -349,7 +351,7 @@ impl Config {
     }
 
     pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
-        let packages = self.filter_packages(ctx, &None, false)?;
+        let packages = self.filter_packages(&ctx.profile, &None, false)?;
         if args.plain {
             for pkg in packages.values() {
                 println!("{}", pkg.name);

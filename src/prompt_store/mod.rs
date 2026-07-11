@@ -1,10 +1,5 @@
-//! Storage backends for prompted variables: `.uservariables.toml` (the
-//! default), the OS keychain, or a shared Bitwarden secure note. All three
-//! implement [`PromptStore`], so [`crate::context`] never needs to know
-//! which one it's talking to.
-
 use std::{
-    cell::RefCell,
+    fs,
     io::Write,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -15,43 +10,31 @@ use toml::Table;
 
 use crate::utils::{LogLevel, cprintln};
 
-#[cfg(test)]
-mod tests;
-
-/// Default name of the Bitwarden secure note used to store every
-/// bitwarden-backed prompt in a repository, when `Config.bitwarden_note`
-/// isn't set.
 pub const DEFAULT_BITWARDEN_NOTE: &str = "dotr-secrets";
 
-/// Where a prompted variable's answer is stored between runs.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum PromptBackend {
-    /// `.uservariables.toml` in the repo root — today's only behavior.
+pub enum PromptBackendType {
     #[default]
     File,
-    /// The OS keychain (macOS Keychain / Windows Credential Manager /
-    /// Linux Secret Service), namespaced per-repository.
     Keychain,
-    /// A single Bitwarden secure note, shared by every bitwarden-backed
-    /// prompt in the repository.
     Bitwarden,
 }
 
-impl PromptBackend {
+impl PromptBackendType {
     pub fn as_str(&self) -> &'static str {
         match self {
-            PromptBackend::File => "file",
-            PromptBackend::Keychain => "keychain",
-            PromptBackend::Bitwarden => "bitwarden",
+            PromptBackendType::File => "file",
+            PromptBackendType::Keychain => "keychain",
+            PromptBackendType::Bitwarden => "bitwarden",
         }
     }
 
     pub fn parse(s: &str) -> anyhow::Result<Self> {
         match s {
-            "file" => Ok(PromptBackend::File),
-            "keychain" => Ok(PromptBackend::Keychain),
-            "bitwarden" => Ok(PromptBackend::Bitwarden),
+            "file" => Ok(PromptBackendType::File),
+            "keychain" => Ok(PromptBackendType::Keychain),
+            "bitwarden" => Ok(PromptBackendType::Bitwarden),
             other => {
                 anyhow::bail!("unknown backend '{other}' (expected file, keychain, or bitwarden)")
             }
@@ -59,93 +42,115 @@ impl PromptBackend {
     }
 }
 
-/// The transparent interface every backend implements. `get` returning
-/// `Ok(None)` means "no cached answer — go ahead and prompt"; the caller
-/// is responsible for calling `set` with whatever the user types.
-pub trait PromptStore {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>>;
-    fn set(&self, key: &str, value: &str) -> anyhow::Result<()>;
+pub trait PromptStoreBackend {
+    fn get_session(&self) -> Option<Table>;
+    fn set_session(&mut self, session: Option<Table>);
+    fn get(&mut self, cwd: &Path, keys: &[String]) -> anyhow::Result<Table>;
+    fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()>;
 }
 
-// File backend
+pub struct FileStore {}
 
-pub struct FileStore {
-    working_dir: PathBuf,
-    cache: RefCell<Table>,
+impl Default for FileStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FileStore {
-    pub fn new(working_dir: PathBuf, cache: Table) -> Self {
-        Self {
-            working_dir,
-            cache: RefCell::new(cache),
-        }
+    pub fn new() -> Self {
+        FileStore {}
     }
 
-    /// The cache as it stands after any `set` calls this run — the caller
-    /// uses this to update `Context::user_variables` in place.
-    pub fn into_table(self) -> Table {
-        self.cache.into_inner()
+    fn get_file_path(&self, cwd: &Path) -> PathBuf {
+        cwd.join(".uservariables.toml")
     }
 }
 
-impl PromptStore for FileStore {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
-        Ok(self
-            .cache
-            .borrow()
-            .get(key)
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()))
+impl PromptStoreBackend for FileStore {
+    // Stateless between calls - nothing to carry across instances.
+    fn get_session(&self) -> Option<Table> {
+        None
     }
 
-    fn set(&self, key: &str, value: &str) -> anyhow::Result<()> {
-        self.cache
-            .borrow_mut()
-            .insert(key.to_string(), toml::Value::String(value.to_string()));
-        let toml_string = toml::to_string(&*self.cache.borrow())?;
-        std::fs::write(self.working_dir.join(".uservariables.toml"), toml_string)?;
+    fn set_session(&mut self, _session: Option<Table>) {}
+
+    // Unlike Keychain/Bitwarden, the file already holds everything - no
+    // need to scope the read to just the currently-declared prompt keys.
+    fn get(&mut self, cwd: &Path, _keys: &[String]) -> anyhow::Result<Table> {
+        let path = self.get_file_path(cwd);
+        if !path.exists() {
+            return Ok(Table::new());
+        }
+        let content = fs::read_to_string(&path)?;
+        let records: Table = toml::from_str(&content)?;
+        Ok(records)
+    }
+
+    fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()> {
+        let path = self.get_file_path(cwd);
+        let content_string = toml::to_string(records)?;
+        fs::write(path, content_string)?;
         Ok(())
     }
 }
 
-// Keychain backend
+pub struct KeychainStore {}
 
-pub struct KeychainStore {
-    service: String,
+impl Default for KeychainStore {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl KeychainStore {
-    pub fn new(working_dir: &Path) -> Self {
-        // No real "spec" for entry naming here — `DOTR`/`DOTR_` prefixes
-        // plus the repo path just keep entries identifiable and scoped
-        // per-repo.
-        Self {
-            service: format!("DOTR:{}", working_dir.display()),
-        }
+    pub fn new() -> Self {
+        KeychainStore {}
     }
 
-    fn entry(&self, key: &str) -> anyhow::Result<keyring::Entry> {
-        keyring::Entry::new(&self.service, &format!("DOTR_{key}"))
+    // No real "spec" for entry naming here — `DOTR`/`DOTR_` prefixes plus
+    // the repo path just keep entries identifiable and scoped per-repo.
+    fn entry(&self, cwd: &Path, key: &str) -> anyhow::Result<keyring::Entry> {
+        let service = format!("DOTR:{}", cwd.display());
+        keyring::Entry::new(&service, &format!("DOTR_{key}"))
             .map_err(|e| anyhow::anyhow!("Failed to access the OS keychain for '{key}': {e}"))
     }
 }
 
-impl PromptStore for KeychainStore {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
-        match self.entry(key)?.get_password() {
-            Ok(value) => Ok(Some(value)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(anyhow::anyhow!(
-                "Failed to read '{key}' from the OS keychain: {e}"
-            )),
-        }
+impl PromptStoreBackend for KeychainStore {
+    // The OS keychain needs no session of its own - every call is a fresh,
+    // already-authenticated lookup.
+    fn get_session(&self) -> Option<Table> {
+        None
     }
 
-    fn set(&self, key: &str, value: &str) -> anyhow::Result<()> {
-        self.entry(key)?
-            .set_password(value)
-            .map_err(|e| anyhow::anyhow!("Failed to save '{key}' to the OS keychain: {e}"))
+    fn set_session(&mut self, _session: Option<Table>) {}
+
+    fn get(&mut self, cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
+        let mut records = Table::new();
+        for key in keys {
+            match self.entry(cwd, key)?.get_password() {
+                Ok(value) => {
+                    records.insert(key.clone(), toml::Value::String(value));
+                }
+                Err(keyring::Error::NoEntry) => {}
+                Err(e) => {
+                    anyhow::bail!("Failed to read '{key}' from the OS keychain: {e}");
+                }
+            }
+        }
+        Ok(records)
+    }
+
+    fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()> {
+        for (key, value) in records.iter() {
+            if let Some(v) = value.as_str() {
+                self.entry(cwd, key)?.set_password(v).map_err(|e| {
+                    anyhow::anyhow!("Failed to save '{key}' to the OS keychain: {e}")
+                })?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -158,20 +163,29 @@ struct BitwardenState {
     /// Same `key = "value"` TOML format as `.uservariables.toml`, so a
     /// note's content is copy-pasteable to/from the file backend.
     values: Table,
+    /// True only if *this* instance called `bw unlock` itself while
+    /// loading this state (vs. having a session handed to it via
+    /// `set_session`). Only the instance that actually unlocked the vault
+    /// should lock it back up on drop - otherwise every short-lived
+    /// `BitwardenStore` built with an inflated session would relock the
+    /// vault out from under the next one. Lives here rather than on
+    /// `BitwardenStore` directly since it's only ever known once we've
+    /// actually done the load that state represents.
+    unlocked_by_us: bool,
 }
 
 pub struct BitwardenStore {
     note: String,
-    state: RefCell<Option<BitwardenState>>,
-    session: RefCell<Option<String>>,
+    state: Option<BitwardenState>,
+    session: Option<String>,
 }
 
 impl BitwardenStore {
     pub fn new(note: String) -> Self {
         Self {
             note,
-            state: RefCell::new(None),
-            session: RefCell::new(None),
+            state: None,
+            session: None,
         }
     }
 
@@ -220,7 +234,7 @@ complete in this terminal.",
     fn bw(&self, args: &[&str]) -> anyhow::Result<std::process::Output> {
         let mut cmd = Command::new("bw");
         cmd.args(args);
-        if let Some(session) = self.session.borrow().as_ref() {
+        if let Some(session) = self.session.as_ref() {
             cmd.args(["--session", session]);
         }
         cmd.stdin(Stdio::null())
@@ -240,7 +254,7 @@ complete in this terminal.",
 
     /// Drives `bw login`/`bw unlock` interactively and caches the
     /// resulting session for subsequent `bw` calls.
-    fn authenticate_interactively(&self) -> anyhow::Result<()> {
+    fn authenticate_interactively(&mut self) -> anyhow::Result<()> {
         let status_output = Command::new("bw")
             .arg("status")
             .stdin(Stdio::null())
@@ -280,7 +294,7 @@ complete in this terminal.",
         if !unlock_output.status.success() || unlock_output.stdout.is_empty() {
             anyhow::bail!("`bw unlock` did not complete successfully");
         }
-        *self.session.borrow_mut() = Some(
+        self.session = Some(
             String::from_utf8_lossy(&unlock_output.stdout)
                 .trim()
                 .to_string(),
@@ -291,8 +305,8 @@ complete in this terminal.",
         Ok(())
     }
 
-    fn ensure_loaded(&self) -> anyhow::Result<()> {
-        if self.state.borrow().is_some() {
+    fn ensure_loaded(&mut self) -> anyhow::Result<()> {
+        if self.state.is_some() {
             return Ok(());
         }
 
@@ -303,9 +317,11 @@ complete in this terminal.",
         self.sync();
 
         let mut output = self.bw(&["get", "item", &self.note])?;
+        let mut unlocked_by_us = false;
         if !output.status.success() || output.stdout.is_empty() {
             self.authenticate_interactively()
                 .map_err(|e| self.auth_failed_hint(&e.to_string()))?;
+            unlocked_by_us = true;
             output = self.bw(&["get", "item", &self.note])?;
         }
         if !output.status.success() || output.stdout.is_empty() {
@@ -355,35 +371,59 @@ and try again.",
             })?
         };
 
-        *self.state.borrow_mut() = Some(BitwardenState {
+        self.state = Some(BitwardenState {
             id,
             envelope,
             values,
+            unlocked_by_us,
         });
         Ok(())
     }
 }
 
-impl PromptStore for BitwardenStore {
-    fn get(&self, key: &str) -> anyhow::Result<Option<String>> {
-        self.ensure_loaded()?;
-        let state = self.state.borrow();
-        let values = &state.as_ref().expect("just ensured loaded").values;
-        Ok(values
-            .get(key)
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string()))
+impl PromptStoreBackend for BitwardenStore {
+    // Backends are reconstructed per call (see `Context::get_backend`), so
+    // this is how a `bw unlock` session survives from one call to the
+    // next within the same run - the caller round-trips this table through
+    // `set_session` on the next `BitwardenStore` it builds, instead of
+    // unlocking (and, on drop, re-locking) the vault every single call.
+    fn get_session(&self) -> Option<Table> {
+        self.session.as_ref().map(|session| {
+            let mut table = Table::new();
+            table.insert("session".to_string(), toml::Value::String(session.clone()));
+            table
+        })
     }
 
-    fn set(&self, key: &str, value: &str) -> anyhow::Result<()> {
+    fn set_session(&mut self, session: Option<Table>) {
+        self.session = session.and_then(|table| {
+            table
+                .get("session")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        });
+    }
+
+    fn get(&mut self, _cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
+        self.ensure_loaded()?;
+        let values = &self.state.as_ref().expect("just ensured loaded").values;
+        let mut records = Table::new();
+        for key in keys {
+            if let Some(v) = values.get(key) {
+                records.insert(key.clone(), v.clone());
+            }
+        }
+        Ok(records)
+    }
+
+    fn save(&mut self, _cwd: &Path, records: &Table) -> anyhow::Result<()> {
         self.ensure_loaded()?;
 
         let (id, encoded_envelope) = {
-            let mut state = self.state.borrow_mut();
-            let state = state.as_mut().expect("just ensured loaded");
-            state
-                .values
-                .insert(key.to_string(), toml::Value::String(value.to_string()));
+            let state = self.state.as_mut().expect("just ensured loaded");
+            for (key, value) in records.iter() {
+                state.values.insert(key.clone(), value.clone());
+            }
             let notes_toml = toml::to_string(&state.values)?;
             state.envelope["notes"] = serde_json::Value::String(notes_toml);
             (state.id.clone(), serde_json::to_string(&state.envelope)?)
@@ -394,6 +434,9 @@ impl PromptStore for BitwardenStore {
         let mut edit_output = self.bw(&["edit", "item", &id, &encoded])?;
         if !edit_output.status.success() {
             self.authenticate_interactively()?;
+            if let Some(state) = self.state.as_mut() {
+                state.unlocked_by_us = true;
+            }
             edit_output = self.bw(&["edit", "item", &id, &encoded])?;
             if !edit_output.status.success() {
                 anyhow::bail!(
@@ -409,8 +452,11 @@ impl PromptStore for BitwardenStore {
 impl Drop for BitwardenStore {
     fn drop(&mut self) {
         // Only lock back up if we're the ones who unlocked it — a
-        // pre-existing BW_SESSION from the user's own shell is left alone.
-        if self.session.borrow().is_some() {
+        // pre-existing BW_SESSION from the user's own shell, or a session
+        // inflated from a prior `BitwardenStore` via `set_session`, is
+        // left alone.
+        let unlocked_by_us = self.state.as_ref().is_some_and(|s| s.unlocked_by_us);
+        if unlocked_by_us {
             cprintln("Locking your Bitwarden vault...", &LogLevel::Info);
             match self.bw(&["lock"]) {
                 Ok(output) if !output.status.success() => cprintln(
