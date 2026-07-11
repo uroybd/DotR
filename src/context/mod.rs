@@ -229,7 +229,7 @@ impl Context {
         // bootstrap overrides are also read from here, since profile (and
         // therefore backend) selection needs them before it knows which
         // backend to ask.
-        let raw_user_variables = Self::parse_uservariables(working_dir)?;
+        let user_variables = Self::parse_uservariables(working_dir)?;
         // DOTR_PROFILE: the file wins over the environment if both are set,
         // for *resolving* which profile is active below - `variables` gets
         // overwritten right after with whichever profile actually ends up
@@ -237,7 +237,7 @@ impl Context {
         // overriding both env and file). That's what makes it always
         // available in templates, even when nothing overrides it anywhere
         // and `default` is used implicitly - it wouldn't otherwise exist.
-        if let Some(value) = raw_user_variables.get(DOTR_PROFILE_KEY) {
+        if let Some(value) = user_variables.get(DOTR_PROFILE_KEY) {
             variables.insert(DOTR_PROFILE_KEY.to_string(), value.clone());
         }
         let (profile, created) = Self::get_profile_from_config(
@@ -256,7 +256,7 @@ impl Context {
         // always-available-in-templates reason as DOTR_PROFILE above.
         let bitwarden_note = resolve_bitwarden_note(
             env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
-            &raw_user_variables,
+            &user_variables,
             profile.bitwarden_note.as_deref(),
             conf.bitwarden_note.as_deref(),
         );
@@ -268,7 +268,7 @@ impl Context {
             Self {
                 working_dir: working_dir.to_path_buf(),
                 variables,
-                user_variables: raw_user_variables,
+                user_variables,
                 profile,
                 symlink: conf.symlink,
             },
