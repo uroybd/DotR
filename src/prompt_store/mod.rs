@@ -43,8 +43,6 @@ impl PromptBackendType {
 }
 
 pub trait PromptStoreBackend {
-    fn get_session(&self) -> Option<Table>;
-    fn set_session(&mut self, session: Option<Table>);
     fn get(&mut self, cwd: &Path, keys: &[String]) -> anyhow::Result<Table>;
     fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()>;
 }
@@ -68,13 +66,6 @@ impl FileStore {
 }
 
 impl PromptStoreBackend for FileStore {
-    // Stateless between calls - nothing to carry across instances.
-    fn get_session(&self) -> Option<Table> {
-        None
-    }
-
-    fn set_session(&mut self, _session: Option<Table>) {}
-
     // Unlike Keychain/Bitwarden, the file already holds everything - no
     // need to scope the read to just the currently-declared prompt keys.
     fn get(&mut self, cwd: &Path, _keys: &[String]) -> anyhow::Result<Table> {
@@ -118,14 +109,6 @@ impl KeychainStore {
 }
 
 impl PromptStoreBackend for KeychainStore {
-    // The OS keychain needs no session of its own - every call is a fresh,
-    // already-authenticated lookup.
-    fn get_session(&self) -> Option<Table> {
-        None
-    }
-
-    fn set_session(&mut self, _session: Option<Table>) {}
-
     fn get(&mut self, cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
         let mut records = Table::new();
         for key in keys {
@@ -163,15 +146,6 @@ struct BitwardenState {
     /// Same `key = "value"` TOML format as `.uservariables.toml`, so a
     /// note's content is copy-pasteable to/from the file backend.
     values: Table,
-    /// True only if *this* instance called `bw unlock` itself while
-    /// loading this state (vs. having a session handed to it via
-    /// `set_session`). Only the instance that actually unlocked the vault
-    /// should lock it back up on drop - otherwise every short-lived
-    /// `BitwardenStore` built with an inflated session would relock the
-    /// vault out from under the next one. Lives here rather than on
-    /// `BitwardenStore` directly since it's only ever known once we've
-    /// actually done the load that state represents.
-    unlocked_by_us: bool,
 }
 
 pub struct BitwardenStore {
@@ -317,11 +291,9 @@ complete in this terminal.",
         self.sync();
 
         let mut output = self.bw(&["get", "item", &self.note])?;
-        let mut unlocked_by_us = false;
         if !output.status.success() || output.stdout.is_empty() {
             self.authenticate_interactively()
                 .map_err(|e| self.auth_failed_hint(&e.to_string()))?;
-            unlocked_by_us = true;
             output = self.bw(&["get", "item", &self.note])?;
         }
         if !output.status.success() || output.stdout.is_empty() {
@@ -371,39 +343,12 @@ and try again.",
             })?
         };
 
-        self.state = Some(BitwardenState {
-            id,
-            envelope,
-            values,
-            unlocked_by_us,
-        });
+        self.state = Some(BitwardenState { id, envelope, values });
         Ok(())
     }
 }
 
 impl PromptStoreBackend for BitwardenStore {
-    // Backends are reconstructed per call (see `Context::get_backend`), so
-    // this is how a `bw unlock` session survives from one call to the
-    // next within the same run - the caller round-trips this table through
-    // `set_session` on the next `BitwardenStore` it builds, instead of
-    // unlocking (and, on drop, re-locking) the vault every single call.
-    fn get_session(&self) -> Option<Table> {
-        self.session.as_ref().map(|session| {
-            let mut table = Table::new();
-            table.insert("session".to_string(), toml::Value::String(session.clone()));
-            table
-        })
-    }
-
-    fn set_session(&mut self, session: Option<Table>) {
-        self.session = session.and_then(|table| {
-            table
-                .get("session")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-        });
-    }
-
     fn get(&mut self, _cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
         self.ensure_loaded()?;
         let values = &self.state.as_ref().expect("just ensured loaded").values;
@@ -434,9 +379,6 @@ impl PromptStoreBackend for BitwardenStore {
         let mut edit_output = self.bw(&["edit", "item", &id, &encoded])?;
         if !edit_output.status.success() {
             self.authenticate_interactively()?;
-            if let Some(state) = self.state.as_mut() {
-                state.unlocked_by_us = true;
-            }
             edit_output = self.bw(&["edit", "item", &id, &encoded])?;
             if !edit_output.status.success() {
                 anyhow::bail!(
@@ -452,11 +394,8 @@ impl PromptStoreBackend for BitwardenStore {
 impl Drop for BitwardenStore {
     fn drop(&mut self) {
         // Only lock back up if we're the ones who unlocked it — a
-        // pre-existing BW_SESSION from the user's own shell, or a session
-        // inflated from a prior `BitwardenStore` via `set_session`, is
-        // left alone.
-        let unlocked_by_us = self.state.as_ref().is_some_and(|s| s.unlocked_by_us);
-        if unlocked_by_us {
+        // pre-existing BW_SESSION from the user's own shell is left alone.
+        if self.session.is_some() {
             cprintln("Locking your Bitwarden vault...", &LogLevel::Info);
             match self.bw(&["lock"]) {
                 Ok(output) if !output.status.success() => cprintln(

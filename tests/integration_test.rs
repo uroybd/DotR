@@ -116,7 +116,7 @@ impl TestFixture {
 
     fn get_context_variables(&self) -> toml::Table {
         let config = self.get_config();
-        let (mut ctx, _) = Context::new(&self.cwd, &config, &None, &None, false)
+        let (mut ctx, _) = Context::new(&self.cwd, &config, &None, false)
             .expect("Failed to create context");
         ctx.extend_variables(config.variables.clone());
         ctx.get_context_variables()

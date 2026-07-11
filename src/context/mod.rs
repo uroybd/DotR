@@ -30,12 +30,6 @@ pub struct Context {
     user_variables: Table,
     pub profile: Profile,
     pub symlink: bool,
-    /// A backend's `get_session()` snapshot, round-tripped through
-    /// `get_backend` so a `bw unlock` session survives across the
-    /// per-call backend reconstructions in this `Context`'s lifetime.
-    /// Skipped from `Serialize` since it can carry a live credential.
-    #[serde(skip)]
-    session: Option<Table>,
 }
 
 impl Context {
@@ -80,13 +74,12 @@ impl Context {
         profile: &Profile,
         conf: &Config,
         user_variables: &Table,
-        session: Option<&Table>,
     ) -> Box<dyn prompt_store::PromptStoreBackend> {
         let backend_type = profile
             .prompt_backend
             .or(conf.prompt_backend)
             .unwrap_or_default();
-        let mut backend: Box<dyn prompt_store::PromptStoreBackend> = match backend_type {
+        match backend_type {
             prompt_store::PromptBackendType::File => Box::new(prompt_store::FileStore::new()),
             prompt_store::PromptBackendType::Keychain => {
                 Box::new(prompt_store::KeychainStore::new())
@@ -100,9 +93,7 @@ impl Context {
                 );
                 Box::new(prompt_store::BitwardenStore::new(note))
             }
-        };
-        backend.set_session(session.cloned());
-        backend
+        }
     }
 
     pub fn get_prompts(
@@ -134,13 +125,32 @@ impl Context {
     ) -> Result<Table, anyhow::Error> {
         // config -> profile -> package, later wins.
         let prompts = Self::get_prompts(&self.profile, conf, packages);
-        let missing = prompts
-            .iter()
-            .filter(|(key, _)| !self.user_variables.contains_key(*key));
+        let missing_keys: Vec<String> = prompts
+            .keys()
+            .filter(|key| !self.user_variables.contains_key(*key))
+            .cloned()
+            .collect();
+
         let mut store = self.user_variables.clone();
+        if missing_keys.is_empty() {
+            return Ok(store);
+        }
+
+        // Only reach for the configured backend once we know something is
+        // actually missing from what `Context::new` already loaded from
+        // .uservariables.toml - so e.g. `dotr packages list` never touches
+        // Keychain or triggers a Bitwarden unlock just because a Context
+        // was constructed.
+        let mut backend = Self::get_backend(&self.profile, conf, &self.user_variables);
+        let existing = backend.get(&self.working_dir, &missing_keys)?;
         let mut dirty = false;
 
-        for (key, message) in missing {
+        for key in &missing_keys {
+            if let Some(value) = existing.get(key) {
+                store.insert(key.clone(), value.clone());
+                continue;
+            }
+            let message = &prompts[key];
             match get_prompted_variables(message, &mut *reader, &mut *writer) {
                 Ok(input) => {
                     store.insert(key.clone(), toml::Value::String(input));
@@ -156,16 +166,9 @@ impl Context {
         }
 
         if dirty {
-            let mut backend = Self::get_backend(
-                &self.profile,
-                conf,
-                &self.user_variables,
-                self.session.as_ref(),
-            );
             backend.save(&self.working_dir, &store)?;
-            self.session = backend.get_session();
-            self.user_variables = store.clone();
         }
+        self.user_variables = store.clone();
         Ok(store)
     }
 
@@ -204,7 +207,6 @@ impl Context {
         working_dir: &Path,
         conf: &Config,
         profile_name: &Option<String>,
-        packages: &Option<Vec<String>>,
         create_profile_if_missing: bool,
     ) -> Result<(Self, bool), anyhow::Error> {
         let mut variables = conf.variables.clone();
@@ -215,23 +217,21 @@ impl Context {
         // configured backend, so DOTR_PROFILE / DOTR_BITWARDEN_NOTE
         // overrides live here specifically - profile (and therefore
         // backend) selection needs to read them before it knows which
-        // backend to ask.
-        let raw_user_variables = Self::parse_uservariables(working_dir)?;
+        // backend to ask. This is also the only source for `user_variables`
+        // at construction time - the configured backend (Keychain/Bitwarden
+        // included) is only ever consulted lazily, inside
+        // `get_prompted_variables_with_io`, for keys not already answered
+        // here. That keeps `Context::new` (run for every command) from
+        // touching Keychain or triggering a Bitwarden unlock on its own.
+        let user_variables = Self::parse_uservariables(working_dir)?;
         let mut all_variables = variables.clone();
-        all_variables.extend(raw_user_variables.clone());
+        all_variables.extend(user_variables.clone());
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
             create_profile_if_missing,
             &all_variables,
         )?;
-        let prompt_keys = Self::get_prompts(&profile, conf, packages)
-            .keys()
-            .cloned()
-            .collect::<Vec<String>>();
-        let mut backend = Self::get_backend(&profile, conf, &raw_user_variables, None);
-        let user_variables = backend.get(working_dir, &prompt_keys)?;
-        let session = backend.get_session();
         Ok((
             Self {
                 working_dir: working_dir.to_path_buf(),
@@ -239,7 +239,6 @@ impl Context {
                 user_variables,
                 profile,
                 symlink: conf.symlink,
-                session,
             },
             created,
         ))
