@@ -23,6 +23,8 @@ mod tests;
 /// way, so it's one thing to remember.
 const BITWARDEN_NOTE_OVERRIDE_KEY: &str = "DOTR_BITWARDEN_NOTE";
 
+const DOTR_PROFILE_KEY: &str = "DOTR_PROFILE";
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
@@ -69,9 +71,9 @@ impl Context {
         )
     }
 
-    // `variables` here is `self.variables` - it already has the
-    // DOTR_BITWARDEN_NOTE bootstrap override folded in (see `Context::new`),
-    // so there's no need to re-read the file again here.
+    // `variables` here is `self.variables` - it already has
+    // DOTR_BITWARDEN_NOTE fully resolved and folded in (see
+    // `Context::new`), so there's no need to re-resolve it here.
     fn get_backend(
         profile: &Profile,
         conf: &Config,
@@ -87,12 +89,11 @@ impl Context {
                 Box::new(prompt_store::KeychainStore::new())
             }
             prompt_store::PromptBackendType::Bitwarden => {
-                let note = resolve_bitwarden_note(
-                    env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
-                    variables,
-                    profile.bitwarden_note.as_deref(),
-                    conf.bitwarden_note.as_deref(),
-                );
+                let note = variables
+                    .get(BITWARDEN_NOTE_OVERRIDE_KEY)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(prompt_store::DEFAULT_BITWARDEN_NOTE)
+                    .to_string();
                 Box::new(prompt_store::BitwardenStore::new(note))
             }
         }
@@ -232,18 +233,15 @@ impl Context {
         // `Context::new` (run for every command) never touches Keychain or
         // triggers a Bitwarden unlock on its own.
         let raw_user_variables = Self::parse_uservariables(working_dir)?;
-        // DOTR_PROFILE: the file wins over the environment if both are set.
-        if let Some(value) = raw_user_variables.get("DOTR_PROFILE") {
-            variables.insert("DOTR_PROFILE".to_string(), value.clone());
-        }
-        // DOTR_BITWARDEN_NOTE: the environment wins over the file - only
-        // fall back to the file's value if the env loop above didn't
-        // already set it (matches `resolve_bitwarden_note`'s own
-        // precedence: env -> .uservariables.toml -> profile -> config).
-        if !variables.contains_key(BITWARDEN_NOTE_OVERRIDE_KEY)
-            && let Some(value) = raw_user_variables.get(BITWARDEN_NOTE_OVERRIDE_KEY)
-        {
-            variables.insert(BITWARDEN_NOTE_OVERRIDE_KEY.to_string(), value.clone());
+        // DOTR_PROFILE: the file wins over the environment if both are set,
+        // for *resolving* which profile is active below - `variables` gets
+        // overwritten right after with whichever profile actually ends up
+        // active (which also correctly reflects an explicit `--profile`,
+        // overriding both env and file). That's what makes it always
+        // available in templates, even when nothing overrides it anywhere
+        // and `default` is used implicitly - it wouldn't otherwise exist.
+        if let Some(value) = raw_user_variables.get(DOTR_PROFILE_KEY) {
+            variables.insert(DOTR_PROFILE_KEY.to_string(), value.clone());
         }
         let (profile, created) = Self::get_profile_from_config(
             conf,
@@ -251,6 +249,24 @@ impl Context {
             create_profile_if_missing,
             &variables,
         )?;
+        variables.insert(
+            DOTR_PROFILE_KEY.to_string(),
+            toml::Value::String(profile.name.clone()),
+        );
+        // DOTR_BITWARDEN_NOTE: resolved fully now, through the same chain
+        // `get_backend` used to run lazily - and always stored, even when
+        // Bitwarden isn't the active backend at all, for the same
+        // always-available-in-templates reason as DOTR_PROFILE above.
+        let bitwarden_note = resolve_bitwarden_note(
+            env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
+            &raw_user_variables,
+            profile.bitwarden_note.as_deref(),
+            conf.bitwarden_note.as_deref(),
+        );
+        variables.insert(
+            BITWARDEN_NOTE_OVERRIDE_KEY.to_string(),
+            toml::Value::String(bitwarden_note),
+        );
         Ok((
             Self {
                 working_dir: working_dir.to_path_buf(),
@@ -273,7 +289,7 @@ impl Context {
             Some(name) => name.clone(),
             None => {
                 if let Ok(env_p_name) = variables
-                    .get("DOTR_PROFILE")
+                    .get(DOTR_PROFILE_KEY)
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
                 {

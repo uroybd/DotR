@@ -1310,6 +1310,59 @@ BW_SECRET = "Enter a secret"
     }
 
     #[test]
+    fn test_dotr_profile_and_bitwarden_note_resolve_with_no_override_anywhere() {
+        // Regression test: neither key is set in .uservariables.toml, the
+        // environment, config, or the profile - `default` and the
+        // built-in Bitwarden note are used implicitly. Both must still be
+        // real values in `variables`, not simply absent, or a template
+        // referencing `{{ DOTR_PROFILE }}`/`{{ DOTR_BITWARDEN_NOTE }}`
+        // fails to compile even though nothing is actually misconfigured.
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        assert_eq!(
+            ctx.get_variable("DOTR_PROFILE"),
+            Some(&toml::Value::String("default".to_string()))
+        );
+        assert_eq!(
+            ctx.get_variable("DOTR_BITWARDEN_NOTE"),
+            Some(&toml::Value::String("dotr-secrets".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_dotr_profile_reflects_explicit_profile_override_not_stale_file_value() {
+        // Regression test: an explicit `--profile` (or equivalently a
+        // non-None `profile_name`) must win over a stale DOTR_PROFILE
+        // already sitting in .uservariables.toml, since that's the
+        // profile actually in effect for this run.
+        let temp_dir = create_temp_dir();
+        fs::write(
+            temp_dir.join("config.toml"),
+            r#"
+[profiles.work]
+dependencies = []
+"#,
+        )
+        .unwrap();
+        let config = Config::from_path(&temp_dir).unwrap();
+
+        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
+            .expect("Failed to write .uservariables.toml");
+
+        let (ctx, _) = Context::new(&temp_dir, &config, &Some("work".to_string()), false)
+            .expect("Failed to create context");
+
+        assert_eq!(
+            ctx.get_variable("DOTR_PROFILE"),
+            Some(&toml::Value::String("work".to_string()))
+        );
+    }
+
+    #[test]
     fn test_dotr_profile_from_file_wins_over_env() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
