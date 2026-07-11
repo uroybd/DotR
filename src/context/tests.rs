@@ -171,9 +171,14 @@ key = "secret-key"
         fs::write(uservars_path, r#"USER_VAR = "user_value""#)
             .expect("Failed to write .uservariables.toml");
 
-        let config = create_test_config(&temp_dir);
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false)
+        let mut config = create_test_config(&temp_dir);
+        config
+            .prompts
+            .insert("USER_VAR".to_string(), "Enter USER_VAR".to_string());
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
 
         assert_eq!(
             ctx.get_user_variable("USER_VAR"),
@@ -185,14 +190,19 @@ key = "secret-key"
     #[test]
     fn test_get_context_variable_priority() {
         let temp_dir = create_temp_dir();
-        let config = create_test_config(&temp_dir);
+        let mut config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(uservars_path, r#"PRIORITY_VAR = "user_value""#)
             .expect("Failed to write .uservariables.toml");
+        config
+            .prompts
+            .insert("PRIORITY_VAR".to_string(), "Enter PRIORITY_VAR".to_string());
 
         let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
         ctx.variables.insert(
             "PRIORITY_VAR".to_string(),
             toml::Value::String("config_value".to_string()),
@@ -242,14 +252,19 @@ key = "secret-key"
     #[test]
     fn test_get_user_variables() {
         let temp_dir = create_temp_dir();
-        let config = create_test_config(&temp_dir);
+        let mut config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(uservars_path, r#"USER_VAR = "value""#)
             .expect("Failed to write .uservariables.toml");
+        config
+            .prompts
+            .insert("USER_VAR".to_string(), "Enter USER_VAR".to_string());
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false)
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(user_vars.len(), 1);
@@ -259,7 +274,7 @@ key = "secret-key"
     #[test]
     fn test_get_context_variables_merges_correctly() {
         let temp_dir = create_temp_dir();
-        let config = create_test_config(&temp_dir);
+        let mut config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -270,9 +285,17 @@ OVERRIDE_VAR = "user_override"
 "#,
         )
         .expect("Failed to write .uservariables.toml");
+        config
+            .prompts
+            .insert("USER_VAR".to_string(), "Enter USER_VAR".to_string());
+        config
+            .prompts
+            .insert("OVERRIDE_VAR".to_string(), "Enter OVERRIDE_VAR".to_string());
 
         let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
         ctx.variables.insert(
             "CONFIG_VAR".to_string(),
             toml::Value::String("config_value".to_string()),
@@ -345,7 +368,7 @@ OVERRIDE_VAR = "user_override"
     #[test]
     fn test_context_with_complex_user_variables() {
         let temp_dir = create_temp_dir();
-        let config = create_test_config(&temp_dir);
+        let mut config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -370,9 +393,23 @@ value = 2
 "#,
         )
         .expect("Failed to write .uservariables.toml");
+        for key in [
+            "string_var",
+            "int_var",
+            "float_var",
+            "bool_var",
+            "nested",
+            "array",
+        ] {
+            config
+                .prompts
+                .insert(key.to_string(), format!("Enter {key}"));
+        }
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false)
+        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
         let user_vars = ctx.get_user_variables();
 
         assert_eq!(
@@ -413,8 +450,14 @@ value = 2
         let temp_dir1 = create_temp_dir();
         let temp_dir2 = create_temp_dir();
 
-        let config1 = create_test_config(&temp_dir1);
-        let config2 = create_test_config(&temp_dir2);
+        let mut config1 = create_test_config(&temp_dir1);
+        let mut config2 = create_test_config(&temp_dir2);
+        config1
+            .prompts
+            .insert("VAR".to_string(), "Enter VAR".to_string());
+        config2
+            .prompts
+            .insert("VAR".to_string(), "Enter VAR".to_string());
 
         fs::write(temp_dir1.join(".uservariables.toml"), r#"VAR = "dir1""#)
             .expect("Failed to write");
@@ -422,10 +465,14 @@ value = 2
         fs::write(temp_dir2.join(".uservariables.toml"), r#"VAR = "dir2""#)
             .expect("Failed to write");
 
-        let (ctx1, _) = Context::new(&temp_dir1, &config1, &None, false)
+        let (mut ctx1, _) = Context::new(&temp_dir1, &config1, &None, false)
             .expect("Failed to create context");
-        let (ctx2, _) = Context::new(&temp_dir2, &config2, &None, false)
+        let (mut ctx2, _) = Context::new(&temp_dir2, &config2, &None, false)
             .expect("Failed to create context");
+        ctx1.get_prompted_variables(&config1, &None)
+            .expect("Failed to resolve prompted variables");
+        ctx2.get_prompted_variables(&config2, &None)
+            .expect("Failed to resolve prompted variables");
 
         assert_eq!(
             ctx1.get_user_variable("VAR"),
@@ -440,7 +487,7 @@ value = 2
     #[test]
     fn test_user_variables_override_in_merged_context() {
         let temp_dir = create_temp_dir();
-        let config = create_test_config(&temp_dir);
+        let mut config = create_test_config(&temp_dir);
         let uservars_path = &temp_dir.join(".uservariables.toml");
 
         fs::write(
@@ -451,9 +498,17 @@ VAR2 = "user_value2"
 "#,
         )
         .expect("Failed to write .uservariables.toml");
+        config
+            .prompts
+            .insert("VAR1".to_string(), "Enter VAR1".to_string());
+        config
+            .prompts
+            .insert("VAR2".to_string(), "Enter VAR2".to_string());
 
         let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false)
             .expect("Failed to create context");
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
 
         // Add some config variables
         ctx.variables.insert(

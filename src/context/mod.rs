@@ -60,20 +60,23 @@ impl Context {
         &mut self,
         conf: &Config,
         packages: &Option<Vec<String>>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Table> {
         self.get_prompted_variables_with_io(
             conf,
             packages,
             &mut std::io::stdin().lock(),
             &mut std::io::stdout(),
-        )?;
-        Ok(())
+        )
     }
 
+    // `raw_user_variables` here is specifically the plaintext file's
+    // content, for the DOTR_BITWARDEN_NOTE bootstrap override - never the
+    // designated store's resolved values (those aren't relevant to which
+    // backend to construct in the first place).
     fn get_backend(
         profile: &Profile,
         conf: &Config,
-        user_variables: &Table,
+        raw_user_variables: &Table,
     ) -> Box<dyn prompt_store::PromptStoreBackend> {
         let backend_type = profile
             .prompt_backend
@@ -87,7 +90,7 @@ impl Context {
             prompt_store::PromptBackendType::Bitwarden => {
                 let note = resolve_bitwarden_note(
                     env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
-                    user_variables,
+                    raw_user_variables,
                     profile.bitwarden_note.as_deref(),
                     conf.bitwarden_note.as_deref(),
                 );
@@ -116,7 +119,7 @@ impl Context {
         prompts
     }
 
-    pub(crate) fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
+    fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
         &mut self,
         conf: &Config,
         packages: &Option<Vec<String>>,
@@ -141,7 +144,11 @@ impl Context {
         // .uservariables.toml - so e.g. `dotr packages list` never touches
         // Keychain or triggers a Bitwarden unlock just because a Context
         // was constructed.
-        let mut backend = Self::get_backend(&self.profile, conf, &self.user_variables);
+        let mut backend = Self::get_backend(
+            &self.profile,
+            conf,
+            &Self::parse_uservariables(&self.working_dir)?,
+        );
         let existing = backend.get(&self.working_dir, &missing_keys)?;
         let mut dirty = false;
 
@@ -177,12 +184,12 @@ impl Context {
         key: &str,
         val: toml::Value,
     ) -> Result<(), anyhow::Error> {
-        let mut user_vars = self.user_variables.clone();
-        user_vars.insert(key.to_string(), val);
-        let toml_string = toml::to_string(&user_vars)?;
-        self.user_variables = user_vars;
+        let mut on_disk = Self::parse_uservariables(&self.working_dir)?;
+        on_disk.insert(key.to_string(), val.clone());
+        let toml_string = toml::to_string(&on_disk)?;
         let path = self.working_dir.join(".uservariables.toml");
         fs::write(&path, toml_string)?;
+        self.user_variables.insert(key.to_string(), val);
         Ok(())
     }
 
@@ -217,15 +224,17 @@ impl Context {
         // configured backend, so DOTR_PROFILE / DOTR_BITWARDEN_NOTE
         // overrides live here specifically - profile (and therefore
         // backend) selection needs to read them before it knows which
-        // backend to ask. This is also the only source for `user_variables`
-        // at construction time - the configured backend (Keychain/Bitwarden
-        // included) is only ever consulted lazily, inside
-        // `get_prompted_variables_with_io`, for keys not already answered
-        // here. That keeps `Context::new` (run for every command) from
-        // touching Keychain or triggering a Bitwarden unlock on its own.
-        let user_variables = Self::parse_uservariables(working_dir)?;
+        // backend to ask. That's the only thing this raw read is for:
+        // `user_variables` itself always starts empty and is resolved
+        // lazily through the designated backend, inside
+        // `get_prompted_variables_with_io` - every caller asks for it
+        // explicitly before reading user variables (see `get_prompted_variables`
+        // call sites in `cli/mod.rs`), so there's nothing to eagerly load
+        // here, and `Context::new` (run for every command) never touches
+        // Keychain or triggers a Bitwarden unlock on its own.
+        let raw_user_variables = Self::parse_uservariables(working_dir)?;
         let mut all_variables = variables.clone();
-        all_variables.extend(user_variables.clone());
+        all_variables.extend(raw_user_variables);
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
@@ -236,7 +245,7 @@ impl Context {
             Self {
                 working_dir: working_dir.to_path_buf(),
                 variables,
-                user_variables,
+                user_variables: Table::new(),
                 profile,
                 symlink: conf.symlink,
             },

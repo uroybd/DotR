@@ -56,6 +56,8 @@ impl TestFixture {
         let (mut ctx, _) = Context::new(&self.cwd, &config, &None, false)
             .expect("Failed to create context");
         ctx.extend_variables(config.variables.clone());
+        ctx.get_prompted_variables(&config, &None)
+            .expect("Failed to resolve prompted variables");
         ctx
     }
 
@@ -86,6 +88,12 @@ DATABASE_PASSWORD = "password123"
 "#,
     )
     .expect("Failed to create .uservariables.toml");
+
+    let mut config = fixture.get_config();
+    for key in ["SECRET_KEY", "API_TOKEN", "DATABASE_PASSWORD"] {
+        config.prompts.insert(key.to_string(), format!("Enter {key}"));
+    }
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Load context - should include user variables
     let ctx_vars = fixture.get_context_variables();
@@ -129,6 +137,13 @@ SECRET = "my-secret"
 "#,
     )
     .expect("Failed to create .uservariables.toml");
+    config
+        .prompts
+        .insert("EDITOR".to_string(), "Enter EDITOR".to_string());
+    config
+        .prompts
+        .insert("SECRET".to_string(), "Enter SECRET".to_string());
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Load context - user variables should override config variables
     let ctx_vars = fixture.get_context_variables();
@@ -174,6 +189,14 @@ endpoint = "https://secret.api.com"
 "#,
     )
     .expect("Failed to create .uservariables.toml");
+    let mut config = fixture.get_config();
+    config
+        .prompts
+        .insert("database".to_string(), "Enter database".to_string());
+    config
+        .prompts
+        .insert("api".to_string(), "Enter api".to_string());
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Load context
     let ctx_vars = fixture.get_context_variables();
@@ -243,6 +266,12 @@ DATABASE_NAME = "production-db"
     config
         .packages
         .insert("f_env_template".to_string(), package);
+    config
+        .prompts
+        .insert("API_KEY".to_string(), "Enter API_KEY".to_string());
+    config
+        .prompts
+        .insert("DATABASE_NAME".to_string(), "Enter DATABASE_NAME".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
@@ -306,6 +335,11 @@ SECRET = "should-not-be-in-config"
 "#,
     )
     .expect("Failed to create .uservariables.toml");
+    let mut config = fixture.get_config();
+    config
+        .prompts
+        .insert("SECRET".to_string(), "Enter SECRET".to_string());
+    config.save(&fixture.cwd).expect("Failed to save config");
 
     // Load context (user variables get merged from .uservariables.toml)
     let ctx_vars = fixture.get_context_variables();
@@ -325,11 +359,9 @@ SECRET = "should-not-be-in-config"
     let config_content =
         fs::read_to_string(fixture.cwd.join("config.toml")).expect("Failed to read config.toml");
 
-    // User variables should NOT be in config.toml (preserved separately in .uservariables.toml)
-    assert!(
-        !config_content.contains("SECRET"),
-        "User variables should not be saved to config.toml"
-    );
+    // The prompt's *answer* should NOT be in config.toml (preserved
+    // separately in .uservariables.toml) - only the prompt's declaration
+    // (the "SECRET = ..." question, keyed by the same name) belongs there.
     assert!(
         !config_content.contains("should-not-be-in-config"),
         "User variables should not be saved to config.toml"

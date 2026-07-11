@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{InitArgs, run_cli},
@@ -172,19 +172,18 @@ USER_EMAIL = "existing@example.com"
     )
     .expect("Failed to write uservariables");
 
-    // Create prompts including one for existing variable
-    let mut prompts: HashMap<String, String> = HashMap::new();
-    prompts.insert("USER_EMAIL".to_string(), "Enter your email".to_string());
-    prompts.insert("NEW_VAR".to_string(), "Enter new variable".to_string());
+    let mut config = fixture.get_config();
+    config
+        .prompts
+        .insert("USER_EMAIL".to_string(), "Enter your email".to_string());
+    config.save(&fixture.cwd).expect("Failed to save config");
 
-    #[allow(unused_mut)]
     let mut ctx = fixture.get_context();
+    ctx.get_prompted_variables(&config, &None)
+        .expect("Failed to resolve prompted variables");
 
-    // This should not actually prompt since we can't provide stdin in tests
-    // We're just testing that the function doesn't error and preserves existing vars
-    // In real usage, this would only prompt for NEW_VAR
-
-    // Verify existing variable is present
+    // Verify the existing value was read back from the file rather than
+    // re-prompted for (there's no stdin to answer from in this test).
     let user_vars = ctx.get_user_variables();
     assert_eq!(
         user_vars.get("USER_EMAIL"),
@@ -207,7 +206,16 @@ PROMPTED_VAR = "prompted_value"
     )
     .expect("Failed to write uservariables");
 
-    let ctx = fixture.get_context();
+    let mut config = fixture.get_config();
+    config.prompts.insert(
+        "PROMPTED_VAR".to_string(),
+        "Enter prompted value".to_string(),
+    );
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let mut ctx = fixture.get_context();
+    ctx.get_prompted_variables(&config, &None)
+        .expect("Failed to resolve prompted variables");
     let user_vars = ctx.get_user_variables();
 
     assert_eq!(

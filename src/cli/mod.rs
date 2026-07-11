@@ -436,40 +436,33 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             println!("Configuration initialized successfully.");
         }
         Some(Command::Import(args)) => {
-            let (mut conf, ctx) = init_config(&working_dir, &args.profile, true, true)?;
+            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, true, true)?;
+            ctx.get_prompted_variables(&conf, &None)?;
             conf.import_package(&args, &ctx)?;
         }
         Some(Command::Deploy(args)) => {
-            let (conf, mut ctx) =
-                init_config(&working_dir, &args.profile, false, true)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.deploy_packages(&ctx, &args)?;
         }
         Some(Command::Update(args)) => {
-            let (conf, mut ctx) =
-                init_config(&working_dir, &args.profile, false, true)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.backup_packages(&ctx, &args)?;
         }
         Some(Command::Diff(args)) => {
-            let (conf, mut ctx) =
-                init_config(&working_dir, &args.profile, false, true)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.diff_packages(&ctx, &args)?;
         }
         Some(Command::PrintVars(args)) => {
-            let (_, ctx) = init_config(&working_dir, &args.profile, false, true)?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
+            ctx.get_prompted_variables(&conf, &None)?;
             ctx.print_variables();
         }
         Some(Command::DumpUserVars(args)) => {
-            let (conf, mut ctx) =
-                init_config(&working_dir, &args.profile, false, true)?;
-            let resolved = ctx.get_prompted_variables_with_io(
-                &conf,
-                &args.packages,
-                &mut std::io::stdin().lock(),
-                &mut std::io::stdout(),
-            )?;
+            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
+            let resolved = ctx.get_prompted_variables(&conf, &args.packages)?;
             let toml_string = toml::to_string_pretty(&resolved)?;
             match &args.output {
                 Some(path) => {
@@ -483,19 +476,19 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             }
         }
         Some(Command::Remove(args)) => {
-            let (mut conf, ctx) =
-                init_config(&working_dir, &args.profile, false, true)?;
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false, true)?;
             conf.remove_packages(&args, &ctx)?;
         }
         Some(Command::Packages(args)) => {
             let show_banner = !matches!(&args.command, Some(PackagesCommand::List(a)) if a.plain);
-            let (mut conf, mut ctx) =
-                init_config(&working_dir, &args.profile, false, show_banner)?;
+            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false, show_banner)?;
             match args.command {
                 Some(PackagesCommand::List(args)) => {
+                    ctx.get_prompted_variables(&conf, &None)?;
                     conf.list_packages(&ctx, &args)?;
                 }
                 Some(PackagesCommand::Import(import_args)) => {
+                    ctx.get_prompted_variables(&conf, &None)?;
                     conf.import_package(&import_args, &ctx)?;
                 }
                 Some(PackagesCommand::Deploy(deploy_args)) => {

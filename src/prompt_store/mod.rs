@@ -10,6 +10,9 @@ use toml::Table;
 
 use crate::utils::{LogLevel, cprintln};
 
+#[cfg(test)]
+mod tests;
+
 pub const DEFAULT_BITWARDEN_NOTE: &str = "dotr-secrets";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

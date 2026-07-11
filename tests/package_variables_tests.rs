@@ -219,7 +219,7 @@ MY_VAR = "user_value"
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
-        prompts: HashMap::new(),
+        prompts: HashMap::from([("MY_VAR".to_string(), "Enter MY_VAR".to_string())]),
         ignore: Vec::new(),
 
         symlink: None,
@@ -404,7 +404,7 @@ TEST_VAR = "user_value"
         post_actions: Vec::new(),
         targets: std::collections::HashMap::new(),
         skip: false,
-        prompts: HashMap::new(),
+        prompts: HashMap::from([("TEST_VAR".to_string(), "Enter TEST_VAR".to_string())]),
         ignore: Vec::new(),
         symlink: None,
         unfold_symlink: false,

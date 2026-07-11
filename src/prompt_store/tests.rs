@@ -1,27 +1,30 @@
 #[cfg(test)]
-mod prompt_backend_tests {
-    use crate::prompt_store::PromptBackend;
+mod prompt_backend_type_tests {
+    use crate::prompt_store::PromptBackendType;
 
     #[test]
     fn test_parse_round_trips_with_as_str() {
         for backend in [
-            PromptBackend::File,
-            PromptBackend::Keychain,
-            PromptBackend::Bitwarden,
+            PromptBackendType::File,
+            PromptBackendType::Keychain,
+            PromptBackendType::Bitwarden,
         ] {
-            assert_eq!(PromptBackend::parse(backend.as_str()).unwrap(), backend);
+            assert_eq!(
+                PromptBackendType::parse(backend.as_str()).unwrap(),
+                backend
+            );
         }
     }
 
     #[test]
     fn test_parse_rejects_unknown_backend() {
-        let err = PromptBackend::parse("not-a-real-backend").unwrap_err();
+        let err = PromptBackendType::parse("not-a-real-backend").unwrap_err();
         assert!(err.to_string().contains("not-a-real-backend"));
     }
 
     #[test]
     fn test_default_is_file() {
-        assert_eq!(PromptBackend::default(), PromptBackend::File);
+        assert_eq!(PromptBackendType::default(), PromptBackendType::File);
     }
 
     #[test]
@@ -29,9 +32,9 @@ mod prompt_backend_tests {
         // TOML documents must be tables at the root, so serialize each as
         // a HashMap value (a real `[prompts]`-shaped table), not standalone.
         for (backend, expected) in [
-            (PromptBackend::File, "file"),
-            (PromptBackend::Keychain, "keychain"),
-            (PromptBackend::Bitwarden, "bitwarden"),
+            (PromptBackendType::File, "file"),
+            (PromptBackendType::Keychain, "keychain"),
+            (PromptBackendType::Bitwarden, "bitwarden"),
         ] {
             let mut wrapped = std::collections::HashMap::new();
             wrapped.insert("backend", backend);
@@ -45,7 +48,9 @@ mod prompt_backend_tests {
 mod file_store_tests {
     use std::{env, fs};
 
-    use crate::prompt_store::{FileStore, PromptStore};
+    use toml::Table;
+
+    use crate::prompt_store::{FileStore, PromptStoreBackend};
 
     fn temp_dir() -> std::path::PathBuf {
         let dir = env::temp_dir().join(format!("dotr_prompt_store_test_{}", uuid::Uuid::new_v4()));
@@ -54,55 +59,74 @@ mod file_store_tests {
     }
 
     #[test]
-    fn test_get_returns_none_for_missing_key() {
+    fn test_get_returns_empty_table_when_file_missing() {
         let dir = temp_dir();
-        let store = FileStore::new(dir.clone(), toml::Table::new());
-        assert_eq!(store.get("MISSING").unwrap(), None);
+        let mut store = FileStore::new();
+        let records = store.get(&dir, &["MISSING".to_string()]).unwrap();
+        assert!(records.is_empty());
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn test_get_returns_cached_value_without_touching_disk() {
+    fn test_get_ignores_the_keys_filter() {
+        // Unlike Keychain/Bitwarden, the file already holds everything, so
+        // `get` returns the full file regardless of what's asked for.
         let dir = temp_dir();
-        let mut cache = toml::Table::new();
-        cache.insert(
-            "EMAIL".to_string(),
-            toml::Value::String("a@b.com".to_string()),
-        );
-        let store = FileStore::new(dir.clone(), cache);
+        fs::write(dir.join(".uservariables.toml"), r#"EMAIL = "a@b.com""#).unwrap();
+        let mut store = FileStore::new();
 
-        assert_eq!(store.get("EMAIL").unwrap(), Some("a@b.com".to_string()));
-        assert!(
-            !dir.join(".uservariables.toml").exists(),
-            "a plain get() must not write .uservariables.toml"
+        let records = store.get(&dir, &["SOMETHING_ELSE".to_string()]).unwrap();
+
+        assert_eq!(
+            records.get("EMAIL"),
+            Some(&toml::Value::String("a@b.com".to_string()))
         );
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn test_set_persists_to_uservariables_toml() {
+    fn test_save_persists_to_uservariables_toml() {
         let dir = temp_dir();
-        let store = FileStore::new(dir.clone(), toml::Table::new());
-        store.set("TOKEN", "secret-value").unwrap();
+        let mut store = FileStore::new();
+        let mut records = Table::new();
+        records.insert(
+            "TOKEN".to_string(),
+            toml::Value::String("secret-value".to_string()),
+        );
+
+        store.save(&dir, &records).unwrap();
 
         let content = fs::read_to_string(dir.join(".uservariables.toml")).unwrap();
         assert!(content.contains("TOKEN = \"secret-value\""));
         assert_eq!(
-            store.get("TOKEN").unwrap(),
-            Some("secret-value".to_string())
+            store.get(&dir, &["TOKEN".to_string()]).unwrap(),
+            records
         );
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn test_into_table_reflects_new_values() {
+    fn test_save_overwrites_with_exactly_the_given_records() {
+        // `save` is handed the caller's already-merged table (see
+        // `Context::get_prompted_variables_with_io`), so it writes that
+        // table verbatim rather than merging against whatever the file
+        // already had.
         let dir = temp_dir();
-        let store = FileStore::new(dir.clone(), toml::Table::new());
-        store.set("A", "1").unwrap();
-        store.set("B", "2").unwrap();
-        let table = store.into_table();
-        assert_eq!(table.get("A").unwrap().as_str(), Some("1"));
-        assert_eq!(table.get("B").unwrap().as_str(), Some("2"));
+        let mut store = FileStore::new();
+        let mut first = Table::new();
+        first.insert("A".to_string(), toml::Value::String("1".to_string()));
+        store.save(&dir, &first).unwrap();
+
+        let mut second = Table::new();
+        second.insert("B".to_string(), toml::Value::String("2".to_string()));
+        store.save(&dir, &second).unwrap();
+
+        let on_disk = store.get(&dir, &[]).unwrap();
+        assert_eq!(on_disk.get("A"), None);
+        assert_eq!(
+            on_disk.get("B"),
+            Some(&toml::Value::String("2".to_string()))
+        );
         fs::remove_dir_all(&dir).ok();
     }
 }
