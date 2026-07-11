@@ -346,7 +346,11 @@ and try again.",
             })?
         };
 
-        self.state = Some(BitwardenState { id, envelope, values });
+        self.state = Some(BitwardenState {
+            id,
+            envelope,
+            values,
+        });
         Ok(())
     }
 }

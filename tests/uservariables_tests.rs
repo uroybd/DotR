@@ -53,8 +53,8 @@ impl TestFixture {
 
     fn get_context(&self) -> Context {
         let config = self.get_config();
-        let (mut ctx, _) = Context::new(&self.cwd, &config, &None, false)
-            .expect("Failed to create context");
+        let (mut ctx, _) =
+            Context::new(&self.cwd, &config, &None, false).expect("Failed to create context");
         ctx.extend_variables(config.variables.clone());
         ctx.get_prompted_variables(&config, &None)
             .expect("Failed to resolve prompted variables");
@@ -91,7 +91,9 @@ DATABASE_PASSWORD = "password123"
 
     let mut config = fixture.get_config();
     for key in ["SECRET_KEY", "API_TOKEN", "DATABASE_PASSWORD"] {
-        config.prompts.insert(key.to_string(), format!("Enter {key}"));
+        config
+            .prompts
+            .insert(key.to_string(), format!("Enter {key}"));
     }
     config.save(&fixture.cwd).expect("Failed to save config");
 
@@ -269,9 +271,10 @@ DATABASE_NAME = "production-db"
     config
         .prompts
         .insert("API_KEY".to_string(), "Enter API_KEY".to_string());
-    config
-        .prompts
-        .insert("DATABASE_NAME".to_string(), "Enter DATABASE_NAME".to_string());
+    config.prompts.insert(
+        "DATABASE_NAME".to_string(),
+        "Enter DATABASE_NAME".to_string(),
+    );
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy

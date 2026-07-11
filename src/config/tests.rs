@@ -30,13 +30,8 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(
-            &temp_dir,
-            &config,
-            &Some("test-profile".to_string()),
-            false,
-        )
-        .unwrap();
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         let filtered = config.filter_packages(&ctx.profile, &None, false).unwrap();
 
@@ -67,13 +62,8 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(
-            &temp_dir,
-            &config,
-            &Some("test-profile".to_string()),
-            false,
-        )
-        .unwrap();
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         let filtered = config.filter_packages(&ctx.profile, &None, false).unwrap();
 
@@ -134,13 +124,8 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(
-            &temp_dir,
-            &config,
-            &Some("test-profile".to_string()),
-            false,
-        )
-        .unwrap();
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         // Explicitly request pkg1 even though it has skip=true
         let specific_packages = vec!["pkg1".to_string()];
@@ -229,13 +214,8 @@ mod filter_packages_tests {
         profile.dependencies.push("pkg2".to_string());
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(
-            &temp_dir,
-            &config,
-            &Some("test-profile".to_string()),
-            false,
-        )
-        .unwrap();
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
 
         // No explicit package names (profile-driven selection), ignore_dependencies=true
         let filtered = config.filter_packages(&ctx.profile, &None, true).unwrap();

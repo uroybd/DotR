@@ -9,10 +9,7 @@ mod prompt_backend_type_tests {
             PromptBackendType::Keychain,
             PromptBackendType::Bitwarden,
         ] {
-            assert_eq!(
-                PromptBackendType::parse(backend.as_str()).unwrap(),
-                backend
-            );
+            assert_eq!(PromptBackendType::parse(backend.as_str()).unwrap(), backend);
         }
     }
 
@@ -98,10 +95,7 @@ mod file_store_tests {
 
         let content = fs::read_to_string(dir.join(".uservariables.toml")).unwrap();
         assert!(content.contains("TOKEN = \"secret-value\""));
-        assert_eq!(
-            store.get(&dir, &["TOKEN".to_string()]).unwrap(),
-            records
-        );
+        assert_eq!(store.get(&dir, &["TOKEN".to_string()]).unwrap(), records);
         fs::remove_dir_all(&dir).ok();
     }
 
