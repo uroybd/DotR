@@ -16,6 +16,13 @@ Variables come from five places:
   gitignored `.uservariables.toml` so secrets never end up in the
   repository.
 
+`DOTR_PROFILE` and `DOTR_BITWARDEN_NOTE` are a special case: whichever
+value wins during [profile](./profiles.md#selecting-a-profile) or
+[Bitwarden note](./prompts.md#machine-local-override-for-bitwarden_note)
+resolution is folded into the config-level tier too, so it's visible like
+any other variable — but they're never *user* variables (declaring them
+as prompts isn't supported).
+
 ```toml
 [variables]
 EDITOR = "nvim"

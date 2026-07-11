@@ -1267,6 +1267,103 @@ BW_SECRET = "Enter a secret"
         assert!(!contents.contains("BW_SECRET"));
     }
 
+    #[test]
+    fn test_dotr_profile_is_folded_into_variables() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+
+        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
+            .expect("Failed to write .uservariables.toml");
+
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        // The bootstrap override is a fallback variable, not a user
+        // variable - it's visible generally, not gated behind an explicit
+        // `get_prompted_variables` call.
+        assert_eq!(
+            ctx.get_variable("DOTR_PROFILE"),
+            Some(&toml::Value::String("default".to_string()))
+        );
+        assert_eq!(ctx.get_user_variable("DOTR_PROFILE"), None);
+    }
+
+    #[test]
+    fn test_dotr_bitwarden_note_is_folded_into_variables() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"DOTR_BITWARDEN_NOTE = "custom-note""#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        let (ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        assert_eq!(
+            ctx.get_variable("DOTR_BITWARDEN_NOTE"),
+            Some(&toml::Value::String("custom-note".to_string()))
+        );
+        assert_eq!(ctx.get_user_variable("DOTR_BITWARDEN_NOTE"), None);
+    }
+
+    #[test]
+    fn test_dotr_profile_from_file_wins_over_env() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+
+        fs::write(temp_dir.join(".uservariables.toml"), r#"DOTR_PROFILE = "default""#)
+            .expect("Failed to write .uservariables.toml");
+
+        // SAFETY: single-threaded within this test; restored immediately
+        // after constructing the context.
+        unsafe {
+            std::env::set_var("DOTR_PROFILE", "env-value");
+        }
+        let result = Context::new(&temp_dir, &config, &None, false);
+        unsafe {
+            std::env::remove_var("DOTR_PROFILE");
+        }
+        let (ctx, _) = result.expect("Failed to create context");
+
+        assert_eq!(
+            ctx.get_variable("DOTR_PROFILE"),
+            Some(&toml::Value::String("default".to_string())),
+            "the file should win over the environment for DOTR_PROFILE"
+        );
+    }
+
+    #[test]
+    fn test_dotr_bitwarden_note_from_env_wins_over_file() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+
+        fs::write(
+            temp_dir.join(".uservariables.toml"),
+            r#"DOTR_BITWARDEN_NOTE = "file-note""#,
+        )
+        .expect("Failed to write .uservariables.toml");
+
+        // SAFETY: single-threaded within this test; restored immediately
+        // after constructing the context.
+        unsafe {
+            std::env::set_var("DOTR_BITWARDEN_NOTE", "env-note");
+        }
+        let result = Context::new(&temp_dir, &config, &None, false);
+        unsafe {
+            std::env::remove_var("DOTR_BITWARDEN_NOTE");
+        }
+        let (ctx, _) = result.expect("Failed to create context");
+
+        assert_eq!(
+            ctx.get_variable("DOTR_BITWARDEN_NOTE"),
+            Some(&toml::Value::String("env-note".to_string())),
+            "the environment should win over the file for DOTR_BITWARDEN_NOTE"
+        );
+    }
+
     mod resolve_bitwarden_note_tests {
         use crate::context::resolve_bitwarden_note;
         use toml::Table;

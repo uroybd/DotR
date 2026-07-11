@@ -34,12 +34,18 @@ dotr diff --profile work
 
 If no `--profile` is given, DotR resolves the active profile in this order:
 
-1. A `DOTR_PROFILE` variable (from the environment or
-   `.uservariables.toml`), if set.
+1. A `DOTR_PROFILE` variable, if set — `.uservariables.toml` wins over the
+   environment if both are set (the reverse of `DOTR_BITWARDEN_NOTE`'s
+   [precedence](./prompts.md#machine-local-override-for-bitwarden_note)).
 2. Otherwise, `default`.
 
 Referencing a profile that doesn't exist is an error (except `default`,
 which is created on the fly if missing).
+
+Whichever value wins is also folded into [variables](./variables.md) as a
+low-priority fallback, so `DOTR_PROFILE` shows up in `dotr print-vars` and
+can be referenced in templates as `{{ DOTR_PROFILE }}` — a profile,
+package, or user variable of the same name still overrides it.
 
 ## Fields
 

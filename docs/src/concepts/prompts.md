@@ -88,6 +88,13 @@ Resolution order, highest priority first: environment variable →
 `.uservariables.toml` → profile's `bitwarden_note` → config's
 `bitwarden_note` → built-in default `"dotr-secrets"`.
 
+Whichever value wins is also folded into [variables](./variables.md) as a
+low-priority fallback, so `DOTR_BITWARDEN_NOTE` shows up in
+`dotr print-vars` and can be referenced in templates as
+`{{ DOTR_BITWARDEN_NOTE }}` — a profile, package, or user variable of the
+same name still overrides it. This is separate from `bitwarden_note`
+itself (the config-/profile-level setting), which isn't a variable.
+
 Whichever backend is active, the answer becomes a **user variable** — the
 highest-priority source in variable resolution, overriding profile,
 package, environment, and config variables. See

@@ -69,14 +69,13 @@ impl Context {
         )
     }
 
-    // `raw_user_variables` here is specifically the plaintext file's
-    // content, for the DOTR_BITWARDEN_NOTE bootstrap override - never the
-    // designated store's resolved values (those aren't relevant to which
-    // backend to construct in the first place).
+    // `variables` here is `self.variables` - it already has the
+    // DOTR_BITWARDEN_NOTE bootstrap override folded in (see `Context::new`),
+    // so there's no need to re-read the file again here.
     fn get_backend(
         profile: &Profile,
         conf: &Config,
-        raw_user_variables: &Table,
+        variables: &Table,
     ) -> Box<dyn prompt_store::PromptStoreBackend> {
         let backend_type = profile
             .prompt_backend
@@ -90,7 +89,7 @@ impl Context {
             prompt_store::PromptBackendType::Bitwarden => {
                 let note = resolve_bitwarden_note(
                     env::var(BITWARDEN_NOTE_OVERRIDE_KEY).ok(),
-                    raw_user_variables,
+                    variables,
                     profile.bitwarden_note.as_deref(),
                     conf.bitwarden_note.as_deref(),
                 );
@@ -144,11 +143,7 @@ impl Context {
         // .uservariables.toml - so e.g. `dotr packages list` never touches
         // Keychain or triggers a Bitwarden unlock just because a Context
         // was constructed.
-        let mut backend = Self::get_backend(
-            &self.profile,
-            conf,
-            &Self::parse_uservariables(&self.working_dir)?,
-        );
+        let mut backend = Self::get_backend(&self.profile, conf, &self.variables);
         let existing = backend.get(&self.working_dir, &missing_keys)?;
         let mut dirty = false;
 
@@ -224,22 +219,37 @@ impl Context {
         // configured backend, so DOTR_PROFILE / DOTR_BITWARDEN_NOTE
         // overrides live here specifically - profile (and therefore
         // backend) selection needs to read them before it knows which
-        // backend to ask. That's the only thing this raw read is for:
-        // `user_variables` itself always starts empty and is resolved
-        // lazily through the designated backend, inside
-        // `get_prompted_variables_with_io` - every caller asks for it
-        // explicitly before reading user variables (see `get_prompted_variables`
-        // call sites in `cli/mod.rs`), so there's nothing to eagerly load
-        // here, and `Context::new` (run for every command) never touches
-        // Keychain or triggers a Bitwarden unlock on its own.
+        // backend to ask. Folded into `variables` as a fallback tier (not
+        // `user_variables` - these are bootstrap settings, not prompted
+        // secrets), so profile resolution and `get_backend`'s Bitwarden
+        // note resolution can both read them from `self.variables` from
+        // here on, without re-parsing the file. `user_variables` itself
+        // always starts empty and is resolved lazily through the
+        // designated backend, inside `get_prompted_variables_with_io` -
+        // every caller asks for it explicitly before reading user
+        // variables (see `get_prompted_variables` call sites in
+        // `cli/mod.rs`), so there's nothing to eagerly load there, and
+        // `Context::new` (run for every command) never touches Keychain or
+        // triggers a Bitwarden unlock on its own.
         let raw_user_variables = Self::parse_uservariables(working_dir)?;
-        let mut all_variables = variables.clone();
-        all_variables.extend(raw_user_variables);
+        // DOTR_PROFILE: the file wins over the environment if both are set.
+        if let Some(value) = raw_user_variables.get("DOTR_PROFILE") {
+            variables.insert("DOTR_PROFILE".to_string(), value.clone());
+        }
+        // DOTR_BITWARDEN_NOTE: the environment wins over the file - only
+        // fall back to the file's value if the env loop above didn't
+        // already set it (matches `resolve_bitwarden_note`'s own
+        // precedence: env -> .uservariables.toml -> profile -> config).
+        if !variables.contains_key(BITWARDEN_NOTE_OVERRIDE_KEY)
+            && let Some(value) = raw_user_variables.get(BITWARDEN_NOTE_OVERRIDE_KEY)
+        {
+            variables.insert(BITWARDEN_NOTE_OVERRIDE_KEY.to_string(), value.clone());
+        }
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
             create_profile_if_missing,
-            &all_variables,
+            &variables,
         )?;
         Ok((
             Self {
