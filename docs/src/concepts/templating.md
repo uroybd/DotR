@@ -48,12 +48,18 @@ dest = "{{ HOME }}/.ssh/config"
 `dotr update` normally copies a deployed file's changes back into the
 repository. For a templated file, that would overwrite the template source
 with rendered output — so `update` (and the underlying backup step) skips
-templated packages entirely, leaving the template as the single source of
-truth. You'll see a message like:
+templated files, leaving the template as the single source of truth. You'll
+see a message like:
 
 ```
-Skipping backup for templated 'nvim_config'
+Skipping backup for templated file 'dotfiles/d_nvim/init.lua'
 ```
+
+This is per-file, not per-package: in a directory package, only the
+templated files are skipped, while regular files alongside them are still
+backed up normally. For example, if `dotfiles/d_nushell/env.nu` contains
+`{{ HOME }}` but the other files in `dotfiles/d_nushell/` don't have any
+template markers, `update` backs up every file except `env.nu`.
 
 If you need to change a templated file, edit the template in `dotfiles/`
 directly and redeploy.
