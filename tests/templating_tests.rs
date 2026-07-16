@@ -296,6 +296,65 @@ fn test_template_not_backed_up_on_update() {
 }
 
 #[test]
+fn test_clean_does_not_delete_templated_file() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Mirrors the real-world d_nushell package: a plain file plus env.nu,
+    // which contains template markers. Regression test for a bug where
+    // clean() deleted skipped templated files from the repo because the
+    // granular backup skip never recorded them as "kept".
+    let pkg_dir = fixture.cwd.join("dotfiles/d_nushell");
+    fs::create_dir_all(&pkg_dir).expect("Failed to create package dir");
+    fs::write(pkg_dir.join("atuin.nu"), "# original atuin config\n").unwrap();
+    fs::write(pkg_dir.join("env.nu"), "$env.HOME = \"{{ HOME }}\"\n").unwrap();
+
+    let deployed_dir = fixture.cwd.join("src/.config/nushell");
+    fs::create_dir_all(&deployed_dir).expect("Failed to create deployed dir");
+    fs::write(deployed_dir.join("atuin.nu"), "# modified\n").unwrap();
+    fs::write(deployed_dir.join("env.nu"), "# compiled, no markers\n").unwrap();
+
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "d_nushell".to_string(),
+        src: "dotfiles/d_nushell".to_string(),
+        dest: "src/.config/nushell".to_string(),
+        ..Default::default()
+    };
+    config.packages.insert("d_nushell".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    // Call update with clean left at the package/CLI default (true),
+    // unlike the TestFixture::update() helper which hardcodes clean=false.
+    run_cli(fixture.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+        packages: Some(vec!["d_nushell".to_string()]),
+        profile: None,
+        ignore_errors: false,
+        clean: None,
+        dry_run: false,
+    }))))
+    .expect("Update failed");
+
+    assert!(
+        pkg_dir.join("env.nu").exists(),
+        "Templated file should not be deleted from src by clean()"
+    );
+    let env_content = fs::read_to_string(pkg_dir.join("env.nu")).expect("Failed to read env.nu");
+    assert!(
+        env_content.contains("{{ HOME }}"),
+        "Templated file should retain its template markers"
+    );
+
+    // Plain file should still be backed up as normal.
+    let atuin_content =
+        fs::read_to_string(pkg_dir.join("atuin.nu")).expect("Failed to read atuin.nu");
+    assert!(
+        atuin_content.contains("# modified"),
+        "Non-templated file should still be backed up when clean is enabled"
+    );
+}
+
+#[test]
 fn test_directory_backup_skips_only_templated_files() {
     let fixture = TestFixture::new();
     fixture.init();

@@ -302,6 +302,7 @@ impl Package {
                             ),
                             &LogLevel::Warning,
                         );
+                        all_copied_paths.push(dest_path);
                         continue;
                     }
                     if !args.dry_run {
