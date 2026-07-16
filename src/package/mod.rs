@@ -264,13 +264,6 @@ impl Package {
 
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context, args: &UpdateArgs) -> anyhow::Result<BackupDeployResult> {
-        if self.package_is_templated(&ctx.working_dir) {
-            cprintln(
-                &format!("Skipping backup for templated '{}'", self.name),
-                &LogLevel::Warning,
-            );
-            return Ok(BackupDeployResult::Skipped);
-        }
         let copy_from = self.resolve_dest(ctx)?;
         let copy_to = ctx.working_dir.join(self.src.clone());
         let unfolded_staging_root = if self.effective_symlink(ctx) && self.should_unfold() {
@@ -283,6 +276,7 @@ impl Package {
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
+                let dest_path = copy_to.clone().join(relative_path);
                 if self.should_ignore(relative_path) {
                     continue;
                 }
@@ -294,13 +288,22 @@ impl Package {
                     // symlinks - never pull it into the tracked repo.
                     continue;
                 }
-                let dest_path = copy_to.clone().join(relative_path);
                 if entry.path().is_dir() {
                     if !args.dry_run {
                         std::fs::create_dir_all(&dest_path)?;
                     }
                     all_copied_paths.push(dest_path);
                 } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
+                    if is_templated(&dest_path) {
+                        cprintln(
+                            &format!(
+                                "Skipping backup for templated file '{}'",
+                                dest_path.display()
+                            ),
+                            &LogLevel::Warning,
+                        );
+                        continue;
+                    }
                     if !args.dry_run {
                         if let Some(parent) = dest_path.parent() {
                             std::fs::create_dir_all(parent)?;
@@ -314,6 +317,13 @@ impl Package {
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
         } else if !args.dry_run {
+            if is_templated(&copy_to) {
+                cprintln(
+                    &format!("Skipping backup for templated file '{}'", copy_to.display()),
+                    &LogLevel::Warning,
+                );
+                return Ok(BackupDeployResult::Skipped);
+            }
             std::fs::copy(&copy_from, &copy_to)?;
         }
         Ok(BackupDeployResult::Success)
@@ -637,24 +647,6 @@ impl Package {
             clean_unfolded(dest_root, staged_root, &linked, &self.ignore)?;
         }
         Ok(())
-    }
-
-    pub fn package_is_templated(&self, cwd: &Path) -> bool {
-        let src_path = cwd.join(&self.src);
-        if !src_path.exists() {
-            return false;
-        }
-        if src_path.is_dir() {
-            for entry in walkdir::WalkDir::new(&src_path).into_iter().flatten() {
-                if entry.path().is_file() {
-                    return is_templated(&entry.path().to_path_buf());
-                }
-            }
-        }
-        if src_path.is_file() {
-            return is_templated(&src_path);
-        }
-        false
     }
 }
 

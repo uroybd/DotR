@@ -296,6 +296,69 @@ fn test_template_not_backed_up_on_update() {
 }
 
 #[test]
+fn test_directory_backup_skips_only_templated_files() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    // Mirrors the real-world d_nushell package: several plain files plus
+    // env.nu, which is the only file containing template markers
+    // ({{ HOME }}, {{ JIRA_API_TOKEN }}, etc). Backup should be granular:
+    // only env.nu should be skipped, the plain files should still be
+    // backed up with their modified (deployed) content.
+    let pkg_dir = fixture.cwd.join("dotfiles/d_nushell");
+    fs::create_dir_all(&pkg_dir).expect("Failed to create package dir");
+    fs::write(pkg_dir.join("atuin.nu"), "# original atuin config\n").unwrap();
+    fs::write(
+        pkg_dir.join("env.nu"),
+        "$env.HOME = \"{{ HOME }}\"\n$env.JIRA_API_TOKEN = \"{{ JIRA_API_TOKEN }}\"\n",
+    )
+    .unwrap();
+
+    // Deployed (live) versions, both modified by the user since last deploy.
+    let deployed_dir = fixture.cwd.join("src/.config/nushell");
+    fs::create_dir_all(&deployed_dir).expect("Failed to create deployed dir");
+    fs::write(
+        deployed_dir.join("atuin.nu"),
+        "# Modified by user\n# This SHOULD be backed up\n",
+    )
+    .unwrap();
+    fs::write(
+        deployed_dir.join("env.nu"),
+        "# Compiled/live content with no markers left\n# This should NOT be backed up\n",
+    )
+    .unwrap();
+
+    // Add package
+    let mut config = fixture.get_config();
+    let package = dotr_dear::package::Package {
+        name: "d_nushell".to_string(),
+        src: "dotfiles/d_nushell".to_string(),
+        dest: "src/.config/nushell".to_string(),
+        ..Default::default()
+    };
+    config.packages.insert("d_nushell".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    fixture.update(Some(vec!["d_nushell".to_string()]));
+
+    // Plain file should have been backed up with the modified deployed content.
+    let atuin_content = fs::read_to_string(pkg_dir.join("atuin.nu"))
+        .expect("Failed to read backed up atuin.nu");
+    assert!(
+        atuin_content.contains("Modified by user"),
+        "Non-templated file in a mixed directory should still be backed up"
+    );
+
+    // Templated file should retain its original template markers, untouched.
+    let env_content =
+        fs::read_to_string(pkg_dir.join("env.nu")).expect("Failed to read env.nu");
+    assert!(
+        env_content.contains("{{ HOME }}") && env_content.contains("{{ JIRA_API_TOKEN }}"),
+        "Templated file in a mixed directory should not be overwritten by backup"
+    );
+}
+
+#[test]
 fn test_template_directory_deployment() {
     let fixture = TestFixture::new();
     fixture.init();
