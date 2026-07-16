@@ -3,7 +3,7 @@ name = "dotr-dear"
 description = "A dotfiles manager as dear as a daughter."
 authors = ["Utsob Roy <connect@utsob.me>"]
 license = "MIT"
-version = "2.0.3"
+version = "2.1.0"
 edition = "2024"
 repository = "https://github.com/uroybd/dotr"
 
