@@ -326,13 +326,15 @@ fn test_clean_does_not_delete_templated_file() {
 
     // Call update with clean left at the package/CLI default (true),
     // unlike the TestFixture::update() helper which hardcodes clean=false.
-    run_cli(fixture.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
-        packages: Some(vec!["d_nushell".to_string()]),
-        profile: None,
-        ignore_errors: false,
-        clean: None,
-        dry_run: false,
-    }))))
+    run_cli(
+        fixture.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+            packages: Some(vec!["d_nushell".to_string()]),
+            profile: None,
+            ignore_errors: false,
+            clean: None,
+            dry_run: false,
+        }))),
+    )
     .expect("Update failed");
 
     assert!(
