@@ -342,16 +342,15 @@ fn test_directory_backup_skips_only_templated_files() {
     fixture.update(Some(vec!["d_nushell".to_string()]));
 
     // Plain file should have been backed up with the modified deployed content.
-    let atuin_content = fs::read_to_string(pkg_dir.join("atuin.nu"))
-        .expect("Failed to read backed up atuin.nu");
+    let atuin_content =
+        fs::read_to_string(pkg_dir.join("atuin.nu")).expect("Failed to read backed up atuin.nu");
     assert!(
         atuin_content.contains("Modified by user"),
         "Non-templated file in a mixed directory should still be backed up"
     );
 
     // Templated file should retain its original template markers, untouched.
-    let env_content =
-        fs::read_to_string(pkg_dir.join("env.nu")).expect("Failed to read env.nu");
+    let env_content = fs::read_to_string(pkg_dir.join("env.nu")).expect("Failed to read env.nu");
     assert!(
         env_content.contains("{{ HOME }}") && env_content.contains("{{ JIRA_API_TOKEN }}"),
         "Templated file in a mixed directory should not be overwritten by backup"
