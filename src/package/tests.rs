@@ -384,3 +384,122 @@ mod resolve_dest_tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 }
+
+mod get_context_variables_tests {
+    use crate::config::Config;
+    use crate::context::Context;
+    use crate::package::Package;
+    use crate::profile::Profile;
+    use std::env;
+    use toml::Table;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = env::temp_dir().join(format!("dotr_test_get_context_variables_{}", name));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn var(value: &str) -> toml::Value {
+        toml::Value::String(value.to_string())
+    }
+
+    /// Every layer (config, platform, package, profile, user) sets the same
+    /// key to a different value; only the most specific one should survive.
+    /// Precedence, least to most specific: config < platform < package <
+    /// profile < user - matching the field docs in schema/config.schema.json.
+    #[test]
+    fn most_specific_layer_wins_for_a_key_set_everywhere() {
+        let dir = temp_dir("precedence");
+
+        let mut config = Config::new();
+        config.variables.insert("LAYER".to_string(), var("config"));
+
+        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+
+        let mut platform_variables = Table::new();
+        platform_variables.insert("LAYER".to_string(), var("platform"));
+        let mut profile_variables = Table::new();
+        profile_variables.insert("LAYER".to_string(), var("profile"));
+        ctx.set_profile(Profile {
+            name: "work".to_string(),
+            platform: Some("macos".to_string()),
+            platform_variables,
+            variables: profile_variables,
+            ..Default::default()
+        });
+
+        std::fs::write(dir.join(".uservariables.toml"), r#"LAYER = "user""#).unwrap();
+        let (mut ctx_with_user, _) = Context::new(&dir, &config, &None, false).unwrap();
+        ctx_with_user.set_profile(ctx.profile.clone());
+
+        let mut pkg = Package::new("pkg", "src", "/dest");
+        pkg.variables.insert("LAYER".to_string(), var("package"));
+
+        assert_eq!(
+            pkg.get_context_variables(&ctx).get("LAYER"),
+            Some(&var("profile")),
+            "profile variables must override package variables"
+        );
+
+        // With a user override present, it wins over everything else.
+        assert_eq!(
+            pkg.get_context_variables(&ctx_with_user).get("LAYER"),
+            Some(&var("user")),
+            "user variables must override every other layer"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn package_variable_overrides_platform_variable() {
+        let dir = temp_dir("package-over-platform");
+        let config = Config::new();
+        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+
+        let mut platform_variables = Table::new();
+        platform_variables.insert("LAYER".to_string(), var("platform"));
+        ctx.set_profile(Profile {
+            name: "work".to_string(),
+            platform: Some("macos".to_string()),
+            platform_variables,
+            ..Default::default()
+        });
+
+        let mut pkg = Package::new("pkg", "src", "/dest");
+        pkg.variables.insert("LAYER".to_string(), var("package"));
+
+        assert_eq!(
+            pkg.get_context_variables(&ctx).get("LAYER"),
+            Some(&var("package")),
+            "package variables must override platform variables"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn platform_variable_is_used_when_nothing_more_specific_sets_it() {
+        let dir = temp_dir("platform-fallback");
+        let config = Config::new();
+        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+
+        let mut platform_variables = Table::new();
+        platform_variables.insert("PLATFORM_ONLY".to_string(), var("platform"));
+        ctx.set_profile(Profile {
+            name: "work".to_string(),
+            platform: Some("macos".to_string()),
+            platform_variables,
+            ..Default::default()
+        });
+
+        let pkg = Package::new("pkg", "src", "/dest");
+
+        assert_eq!(
+            pkg.get_context_variables(&ctx).get("PLATFORM_ONLY"),
+            Some(&var("platform"))
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

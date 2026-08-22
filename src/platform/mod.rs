@@ -1,3 +1,13 @@
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
+use toml::Table;
+
+use crate::utils::is_empty_table;
+
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Platform {
     #[serde(skip)]
@@ -27,4 +37,20 @@ impl Platform {
             variables,
         })
     }
+}
+
+pub fn get_platforms_from_table(
+    value: Option<&toml::Value>,
+) -> anyhow::Result<HashMap<String, Platform>> {
+    let mut platforms: HashMap<String, Platform> = HashMap::new();
+    if let Some(table) = value.and_then(|v| v.as_table()) {
+        for (key, val) in table.iter() {
+            let val_table = val
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("Platform '{}' must be a table", key))?;
+            let platform = Platform::from_table(key, val_table)?;
+            platforms.insert(platform.name.clone(), platform);
+        }
+    }
+    Ok(platforms)
 }

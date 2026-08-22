@@ -47,6 +47,12 @@
       "default": {},
       "description": "Profile definitions, keyed by profile name. A `default` profile always exists.",
       "additionalProperties": { "$ref": "#/definitions/profile" }
+    },
+    "platforms": {
+      "type": "object",
+      "default": {},
+      "description": "Platform definitions, keyed by platform name (e.g. \"macos\", \"linux\") - the same names used by a profile's `platform` field. A profile whose `platform` matches one of these keys picks up its variables.",
+      "additionalProperties": { "$ref": "#/definitions/platform" }
     }
   },
   "definitions": {
@@ -70,7 +76,7 @@
         },
         "variables": {
           "type": "object",
-          "description": "Package-scoped variables. Override config-level and environment variables of the same name."
+          "description": "Package-scoped variables. Override platform, config-level, and environment variables of the same name; overridden in turn by profile variables of the same name."
         },
         "pre_actions": {
           "type": "array",
@@ -129,7 +135,7 @@
         },
         "variables": {
           "type": "object",
-          "description": "Profile-scoped variables. Override package, config-level, and environment variables of the same name."
+          "description": "Profile-scoped variables. Override package, platform, config-level, and environment variables of the same name."
         },
         "prompts": {
           "type": "object",
@@ -146,7 +152,17 @@
         },
         "platform": {
           "type": "string",
-          "description": "Shares a package's per-profile `targets` destination with every other profile that sets the same platform value. A `targets` entry keyed by this profile's own name still takes precedence over one keyed by its platform."
+          "description": "Names an entry in the top-level `platforms` table. Shares that platform's variables with every other profile that sets the same value, and shares a package's per-profile `targets` destination the same way. A `targets` entry keyed by this profile's own name still takes precedence over one keyed by its platform, and this profile's own `variables` still take precedence over the platform's."
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "variables": {
+          "type": "object",
+          "description": "Variables shared by every profile whose `platform` field names this platform. Override config-level and environment variables, but are overridden by package and profile variables of the same name."
         }
       }
     },

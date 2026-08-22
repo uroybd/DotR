@@ -319,6 +319,114 @@ OVERRIDE_VAR = "user_override"
     }
 
     #[test]
+    fn test_get_platform_variable() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+        let (mut ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        ctx.profile.platform_variables.insert(
+            "PLATFORM_VAR".to_string(),
+            toml::Value::String("platform_value".to_string()),
+        );
+
+        assert_eq!(
+            ctx.get_platform_variable("PLATFORM_VAR"),
+            Some(&toml::Value::String("platform_value".to_string()))
+        );
+        assert_eq!(ctx.get_platform_variable("NONEXISTENT"), None);
+    }
+
+    #[test]
+    fn test_get_context_variable_falls_back_to_platform_variable() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+        let (mut ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        ctx.profile.platform_variables.insert(
+            "PLATFORM_ONLY".to_string(),
+            toml::Value::String("platform_value".to_string()),
+        );
+
+        assert_eq!(
+            ctx.get_context_variable("PLATFORM_ONLY"),
+            Some(&toml::Value::String("platform_value".to_string()))
+        );
+    }
+
+    /// A profile's own `variables` are more specific than the variables it
+    /// inherits from its shared `platform`, so they must win when both set
+    /// the same key.
+    #[test]
+    fn test_get_context_variable_profile_variable_overrides_platform_variable() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+        let (mut ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        ctx.profile.platform_variables.insert(
+            "SHARED".to_string(),
+            toml::Value::String("platform_value".to_string()),
+        );
+        ctx.profile.variables.insert(
+            "SHARED".to_string(),
+            toml::Value::String("profile_value".to_string()),
+        );
+
+        assert_eq!(
+            ctx.get_context_variable("SHARED"),
+            Some(&toml::Value::String("profile_value".to_string()))
+        );
+    }
+
+    /// Platform variables are a stand-in for config-level variables (the
+    /// platform-specific subset of them), so a config-level variable of the
+    /// same name must not shadow the platform's - the platform is more
+    /// specific.
+    #[test]
+    fn test_get_context_variable_platform_variable_overrides_config_variable() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+        let (mut ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        ctx.variables.insert(
+            "SHARED".to_string(),
+            toml::Value::String("config_value".to_string()),
+        );
+        ctx.profile.platform_variables.insert(
+            "SHARED".to_string(),
+            toml::Value::String("platform_value".to_string()),
+        );
+
+        assert_eq!(
+            ctx.get_context_variable("SHARED"),
+            Some(&toml::Value::String("platform_value".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_get_context_variables_includes_platform_variables() {
+        let temp_dir = create_temp_dir();
+        let config = create_test_config(&temp_dir);
+        let (mut ctx, _) =
+            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+
+        ctx.profile.platform_variables.insert(
+            "PLATFORM_VAR".to_string(),
+            toml::Value::String("platform_value".to_string()),
+        );
+
+        let merged = ctx.get_context_variables();
+
+        assert_eq!(
+            merged.get("PLATFORM_VAR"),
+            Some(&toml::Value::String("platform_value".to_string()))
+        );
+    }
+
+    #[test]
     fn test_extend_variables() {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);

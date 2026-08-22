@@ -87,6 +87,7 @@ impl Config {
             }
         }
 
+        let platforms = crate::platform::get_platforms_from_table(table.get("platforms"))?;
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         let profile_confs = table.get("profiles").and_then(|v| v.as_table());
         if let Some(prof_confs) = profile_confs {
@@ -94,7 +95,16 @@ impl Config {
                 let prof_val = val
                     .as_table()
                     .ok_or_else(|| anyhow::anyhow!("Profile '{}' must be a table", key))?;
-                let profile = Profile::from_table(key, prof_val)?;
+                let mut profile = Profile::from_table(key, prof_val)?;
+                // Resolved once here, at parse time, rather than on every
+                // `Context::new` - a profile's `platform` is fixed for the
+                // life of the config, so there's no need to re-look-up its
+                // platform's variables on every run.
+                if let Some(platform_name) = &profile.platform
+                    && let Some(platform) = platforms.get(platform_name)
+                {
+                    profile.platform_variables = platform.variables.clone();
+                }
                 profiles.insert(profile.name.clone(), profile);
             }
         }
@@ -114,7 +124,6 @@ impl Config {
             .and_then(|v| v.as_str())
             .map(crate::prompt_store::PromptBackendType::parse)
             .transpose()?;
-        let platforms = crate::platform::get_platforms_from_table(table.get("platforms"))?;
         Ok(Self {
             banner: table
                 .get("banner")

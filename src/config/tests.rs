@@ -1062,3 +1062,113 @@ mod package_safety_tests {
         assert_eq!(orphans.len(), 0);
     }
 }
+
+#[cfg(test)]
+mod platforms_tests {
+    use crate::config::Config;
+
+    #[test]
+    fn from_table_parses_platforms() {
+        let toml_str = r#"
+[platforms.macos]
+variables = { EDITOR = "vim" }
+
+[platforms.linux]
+variables = { EDITOR = "nano" }
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        assert_eq!(config.platforms.len(), 2);
+        assert_eq!(
+            config
+                .platforms
+                .get("macos")
+                .unwrap()
+                .variables
+                .get("EDITOR"),
+            Some(&toml::Value::String("vim".to_string()))
+        );
+    }
+
+    #[test]
+    fn from_table_with_no_platforms_is_empty() {
+        let table: toml::Table = "".parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        assert!(config.platforms.is_empty());
+    }
+
+    #[test]
+    fn profile_with_matching_platform_gets_platform_variables() {
+        let toml_str = r#"
+[platforms.macos]
+variables = { EDITOR = "vim" }
+
+[profiles.work]
+platform = "macos"
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        let profile = config.profiles.get("work").unwrap();
+        assert_eq!(
+            profile.platform_variables.get("EDITOR"),
+            Some(&toml::Value::String("vim".to_string()))
+        );
+    }
+
+    #[test]
+    fn profile_without_platform_has_no_platform_variables() {
+        let toml_str = r#"
+[platforms.macos]
+variables = { EDITOR = "vim" }
+
+[profiles.work]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        let profile = config.profiles.get("work").unwrap();
+        assert!(profile.platform_variables.is_empty());
+    }
+
+    #[test]
+    fn profile_referencing_undefined_platform_has_no_platform_variables() {
+        let toml_str = r#"
+[profiles.work]
+platform = "does-not-exist"
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        let profile = config.profiles.get("work").unwrap();
+        assert!(profile.platform_variables.is_empty());
+    }
+
+    #[test]
+    fn two_profiles_sharing_a_platform_both_get_its_variables() {
+        let toml_str = r#"
+[platforms.macos]
+variables = { EDITOR = "vim" }
+
+[profiles.laptop]
+platform = "macos"
+
+[profiles.desktop]
+platform = "macos"
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        for name in ["laptop", "desktop"] {
+            let profile = config.profiles.get(name).unwrap();
+            assert_eq!(
+                profile.platform_variables.get("EDITOR"),
+                Some(&toml::Value::String("vim".to_string())),
+                "profile '{}' should carry the shared platform's variables",
+                name
+            );
+        }
+    }
+}

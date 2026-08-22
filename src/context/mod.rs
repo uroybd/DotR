@@ -47,11 +47,15 @@ impl Context {
         self.profile.variables.get(key)
     }
 
+    pub fn get_platform_variable(&self, key: &str) -> Option<&toml::Value> {
+        self.profile.platform_variables.get(key)
+    }
+
     pub fn get_context_variable(&self, key: &str) -> Option<&toml::Value> {
-        self.get_user_variable(key).or_else(|| {
-            self.get_profile_variable(key)
-                .or_else(|| self.get_variable(key))
-        })
+        self.get_user_variable(key)
+            .or_else(|| self.get_profile_variable(key))
+            .or_else(|| self.get_platform_variable(key))
+            .or_else(|| self.get_variable(key))
     }
 
     pub fn set_profile(&mut self, profile: Profile) {
@@ -240,9 +244,6 @@ impl Context {
         if let Some(value) = user_variables.get(DOTR_PROFILE_KEY) {
             variables.insert(DOTR_PROFILE_KEY.to_string(), value.clone());
         }
-        if let Some(platform_vars) = conf.platforms.get(&conf.platform) {
-            variables.extend(platform_vars.variables.clone());
-        }
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,
@@ -319,6 +320,7 @@ impl Context {
 
     pub fn get_context_variables(&self) -> Table {
         let mut context_vars = self.variables.clone();
+        context_vars.extend(self.profile.platform_variables.clone());
         context_vars.extend(self.profile.variables.clone());
         context_vars.extend(self.user_variables.clone());
         context_vars

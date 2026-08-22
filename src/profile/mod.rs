@@ -23,6 +23,8 @@ pub struct Profile {
     pub bitwarden_note: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub platform: Option<String>,
+    #[serde(skip)]
+    pub platform_variables: Table,
 }
 
 impl Profile {
@@ -64,6 +66,7 @@ impl Profile {
             prompt_backend,
             bitwarden_note,
             platform,
+            platform_variables: Table::new(),
         })
     }
 }
