@@ -240,6 +240,9 @@ impl Context {
         if let Some(value) = user_variables.get(DOTR_PROFILE_KEY) {
             variables.insert(DOTR_PROFILE_KEY.to_string(), value.clone());
         }
+        if let Some(platform_vars) = conf.platforms.get(&conf.platform) {
+            variables.extend(platform_vars.variables.clone());
+        }
         let (profile, created) = Self::get_profile_from_config(
             conf,
             profile_name,

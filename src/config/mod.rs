@@ -10,6 +10,7 @@ use crate::{
     },
     context::Context,
     package::{BackupDeployResult, Package},
+    platform::Platform,
     profile::Profile,
     utils::{LogLevel, cprintln, is_empty_table},
 };
@@ -29,6 +30,8 @@ pub struct Config {
     pub packages: HashMap<String, Package>,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub profiles: HashMap<String, Profile>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub platforms: HashMap<String, Platform>,
     #[serde(skip_serializing_if = "is_empty_table")]
     pub variables: Table,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
@@ -111,6 +114,7 @@ impl Config {
             .and_then(|v| v.as_str())
             .map(crate::prompt_store::PromptBackendType::parse)
             .transpose()?;
+        let platforms = crate::platform::get_platforms_from_table(table.get("platforms"))?;
         Ok(Self {
             banner: table
                 .get("banner")
@@ -126,6 +130,7 @@ impl Config {
             prompts,
             bitwarden_note,
             prompt_backend,
+            platforms,
         })
     }
 

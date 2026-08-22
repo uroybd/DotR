@@ -228,8 +228,8 @@ impl Package {
 
     pub fn get_context_variables(&self, ctx: &Context) -> Table {
         let mut vars = ctx.get_variables().clone();
-        vars.extend(self.variables.clone());
         vars.extend(ctx.profile.variables.clone());
+        vars.extend(self.variables.clone());
         vars.extend(ctx.get_user_variables().clone());
         vars
     }
