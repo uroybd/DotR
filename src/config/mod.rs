@@ -310,14 +310,17 @@ impl Config {
         ctx: &Context,
         args: &DeployArgs,
     ) -> Result<(), anyhow::Error> {
+        if args.skip_actions || args.skip_pre_actions {
+            return Ok(());
+        }
         let vars = ctx.profile.get_context_variables(ctx);
         if let Some(platform) = self.get_platform(ctx) {
             for action in &platform.pre_actions {
-                crate::actions::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+                crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
             }
         }
         for action in &ctx.profile.pre_actions {
-            crate::actions::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+            crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
         }
         Ok(())
     }
@@ -327,13 +330,16 @@ impl Config {
         ctx: &Context,
         args: &DeployArgs,
     ) -> Result<(), anyhow::Error> {
+        if args.skip_actions || args.skip_post_actions {
+            return Ok(());
+        }
         let vars = ctx.profile.get_context_variables(ctx);
         for action in &ctx.profile.post_actions {
-            crate::actions::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+            crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
         }
         if let Some(platform) = self.get_platform(ctx) {
             for action in &platform.post_actions {
-                crate::actions::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+                crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
             }
         }
         Ok(())

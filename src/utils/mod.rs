@@ -3,6 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use toml::Table;
+
 #[cfg(test)]
 mod tests;
 

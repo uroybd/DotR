@@ -12,9 +12,9 @@ use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
     utils::{
-        self, BACKUP_EXT, LogLevel, cprintln, execute_action, get_string_from_value,
-        get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table,
-        normalize_home_path, resolve_path,
+        self, BACKUP_EXT, LogLevel, compile_string, cprintln, execute_action,
+        get_string_from_value, get_string_hashmap_from_value, get_vec_string_from_value,
+        is_empty_table, normalize_home_path, resolve_path,
     },
 };
 

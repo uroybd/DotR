@@ -1171,4 +1171,298 @@ platform = "macos"
             );
         }
     }
+
+    #[test]
+    fn from_table_parses_platform_actions() {
+        let toml_str = r#"
+[platforms.macos]
+pre_actions = ["brew bundle"]
+post_actions = ["killall Dock"]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        let macos = config.platforms.get("macos").unwrap();
+        assert_eq!(macos.pre_actions, vec!["brew bundle"]);
+        assert_eq!(macos.post_actions, vec!["killall Dock"]);
+    }
+
+    #[test]
+    fn from_table_parses_profile_actions() {
+        let toml_str = r#"
+[profiles.work]
+pre_actions = ["echo start"]
+post_actions = ["echo done"]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+
+        let work = config.profiles.get("work").unwrap();
+        assert_eq!(work.pre_actions, vec!["echo start"]);
+        assert_eq!(work.post_actions, vec!["echo done"]);
+    }
+}
+
+#[cfg(test)]
+mod platform_profile_actions_tests {
+    use crate::cli::DeployArgs;
+    use crate::config::Config;
+    use crate::context::Context;
+    use std::env;
+    use std::fs;
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = env::temp_dir().join(format!(
+            "dotr_test_platform_profile_actions_{}_{}",
+            name,
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn config_with_actions() -> Config {
+        let toml_str = r#"
+[platforms.macos]
+pre_actions = ["printf 'platform-pre\n' >> log.txt"]
+post_actions = ["printf 'platform-post\n' >> log.txt"]
+
+[profiles.work]
+platform = "macos"
+pre_actions = ["printf 'profile-pre\n' >> log.txt"]
+post_actions = ["printf 'profile-post\n' >> log.txt"]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        Config::from_table(&table).unwrap()
+    }
+
+    fn deploy_args(dry_run: bool) -> DeployArgs {
+        DeployArgs {
+            dry_run,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn pre_actions_run_platform_before_profile() {
+        let dir = temp_dir("pre-order");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        config
+            .execute_pre_actions(&ctx, &deploy_args(false))
+            .unwrap();
+
+        let log = fs::read_to_string(dir.join("log.txt")).unwrap();
+        assert_eq!(log, "platform-pre\nprofile-pre\n");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn post_actions_run_profile_before_platform() {
+        let dir = temp_dir("post-order");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        config
+            .execute_post_actions(&ctx, &deploy_args(false))
+            .unwrap();
+
+        let log = fs::read_to_string(dir.join("log.txt")).unwrap();
+        assert_eq!(log, "profile-post\nplatform-post\n");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn dry_run_does_not_execute_actions() {
+        let dir = temp_dir("dry-run");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        config
+            .execute_pre_actions(&ctx, &deploy_args(true))
+            .unwrap();
+        config
+            .execute_post_actions(&ctx, &deploy_args(true))
+            .unwrap();
+
+        assert!(
+            !dir.join("log.txt").exists(),
+            "dry run must not run platform/profile actions"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn actions_are_a_noop_when_profile_has_no_platform_and_no_actions() {
+        let dir = temp_dir("noop");
+        let toml_str = r#"
+[profiles.plain]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, &Some("plain".to_string()), false).unwrap();
+
+        config
+            .execute_pre_actions(&ctx, &deploy_args(false))
+            .unwrap();
+        config
+            .execute_post_actions(&ctx, &deploy_args(false))
+            .unwrap();
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn profile_actions_run_without_a_matching_platform_entry() {
+        let dir = temp_dir("profile-only");
+        let toml_str = r#"
+[profiles.work]
+platform = "macos"
+pre_actions = ["printf 'profile-pre\n' >> log.txt"]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        config
+            .execute_pre_actions(&ctx, &deploy_args(false))
+            .unwrap();
+
+        let log = fs::read_to_string(dir.join("log.txt")).unwrap();
+        assert_eq!(log, "profile-pre\n");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn platform_variables_are_available_to_actions() {
+        let dir = temp_dir("action-vars");
+        let toml_str = r#"
+[platforms.macos]
+variables = { GREETING = "hello-from-platform" }
+pre_actions = ["printf '{{ GREETING }}' > out.txt"]
+
+[profiles.work]
+platform = "macos"
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        config
+            .execute_pre_actions(&ctx, &deploy_args(false))
+            .unwrap();
+
+        let out = fs::read_to_string(dir.join("out.txt")).unwrap();
+        assert_eq!(out, "hello-from-platform");
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_failing_action_propagates_an_error() {
+        let dir = temp_dir("failing");
+        let toml_str = r#"
+[profiles.work]
+pre_actions = ["exit 1"]
+"#;
+        let table: toml::Table = toml_str.parse().unwrap();
+        let config = Config::from_table(&table).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        assert!(
+            config
+                .execute_pre_actions(&ctx, &deploy_args(false))
+                .is_err()
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn deploy_packages_skips_actions_when_no_packages_selected() {
+        let dir = temp_dir("empty-deploy");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        // `work` has no `dependencies` and we pass no explicit packages, so
+        // nothing is selected - platform/profile actions must not run.
+        config.deploy_packages(&ctx, &deploy_args(false)).unwrap();
+
+        assert!(
+            !dir.join("log.txt").exists(),
+            "platform/profile actions must not run when there is nothing to deploy"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn skip_actions_suppresses_both_pre_and_post() {
+        let dir = temp_dir("skip-actions");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        let args = DeployArgs {
+            skip_actions: true,
+            ..Default::default()
+        };
+        config.execute_pre_actions(&ctx, &args).unwrap();
+        config.execute_post_actions(&ctx, &args).unwrap();
+
+        assert!(
+            !dir.join("log.txt").exists(),
+            "--skip-actions must skip platform and profile actions too"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn skip_pre_actions_suppresses_only_pre() {
+        let dir = temp_dir("skip-pre");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        let args = DeployArgs {
+            skip_pre_actions: true,
+            ..Default::default()
+        };
+        config.execute_pre_actions(&ctx, &args).unwrap();
+        config.execute_post_actions(&ctx, &args).unwrap();
+
+        let log = fs::read_to_string(dir.join("log.txt")).unwrap();
+        assert_eq!(
+            log, "profile-post\nplatform-post\n",
+            "--skip-pre-actions must leave post actions running"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn skip_post_actions_suppresses_only_post() {
+        let dir = temp_dir("skip-post");
+        let config = config_with_actions();
+        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+
+        let args = DeployArgs {
+            skip_post_actions: true,
+            ..Default::default()
+        };
+        config.execute_pre_actions(&ctx, &args).unwrap();
+        config.execute_post_actions(&ctx, &args).unwrap();
+
+        let log = fs::read_to_string(dir.join("log.txt")).unwrap();
+        assert_eq!(
+            log, "platform-pre\nprofile-pre\n",
+            "--skip-post-actions must leave pre actions running"
+        );
+
+        fs::remove_dir_all(&dir).ok();
+    }
 }

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use toml::Table;
 
-use crate::utils::is_empty_table;
+use crate::utils::{get_vec_string_from_value, is_empty_table};
 
 #[cfg(test)]
 mod tests;

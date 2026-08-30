@@ -6,6 +6,9 @@ use crate::context::Context;
 use crate::prompt_store::PromptBackendType;
 use crate::utils::{get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Profile {
     #[serde(skip)]
