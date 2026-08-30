@@ -122,6 +122,7 @@ NVIM_TOKEN = "Enter your plugin registry token"
 dependencies = ["nvim", "git"]
 prompt_backend = "keychain"
 platform = "macos"
+pre_actions = ["echo 'Deploying the work profile'"]
 
 [profiles.work.variables]
 GIT_EMAIL = "work@company.com"
@@ -137,13 +138,16 @@ WORK_TOKEN = "Enter your work VPN token"
 | `prompts`      | table           | `{}`    | Profile-scoped prompts — [Prompts](../concepts/prompts.md). |
 | `prompt_backend` | `"file"` \| `"keychain"` \| `"bitwarden"` | unset (follows the top-level `prompt_backend`) | Overrides the repo-wide default backend while this profile is active — [Prompts](../concepts/prompts.md#where-answers-go-backends). |
 | `bitwarden_note` | string          | unset (follows the top-level `bitwarden_note`) | Overrides which Bitwarden secure note this profile's `bitwarden`-backed prompts use — [Prompts](../concepts/prompts.md#where-answers-go-backends). Can itself be overridden per-machine via `DOTR_BITWARDEN_NOTE` — see [machine-local override](../concepts/prompts.md#machine-local-override-for-bitwarden_note). |
-| `platform`     | string          | unset           | Names an entry in the top-level `platforms` table. Shares that platform's `variables`, and shares a package's `targets` destination, with every other profile that sets the same value. A `targets` entry keyed by the profile's own name beats one keyed by its platform, and the profile's own `variables` beat the platform's. — [Platforms](../concepts/platforms.md), [Packages](../concepts/packages.md#sharing-a-target-across-profiles-by-platform). |
+| `platform`     | string          | unset           | Names an entry in the top-level `platforms` table. Shares that platform's `variables`, `pre_actions`/`post_actions`, and a package's `targets` destination with every other profile that sets the same value. A `targets` entry keyed by the profile's own name beats one keyed by its platform, and the profile's own `variables` beat the platform's. — [Platforms](../concepts/platforms.md), [Packages](../concepts/packages.md#sharing-a-target-across-profiles-by-platform). |
+| `pre_actions`  | list of strings | `[]`    | Shell commands run once before a `dotr deploy` under this profile, wrapping the per-package actions — [Actions](../concepts/actions.md#profile-and-platform-actions). |
+| `post_actions` | list of strings | `[]`    | Shell commands run once after such a deploy — [Actions](../concepts/actions.md#profile-and-platform-actions). |
 
 ## `[platforms.<name>]`
 
 ```toml
 [platforms.macos]
 variables = { CLIPBOARD = "pbcopy" }
+pre_actions = ["softwareupdate --install-rosetta --agree-to-license || true"]
 
 [platforms.linux]
 variables = { CLIPBOARD = "xclip -selection clipboard" }
@@ -152,13 +156,15 @@ variables = { CLIPBOARD = "xclip -selection clipboard" }
 Keyed by platform name — a free-form string (`macos`, `linux`, `wsl`, …);
 DotR matches it against profiles' `platform` fields and never inspects the
 running OS. A profile whose `platform` names a platform here inherits its
-variables; several profiles can name the same platform and all inherit
-them. Naming a platform that isn't declared here is allowed and simply
-yields no platform variables.
+variables and actions; several profiles can name the same platform and all
+inherit them. Naming a platform that isn't declared here is allowed and
+simply yields nothing.
 
-| Field       | Type  | Default | Purpose                                                                 |
-| ----------- | ----- | ------- | ---------------------------------------------------------------------- |
-| `variables` | table | `{}`    | Variables shared by every profile naming this platform. Override config-level and environment variables; overridden by package, profile, and user variables — [Variables](../concepts/variables.md#priority), [Platforms](../concepts/platforms.md). |
+| Field          | Type            | Default | Purpose                                                                 |
+| -------------- | --------------- | ------- | ---------------------------------------------------------------------- |
+| `variables`    | table           | `{}`    | Variables shared by every profile naming this platform. Override config-level and environment variables; overridden by package, profile, and user variables — [Variables](../concepts/variables.md#priority), [Platforms](../concepts/platforms.md). |
+| `pre_actions`  | list of strings | `[]`    | Shell commands run once before a `dotr deploy` for any profile on this platform — outermost, wrapping the profile's own actions — [Actions](../concepts/actions.md#profile-and-platform-actions). |
+| `post_actions` | list of strings | `[]`    | Shell commands run once after such a deploy — [Actions](../concepts/actions.md#profile-and-platform-actions). |
 
 ## Other files DotR creates
 

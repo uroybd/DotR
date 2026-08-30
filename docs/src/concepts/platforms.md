@@ -39,8 +39,9 @@ platform = "macos"
 
 This is the same `platform` field that shares a package's
 [`targets`](./packages.md#sharing-a-target-across-profiles-by-platform)
-destination across profiles — a profile's `platform` value now does both
-jobs at once: it shares platform variables *and* shares platform-keyed
+destination across profiles — a profile's `platform` value does several
+jobs at once: it shares the platform's variables, its
+[actions](./actions.md#profile-and-platform-actions), *and* platform-keyed
 `targets` entries.
 
 The `platform` name is just a string you choose. `macos` and `linux` are
@@ -50,18 +51,23 @@ matches the string.
 
 A profile can set `platform` without a matching `[platforms.<name>]` table
 existing. That's not an error: the profile simply picks up no platform
-variables (platform-keyed `targets` still work). This is why you can use
-`platform` purely for `targets` sharing and never declare a `[platforms]`
-table at all.
+variables or actions (platform-keyed `targets` still work). This is why you
+can use `platform` purely for `targets` sharing and never declare a
+`[platforms]` table at all.
 
 ## What a platform can hold
 
-| Field       | Type  | Purpose                                                                 |
-| ----------- | ----- | ---------------------------------------------------------------------- |
-| `variables` | table | Variables shared by every profile whose `platform` names this platform — see [Variables](./variables.md). |
+| Field          | Type            | Purpose                                                                 |
+| -------------- | --------------- | ---------------------------------------------------------------------- |
+| `variables`    | table           | Variables shared by every profile whose `platform` names this platform — see [Variables](./variables.md). Nested tables and arrays are supported, exactly as in any other `[*.variables]` block. |
+| `pre_actions`  | list of strings | Shell commands run before a `dotr deploy` for any profile on this platform — see [Actions § Profile and platform actions](./actions.md#profile-and-platform-actions). |
+| `post_actions` | list of strings | Shell commands run after such a deploy — same reference. |
 
-`variables` is the only field today. Nested tables and arrays are
-supported, exactly as in any other `[*.variables]` block.
+```toml
+[platforms.macos]
+variables = { CLIPBOARD = "pbcopy" }
+pre_actions = ["softwareupdate --install-rosetta --agree-to-license || true"]
+```
 
 ## Where platform variables sit in the priority order
 

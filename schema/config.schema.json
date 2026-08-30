@@ -152,7 +152,17 @@
         },
         "platform": {
           "type": "string",
-          "description": "Names an entry in the top-level `platforms` table. Shares that platform's variables with every other profile that sets the same value, and shares a package's per-profile `targets` destination the same way. A `targets` entry keyed by this profile's own name still takes precedence over one keyed by its platform, and this profile's own `variables` still take precedence over the platform's."
+          "description": "Names an entry in the top-level `platforms` table. Shares that platform's variables and pre_actions/post_actions with every other profile that sets the same value, and shares a package's per-profile `targets` destination the same way. A `targets` entry keyed by this profile's own name still takes precedence over one keyed by its platform, and this profile's own `variables` still take precedence over the platform's."
+        },
+        "pre_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run once before a `dotr deploy` under this profile, in order, wrapping the per-package actions. Skipped when the deploy selects no packages. Not run by `diff` or `update`."
+        },
+        "post_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run once after a `dotr deploy` under this profile, in order. Skipped when the deploy selects no packages. Not run by `diff` or `update`."
         }
       }
     },
@@ -163,6 +173,16 @@
         "variables": {
           "type": "object",
           "description": "Variables shared by every profile whose `platform` field names this platform. Override config-level and environment variables, but are overridden by package and profile variables of the same name."
+        },
+        "pre_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run once before a `dotr deploy` for any profile on this platform, in order. Run outermost, before the active profile's own pre_actions. Skipped when the deploy selects no packages. Not run by `diff` or `update`."
+        },
+        "post_actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Shell commands run once after a `dotr deploy` for any profile on this platform, in order. Run outermost, after the active profile's own post_actions. Skipped when the deploy selects no packages. Not run by `diff` or `update`."
         }
       }
     },

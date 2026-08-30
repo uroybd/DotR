@@ -56,7 +56,9 @@ package, or user variable of the same name still overrides it.
 | `prompts`      | table            | Profile-scoped prompts — see [Prompts](./prompts.md)            |
 | `prompt_backend` | string         | Overrides the top-level `prompt_backend` when this profile is active — see [Prompts](./prompts.md#where-answers-go-backends) |
 | `bitwarden_note` | string         | Overrides the top-level `bitwarden_note` when this profile is active — see [Prompts](./prompts.md#machine-local-override-for-bitwarden_note) |
-| `platform`     | string           | Opts the profile into a [platform](./platforms.md): shares that platform's `variables`, and shares a package's [`targets`](./packages.md#per-profile-destinations-targets) destination, with every other profile that sets the same value |
+| `platform`     | string           | Opts the profile into a [platform](./platforms.md): shares that platform's `variables`, `pre_actions`/`post_actions`, and a package's [`targets`](./packages.md#per-profile-destinations-targets) destination with every other profile that sets the same value |
+| `pre_actions`  | list of strings  | Shell commands run once before a `dotr deploy` under this profile — see [Actions § Profile and platform actions](./actions.md#profile-and-platform-actions) |
+| `post_actions` | list of strings  | Shell commands run once after such a deploy — same reference |
 
 ## Sharing settings across profiles (`platform`)
 
