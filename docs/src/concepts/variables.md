@@ -5,10 +5,12 @@ Variables are the values available to [templates](./templating.md) and
 
 ## Sources
 
-Variables come from five places:
+Variables come from six places:
 
 - **Config-level** — `[variables]` in `config.toml`, available everywhere.
 - **Environment variables** — every variable in your shell environment.
+- **Platform-level** — `[platforms.<name>.variables]`, shared by every
+  profile whose [`platform`](./platforms.md) field names that platform.
 - **Package-level** — `[packages.<name>.variables]`, scoped to that package.
 - **Profile-level** — `[profiles.<name>.variables]`, active only when that
   profile is selected.
@@ -45,19 +47,22 @@ When the same key is defined in more than one place, the more specific
 source wins:
 
 ```text
-user variables  >  profile variables  >  package variables  >  environment variables  >  config variables
+user variables  >  profile variables  >  package variables  >  platform variables  >  environment variables  >  config variables
 ```
 
-In other words: a package's own `[packages.<name>.variables]` can override
-`[variables]` in `config.toml` or a same-named environment variable; the
-active profile's `[profiles.<name>.variables]` can override the package;
-and anything answered via a prompt (stored in `.uservariables.toml`) wins
-over all of it.
+In other words: a [platform's](./platforms.md) `[platforms.<name>.variables]`
+can override `[variables]` in `config.toml` or a same-named environment
+variable whenever a profile on that platform is active; a package's own
+`[packages.<name>.variables]` can override the platform; the active
+profile's `[profiles.<name>.variables]` can override the package; and
+anything answered via a prompt (stored in `.uservariables.toml`) wins over
+all of it.
 
 > Environment variables sit *above* config-level variables but *below*
-> package/profile/user variables — if your shell exports a variable with
-> the same name as a `[variables]` entry in `config.toml`, the environment
-> wins there, but a package or profile can still override it.
+> platform/package/profile/user variables — if your shell exports a
+> variable with the same name as a `[variables]` entry in `config.toml`,
+> the environment wins there, but a platform, package, or profile can
+> still override it.
 
 ## Viewing resolved variables
 

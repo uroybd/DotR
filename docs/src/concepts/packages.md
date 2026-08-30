@@ -87,6 +87,10 @@ Both `home` and `work` deploy `gitconfig` to `~/.gitconfig-mac`. If a
 package's `targets` has entries for both a profile's own name *and* its
 platform, the profile-name entry wins — it's the more specific override.
 
+The same `platform` value also shares platform-scoped
+[variables](./variables.md) across those profiles — see
+[Platforms](./platforms.md).
+
 ## Skipping a package by default (`skip`)
 
 ```toml

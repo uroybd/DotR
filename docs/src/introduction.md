@@ -28,7 +28,9 @@ them into place. The repository is the source of truth; your `~/.bashrc`,
   workflow, or as symlinks for live-editing.
 - **Environment-aware.** [Profiles](./concepts/profiles.md) let the same
   repository describe different machines — work, home, server — with
-  different packages, variables, and destinations.
+  different packages, variables, and destinations, and
+  [platforms](./concepts/platforms.md) let profiles that share an OS share
+  those settings without repeating them.
 - **Templated when you need it.** Config files can embed
   [Tera](https://keats.github.io/tera/) template syntax, compiled at deploy
   time with live variables, so the same template can render differently per

@@ -11,6 +11,7 @@
 
 - [Packages](./concepts/packages.md)
 - [Profiles](./concepts/profiles.md)
+- [Platforms](./concepts/platforms.md)
 - [Variables](./concepts/variables.md)
 - [Templating](./concepts/templating.md)
 - [Actions](./concepts/actions.md)
