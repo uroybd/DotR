@@ -264,13 +264,25 @@ impl Config {
         Ok(())
     }
 
+    fn get_platform(&self, ctx: &Context) -> Option<&Platform> {
+        if let Some(platform_name) = &ctx.profile.platform {
+            self.platforms.get(platform_name)
+        } else {
+            None
+        }
+    }
+
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        for pkg in self
-            .filter_packages(&ctx.profile, &args.packages, args.ignore_dependencies)?
-            .values()
-        {
+        let packages =
+            self.filter_packages(&ctx.profile, &args.packages, args.ignore_dependencies)?;
+        if packages.is_empty() {
+            cprintln("No packages to deploy.", &LogLevel::Info);
+            return Ok(());
+        }
+        self.execute_pre_actions(ctx, args)?;
+        for pkg in packages.values() {
             match pkg.deploy(ctx, args) {
                 Err(e) => {
                     if args.ignore_errors {
@@ -288,16 +300,59 @@ impl Config {
                 }
             }
         }
+        self.execute_post_actions(ctx, args)?;
         print_stats(&stats, OpType::Deploy);
+        Ok(())
+    }
+
+    pub fn execute_pre_actions(
+        &self,
+        ctx: &Context,
+        args: &DeployArgs,
+    ) -> Result<(), anyhow::Error> {
+        if args.skip_actions || args.skip_pre_actions {
+            return Ok(());
+        }
+        let vars = ctx.profile.get_context_variables(ctx);
+        if let Some(platform) = self.get_platform(ctx) {
+            for action in &platform.pre_actions {
+                crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+            }
+        }
+        for action in &ctx.profile.pre_actions {
+            crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+        }
+        Ok(())
+    }
+
+    pub fn execute_post_actions(
+        &self,
+        ctx: &Context,
+        args: &DeployArgs,
+    ) -> Result<(), anyhow::Error> {
+        if args.skip_actions || args.skip_post_actions {
+            return Ok(());
+        }
+        let vars = ctx.profile.get_context_variables(ctx);
+        for action in &ctx.profile.post_actions {
+            crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+        }
+        if let Some(platform) = self.get_platform(ctx) {
+            for action in &platform.post_actions {
+                crate::utils::execute_action(action, &vars, &ctx.working_dir, args.dry_run)?;
+            }
+        }
         Ok(())
     }
 
     pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::Info);
-        for pkg in self
-            .filter_packages(&ctx.profile, &args.packages, false)?
-            .values()
-        {
+        let packages = self.filter_packages(&ctx.profile, &args.packages, false)?;
+        if packages.is_empty() {
+            cprintln("No packages to diff.", &LogLevel::Info);
+            return Ok(());
+        }
+        for pkg in packages.values() {
             cprintln(&format!("Package: {}", pkg.name), &LogLevel::Info);
             if let Err(e) = pkg.diff(ctx) {
                 if args.ignore_errors {

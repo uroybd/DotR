@@ -990,3 +990,137 @@ fn test_pre_actions_run_once_for_multi_file_directory_package() {
         run_count
     );
 }
+
+#[test]
+fn test_platform_and_profile_actions_wrap_the_deploy() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_wrapped_deploy"), "content\n")
+        .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+
+    let mut platform = dotr_dear::platform::Platform::new("macos");
+    platform.pre_actions = vec!["printf 'platform-pre\\n' >> src/wrap_log.txt".to_string()];
+    platform.post_actions = vec!["printf 'platform-post\\n' >> src/wrap_log.txt".to_string()];
+    config.platforms.insert("macos".to_string(), platform);
+
+    let mut profile = dotr_dear::profile::Profile::new("mac");
+    profile.platform = Some("macos".to_string());
+    profile.pre_actions = vec!["printf 'profile-pre\\n' >> src/wrap_log.txt".to_string()];
+    profile.post_actions = vec!["printf 'profile-post\\n' >> src/wrap_log.txt".to_string()];
+    config.profiles.insert("mac".to_string(), profile);
+
+    let package = dotr_dear::package::Package {
+        name: "f_wrapped_deploy".to_string(),
+        src: "dotfiles/f_wrapped_deploy".to_string(),
+        dest: "src/.wrapped_deploy".to_string(),
+        pre_actions: vec!["printf 'package-pre\\n' >> src/wrap_log.txt".to_string()],
+        post_actions: vec!["printf 'package-post\\n' >> src/wrap_log.txt".to_string()],
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_wrapped_deploy".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    let _ = fs::remove_file(fixture.cwd.join("src/wrap_log.txt"));
+
+    run_cli(dotr_dear::cli::Cli {
+        command: Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_wrapped_deploy".to_string()]),
+            profile: Some("mac".to_string()),
+            clean: Some(false),
+            ..Default::default()
+        })),
+        working_dir: Some(PLAYGROUND_DIR.to_string()),
+    })
+    .expect("Deploy failed");
+
+    let log =
+        fs::read_to_string(fixture.cwd.join("src/wrap_log.txt")).expect("Failed to read wrap log");
+    assert_eq!(
+        log, "platform-pre\nprofile-pre\npackage-pre\npackage-post\nprofile-post\nplatform-post\n",
+        "platform actions wrap profile actions, which wrap the package's own actions"
+    );
+
+    assert!(
+        fixture.cwd.join("src/.wrapped_deploy").exists(),
+        "the package itself should still be deployed"
+    );
+}
+
+#[test]
+fn test_skip_actions_also_skips_platform_and_profile_actions() {
+    let fixture = TestFixture::new();
+    fixture.init();
+
+    fs::create_dir_all(fixture.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
+    fs::write(fixture.cwd.join("dotfiles/f_skip_wrap_deploy"), "content\n")
+        .expect("Failed to create file");
+
+    let mut config = fixture.get_config();
+
+    let mut platform = dotr_dear::platform::Platform::new("macos");
+    platform.pre_actions = vec!["touch src/skip_wrap_platform_pre.txt".to_string()];
+    platform.post_actions = vec!["touch src/skip_wrap_platform_post.txt".to_string()];
+    config.platforms.insert("macos".to_string(), platform);
+
+    let mut profile = dotr_dear::profile::Profile::new("mac");
+    profile.platform = Some("macos".to_string());
+    profile.pre_actions = vec!["touch src/skip_wrap_profile_pre.txt".to_string()];
+    profile.post_actions = vec!["touch src/skip_wrap_profile_post.txt".to_string()];
+    config.profiles.insert("mac".to_string(), profile);
+
+    let package = dotr_dear::package::Package {
+        name: "f_skip_wrap_deploy".to_string(),
+        src: "dotfiles/f_skip_wrap_deploy".to_string(),
+        dest: "src/.skip_wrap_deploy".to_string(),
+        ..Default::default()
+    };
+    config
+        .packages
+        .insert("f_skip_wrap_deploy".to_string(), package);
+    config.save(&fixture.cwd).expect("Failed to save config");
+
+    for marker in [
+        "skip_wrap_platform_pre.txt",
+        "skip_wrap_platform_post.txt",
+        "skip_wrap_profile_pre.txt",
+        "skip_wrap_profile_post.txt",
+    ] {
+        let _ = fs::remove_file(fixture.cwd.join("src").join(marker));
+    }
+
+    run_cli(dotr_dear::cli::Cli {
+        command: Some(dotr_dear::cli::Command::Deploy(DeployArgs {
+            packages: Some(vec!["f_skip_wrap_deploy".to_string()]),
+            profile: Some("mac".to_string()),
+            clean: Some(false),
+            skip_actions: true,
+            ..Default::default()
+        })),
+        working_dir: Some(PLAYGROUND_DIR.to_string()),
+    })
+    .expect("Deploy failed");
+
+    for marker in [
+        "skip_wrap_platform_pre.txt",
+        "skip_wrap_platform_post.txt",
+        "skip_wrap_profile_pre.txt",
+        "skip_wrap_profile_post.txt",
+    ] {
+        assert!(
+            !fixture.cwd.join("src").join(marker).exists(),
+            "--skip-actions must skip platform/profile action '{}'",
+            marker
+        );
+    }
+
+    assert!(
+        fixture.cwd.join("src/.skip_wrap_deploy").exists(),
+        "the package itself should still be deployed"
+    );
+}

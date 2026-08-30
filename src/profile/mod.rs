@@ -2,8 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use toml::Table;
 
+use crate::context::Context;
 use crate::prompt_store::PromptBackendType;
 use crate::utils::{get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table};
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Profile {
@@ -25,6 +29,10 @@ pub struct Profile {
     pub platform: Option<String>,
     #[serde(skip)]
     pub platform_variables: Table,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pre_actions: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub post_actions: Vec<String>,
 }
 
 impl Profile {
@@ -58,6 +66,8 @@ impl Profile {
             .get("platform")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
+        let pre_actions = get_vec_string_from_value(table.get("pre_actions"))?;
+        let post_actions = get_vec_string_from_value(table.get("post_actions"))?;
         Ok(Self {
             name: name.to_string(),
             variables,
@@ -67,6 +77,16 @@ impl Profile {
             bitwarden_note,
             platform,
             platform_variables: Table::new(),
+            pre_actions,
+            post_actions,
         })
+    }
+
+    pub fn get_context_variables(&self, ctx: &Context) -> Table {
+        let mut vars = ctx.get_variables().clone();
+        vars.extend(ctx.profile.platform_variables.clone());
+        vars.extend(self.variables.clone());
+        vars.extend(ctx.get_user_variables().clone());
+        vars
     }
 }
