@@ -57,6 +57,9 @@ bitwarden_note = "dotr-secrets"
 
 [profiles.<name>]
 # ...
+
+[platforms.<name>]
+# ...
 ```
 
 | Field       | Type   | Default | Purpose                                                             |
@@ -69,6 +72,7 @@ bitwarden_note = "dotr-secrets"
 | `bitwarden_note` | string | `"dotr-secrets"` | Name of the Bitwarden secure note used when `prompt_backend = "bitwarden"` — see [Prompts](../concepts/prompts.md#where-answers-go-backends). Can be overridden per-machine via `DOTR_BITWARDEN_NOTE` — see [machine-local override](../concepts/prompts.md#machine-local-override-for-bitwarden_note). |
 | `packages`  | table  | `{}`    | Package definitions, keyed by name — see below.                       |
 | `profiles`  | table  | `{ default = {} }` | Profile definitions, keyed by name — see below. A `default` profile always exists. |
+| `platforms` | table  | `{}`    | Platform definitions, keyed by name — see below and [Platforms](../concepts/platforms.md). A profile whose `platform` field names one picks up its variables. |
 
 ## `[packages.<name>]`
 
@@ -133,7 +137,28 @@ WORK_TOKEN = "Enter your work VPN token"
 | `prompts`      | table           | `{}`    | Profile-scoped prompts — [Prompts](../concepts/prompts.md). |
 | `prompt_backend` | `"file"` \| `"keychain"` \| `"bitwarden"` | unset (follows the top-level `prompt_backend`) | Overrides the repo-wide default backend while this profile is active — [Prompts](../concepts/prompts.md#where-answers-go-backends). |
 | `bitwarden_note` | string          | unset (follows the top-level `bitwarden_note`) | Overrides which Bitwarden secure note this profile's `bitwarden`-backed prompts use — [Prompts](../concepts/prompts.md#where-answers-go-backends). Can itself be overridden per-machine via `DOTR_BITWARDEN_NOTE` — see [machine-local override](../concepts/prompts.md#machine-local-override-for-bitwarden_note). |
-| `platform`     | string          | unset           | Shares a package's `targets` destination with every other profile that sets the same value — [Packages](../concepts/packages.md#sharing-a-target-across-profiles-by-platform). |
+| `platform`     | string          | unset           | Names an entry in the top-level `platforms` table. Shares that platform's `variables`, and shares a package's `targets` destination, with every other profile that sets the same value. A `targets` entry keyed by the profile's own name beats one keyed by its platform, and the profile's own `variables` beat the platform's. — [Platforms](../concepts/platforms.md), [Packages](../concepts/packages.md#sharing-a-target-across-profiles-by-platform). |
+
+## `[platforms.<name>]`
+
+```toml
+[platforms.macos]
+variables = { CLIPBOARD = "pbcopy" }
+
+[platforms.linux]
+variables = { CLIPBOARD = "xclip -selection clipboard" }
+```
+
+Keyed by platform name — a free-form string (`macos`, `linux`, `wsl`, …);
+DotR matches it against profiles' `platform` fields and never inspects the
+running OS. A profile whose `platform` names a platform here inherits its
+variables; several profiles can name the same platform and all inherit
+them. Naming a platform that isn't declared here is allowed and simply
+yields no platform variables.
+
+| Field       | Type  | Default | Purpose                                                                 |
+| ----------- | ----- | ------- | ---------------------------------------------------------------------- |
+| `variables` | table | `{}`    | Variables shared by every profile naming this platform. Override config-level and environment variables; overridden by package, profile, and user variables — [Variables](../concepts/variables.md#priority), [Platforms](../concepts/platforms.md). |
 
 ## Other files DotR creates
 

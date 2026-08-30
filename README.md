@@ -17,7 +17,8 @@ A dotfiles manager that is as dear as a daughter.
 
 - 📦 **Package management** — import, deploy, and update files or whole directories, individually or by profile
 - 🎭 **Profiles** — different packages, variables, and destinations per machine (work, home, server, ...)
-- 🔧 **Variables** — environment, config, package, profile, and prompt-sourced, with nested TOML structures
+- 🖥️ **Platforms** — profiles that share an OS share variables and destination overrides without repeating them
+- 🔧 **Variables** — environment, config, platform, package, profile, and prompt-sourced, with nested TOML structures
 - 📝 **Templating** — full [Tera](https://keats.github.io/tera/) support, detected automatically, no config needed
 - ⚡ **Pre/post actions** — run shell commands around deployment, with variable interpolation
 - 💬 **Interactive prompts** — ask once for secrets, remember the answer outside version control

@@ -52,11 +52,32 @@ package, or user variable of the same name still overrides it.
 | Field          | Type             | Purpose                                                        |
 | -------------- | ---------------- | ---------------------------------------------------------------- |
 | `dependencies` | list of strings  | Packages deployed when this profile is active and no `--packages` is given |
-| `variables`    | table            | Profile-scoped variables — override package/config/env variables, see [Variables](./variables.md) |
+| `variables`    | table            | Profile-scoped variables — override package/platform/config/env variables, see [Variables](./variables.md) |
 | `prompts`      | table            | Profile-scoped prompts — see [Prompts](./prompts.md)            |
 | `prompt_backend` | string         | Overrides the top-level `prompt_backend` when this profile is active — see [Prompts](./prompts.md#where-answers-go-backends) |
 | `bitwarden_note` | string         | Overrides the top-level `bitwarden_note` when this profile is active — see [Prompts](./prompts.md#machine-local-override-for-bitwarden_note) |
-| `platform`     | string           | Shares a package's [`targets`](./packages.md#per-profile-destinations-targets) destination with every other profile that sets the same value |
+| `platform`     | string           | Opts the profile into a [platform](./platforms.md): shares that platform's `variables`, and shares a package's [`targets`](./packages.md#per-profile-destinations-targets) destination, with every other profile that sets the same value |
+
+## Sharing settings across profiles (`platform`)
+
+Profiles that have something in common — same OS, same class of machine —
+can share variables and `targets` overrides through a
+[platform](./platforms.md) instead of repeating them:
+
+```toml
+[platforms.macos]
+variables = { CLIPBOARD = "pbcopy" }
+
+[profiles.laptop]
+platform = "macos"
+
+[profiles.work]
+platform = "macos"
+```
+
+Both `laptop` and `work` pick up `CLIPBOARD = "pbcopy"`. A profile's own
+`variables` still override the platform's. See [Platforms](./platforms.md)
+for the full description.
 
 ## How a profile decides which packages deploy
 
