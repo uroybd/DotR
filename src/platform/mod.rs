@@ -14,6 +14,10 @@ pub struct Platform {
     pub name: String,
     #[serde(skip_serializing_if = "is_empty_table")]
     pub variables: Table,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub pre_actions: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub post_actions: Vec<String>,
 }
 
 impl Platform {
@@ -32,9 +36,13 @@ impl Platform {
                 .clone(),
             None => Table::new(),
         };
+        let pre_actions = get_vec_string_from_value(table.get("pre_actions"))?;
+        let post_actions = get_vec_string_from_value(table.get("post_actions"))?;
         Ok(Self {
             name: name.to_string(),
             variables,
+            pre_actions,
+            post_actions,
         })
     }
 }

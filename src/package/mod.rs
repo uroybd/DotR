@@ -12,8 +12,9 @@ use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
     utils::{
-        self, BACKUP_EXT, LogLevel, cprintln, get_string_from_value, get_string_hashmap_from_value,
-        get_vec_string_from_value, is_empty_table, normalize_home_path, resolve_path,
+        self, BACKUP_EXT, LogLevel, cprintln, execute_action, get_string_from_value,
+        get_string_hashmap_from_value, get_vec_string_from_value, is_empty_table,
+        normalize_home_path, resolve_path,
     },
 };
 
@@ -177,43 +178,10 @@ impl Package {
         })
     }
 
-    pub fn execute_action(
-        &self,
-        action: &str,
-        variables: &Table,
-        working_dir: &Path,
-        dry_run: bool,
-    ) -> anyhow::Result<()> {
-        let compiled_action = compile_string(action, variables)?;
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
-        if dry_run {
-            cprintln(
-                &format!("(Dry Run) Would execute action: {}", compiled_action),
-                &LogLevel::Info,
-            );
-            return Ok(());
-        }
-        let status = std::process::Command::new(shell)
-            .arg("-c")
-            .arg(compiled_action)
-            .current_dir(working_dir)
-            .status()?;
-        if !status.success() {
-            let msg = format!(
-                "Action '{}' failed with exit code: {:?}",
-                action,
-                status.code()
-            );
-            cprintln(&msg, &LogLevel::Error);
-            return Err(anyhow::anyhow!(msg));
-        }
-        Ok(())
-    }
-
     pub fn execute_pre_actions(&self, ctx: &Context, dry_run: bool) -> anyhow::Result<()> {
         let vars = self.get_context_variables(ctx);
         for action in &self.pre_actions {
-            self.execute_action(action, &vars, &ctx.working_dir, dry_run)?;
+            execute_action(action, &vars, &ctx.working_dir, dry_run)?;
         }
         Ok(())
     }
@@ -221,7 +189,7 @@ impl Package {
     pub fn execute_post_actions(&self, ctx: &Context, dry_run: bool) -> anyhow::Result<()> {
         let vars = self.get_context_variables(ctx);
         for action in &self.post_actions {
-            self.execute_action(action, &vars, &ctx.working_dir, dry_run)?;
+            execute_action(action, &vars, &ctx.working_dir, dry_run)?;
         }
         Ok(())
     }
@@ -701,11 +669,6 @@ fn create_backup_path(path: &Path) -> PathBuf {
     backup_path.push(".");
     backup_path.push(BACKUP_EXT);
     PathBuf::from(backup_path)
-}
-
-pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {
-    let ctx = tera::Context::from_serialize(context)?;
-    Ok(tera::Tera::one_off(template_str, &ctx, false)?)
 }
 
 pub fn is_templated(p: &PathBuf) -> bool {
