@@ -38,6 +38,10 @@ fn default_clean() -> bool {
     true
 }
 
+fn default_skip_backup() -> bool {
+    false
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Package {
     #[serde(skip)]
@@ -66,6 +70,8 @@ pub struct Package {
     pub unfold_symlink: bool,
     #[serde(skip_serializing_if = "is_true", default = "default_clean")]
     pub clean: bool,
+    #[serde(skip_serializing_if = "is_false", default = "default_skip_backup")]
+    pub skip_backup: bool,
 }
 
 impl Default for Package {
@@ -98,6 +104,7 @@ impl Package {
             symlink: None,
             unfold_symlink: false,
             clean: true,
+            skip_backup: false,
         }
     }
 
@@ -159,7 +166,10 @@ impl Package {
             .get("clean")
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
-
+        let skip_backup = pkg_val
+            .get("skip_backup")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         Ok(Self {
             name: pkg_name.to_string(),
             src,
@@ -175,6 +185,7 @@ impl Package {
             symlink,
             unfold_symlink,
             clean,
+            skip_backup,
         })
     }
 
@@ -488,7 +499,7 @@ impl Package {
                         &entry.path().to_path_buf(),
                         &dest_path,
                         ctx,
-                        true,
+                        !self.skip_backup,
                         args.dry_run,
                     )?;
                     if let BackupDeployResult::Success = dep_result {
@@ -508,7 +519,8 @@ impl Package {
             {
                 std::fs::create_dir_all(parent)?;
             }
-            let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true, args.dry_run)?;
+            let dep_result =
+                self.deploy_file(&copy_from, &copy_to, ctx, !self.skip_backup, args.dry_run)?;
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;
                 println!("=> Deployed {}", copy_to.display());
