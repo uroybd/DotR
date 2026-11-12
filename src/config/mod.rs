@@ -9,7 +9,7 @@ use crate::{
         RemovePackageArgs, UpdateArgs,
     },
     context::Context,
-    package::{BackupDeployResult, Package},
+    package::{BackupDeployResult, Package, is_templated_str},
     platform::Platform,
     profile::Profile,
     utils::{LogLevel, cprintln, is_empty_table},
@@ -234,6 +234,19 @@ impl Config {
         }
         packages.extend(dependencies);
         Ok(packages)
+    }
+
+    /// Whether any package `update` would touch has a templated deployment
+    /// path, and so needs prompted variables resolved before it can run.
+    pub fn update_needs_variables(
+        &self,
+        profile: &Profile,
+        names: &Option<Vec<String>>,
+    ) -> anyhow::Result<bool> {
+        Ok(self
+            .filter_packages(profile, names, false)?
+            .values()
+            .any(|pkg| is_templated_str(pkg.raw_dest(profile))))
     }
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {

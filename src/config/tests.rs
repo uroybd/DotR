@@ -1466,3 +1466,45 @@ pre_actions = ["exit 1"]
         fs::remove_dir_all(&dir).ok();
     }
 }
+
+#[cfg(test)]
+mod update_needs_variables_tests {
+    use crate::config::Config;
+    use crate::package::Package;
+    use crate::profile::Profile;
+
+    fn config_with(pkg: Package) -> (Config, Profile) {
+        let mut config = Config::new();
+        let mut profile = Profile::new("work");
+        profile.dependencies.push(pkg.name.clone());
+        config.packages.insert(pkg.name.clone(), pkg);
+        config.profiles.insert("work".to_string(), profile.clone());
+        (config, profile)
+    }
+
+    #[test]
+    fn test_literal_dest_needs_no_variables() {
+        let (config, profile) =
+            config_with(Package::new("nvim", "dotfiles/nvim", "~/.config/nvim"));
+        assert!(!config.update_needs_variables(&profile, &None).unwrap());
+    }
+
+    #[test]
+    fn test_templated_dest_needs_variables() {
+        let (config, profile) = config_with(Package::new(
+            "nvim",
+            "dotfiles/nvim",
+            "{{ CONFIG_HOME }}/nvim",
+        ));
+        assert!(config.update_needs_variables(&profile, &None).unwrap());
+    }
+
+    #[test]
+    fn test_templated_profile_target_needs_variables() {
+        let mut pkg = Package::new("nvim", "dotfiles/nvim", "~/.config/nvim");
+        pkg.targets
+            .insert("work".to_string(), "{{ WORK_HOME }}/nvim".to_string());
+        let (config, profile) = config_with(pkg);
+        assert!(config.update_needs_variables(&profile, &None).unwrap());
+    }
+}

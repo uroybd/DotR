@@ -436,8 +436,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             println!("Configuration initialized successfully.");
         }
         Some(Command::Import(args)) => {
-            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, true, true)?;
-            ctx.get_prompted_variables(&conf, &None)?;
+            let (mut conf, ctx) = init_config(&working_dir, &args.profile, true, true)?;
             conf.import_package(&args, &ctx)?;
         }
         Some(Command::Deploy(args)) => {
@@ -447,7 +446,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
         }
         Some(Command::Update(args)) => {
             let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            ctx.get_prompted_variables(&conf, &args.packages)?;
+            if conf.update_needs_variables(&ctx.profile, &args.packages)? {
+                ctx.get_prompted_variables(&conf, &args.packages)?;
+            }
             conf.backup_packages(&ctx, &args)?;
         }
         Some(Command::Diff(args)) => {
@@ -484,11 +485,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false, show_banner)?;
             match args.command {
                 Some(PackagesCommand::List(args)) => {
-                    ctx.get_prompted_variables(&conf, &None)?;
                     conf.list_packages(&ctx, &args)?;
                 }
                 Some(PackagesCommand::Import(import_args)) => {
-                    ctx.get_prompted_variables(&conf, &None)?;
                     conf.import_package(&import_args, &ctx)?;
                 }
                 Some(PackagesCommand::Deploy(deploy_args)) => {
@@ -496,7 +495,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.deploy_packages(&ctx, &deploy_args)?;
                 }
                 Some(PackagesCommand::Update(update_args)) => {
-                    ctx.get_prompted_variables(&conf, &update_args.packages)?;
+                    if conf.update_needs_variables(&ctx.profile, &update_args.packages)? {
+                        ctx.get_prompted_variables(&conf, &update_args.packages)?;
+                    }
                     conf.backup_packages(&ctx, &update_args)?;
                 }
                 Some(PackagesCommand::Diff(diff_args)) => {

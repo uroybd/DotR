@@ -11,6 +11,7 @@ use toml::Table;
 use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
+    profile::Profile,
     utils::{
         self, BACKUP_EXT, LogLevel, compile_string, cprintln, execute_action,
         get_string_from_value, get_string_hashmap_from_value, get_vec_string_from_value,
@@ -311,18 +312,25 @@ impl Package {
     /// (most specific), then one keyed by the profile's `platform` (shared
     /// across every profile with that platform), then the package's `dest`.
     pub fn resolve_dest(&self, ctx: &Context) -> anyhow::Result<PathBuf> {
-        let dest = self
-            .targets
-            .get(ctx.profile.name.as_str())
+        let dest = compile_string(
+            self.raw_dest(&ctx.profile),
+            &self.get_context_variables(ctx),
+        )?;
+        resolve_path(&dest, &ctx.working_dir)
+    }
+
+    /// The uncompiled deployment path `resolve_dest` would render for this
+    /// profile, chosen by the same precedence.
+    pub fn raw_dest(&self, profile: &Profile) -> &str {
+        self.targets
+            .get(profile.name.as_str())
             .or_else(|| {
-                ctx.profile
+                profile
                     .platform
                     .as_ref()
                     .and_then(|platform| self.targets.get(platform.as_str()))
             })
-            .unwrap_or(&self.dest);
-        let dest = compile_string(dest, &self.get_context_variables(ctx))?;
-        resolve_path(&dest, &ctx.working_dir)
+            .unwrap_or(&self.dest)
     }
 
     pub fn diff_file(
