@@ -353,12 +353,14 @@ impl Context {
             .collect()
     }
 
-    /// The secrets ([`Self::secret_names`]) that hold text, with their values, for finding them in files.
+    /// The secrets ([`Self::secret_names`]) that hold text, with their values, for finding them in files. A trailing line ending is
+    /// left off: answers saved before prompts dropped the Enter still carry one, and the value is what to look for.
     pub fn secrets(&self) -> Vec<(String, String)> {
         self.secret_names()
             .into_iter()
             .filter_map(|name| {
-                let value = self.user_variables.get(&name)?.as_str()?.to_string();
+                let value = self.user_variables.get(&name)?.as_str()?;
+                let value = value.trim_end_matches(['\n', '\r']).to_string();
                 Some((name, value))
             })
             .collect()
@@ -478,5 +480,6 @@ fn get_prompted_variables<R: io::BufRead, W: io::Write>(
     writer.flush()?;
     let mut input = String::new();
     reader.read_line(&mut input)?;
-    Ok(input)
+    // The answer, not the Enter that ended it: a newline kept here would land in every file using the variable.
+    Ok(input.trim_end_matches(['\n', '\r']).to_string())
 }

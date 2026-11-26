@@ -835,7 +835,7 @@ VAR2 = "user_value2"
 
         let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
 
-        assert_eq!(result, "John Doe\n");
+        assert_eq!(result, "John Doe");
         let output_str = String::from_utf8(output).unwrap();
         assert!(output_str.contains("Enter your name"));
         assert!(output_str.contains(">>>"));
@@ -849,7 +849,7 @@ VAR2 = "user_value2"
 
         let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
 
-        assert_eq!(result, "\n");
+        assert_eq!(result, "");
     }
 
     #[test]
@@ -860,7 +860,7 @@ VAR2 = "user_value2"
 
         let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
 
-        assert_eq!(result, "secret-key-123\n");
+        assert_eq!(result, "secret-key-123");
         let output_str = String::from_utf8(output).unwrap();
         assert!(output_str.contains("Enter your API key"));
         assert!(output_str.contains("(Found in settings)"));
@@ -874,7 +874,7 @@ VAR2 = "user_value2"
 
         let result = super::super::get_prompted_variables(prompt, &input[..], &mut output).unwrap();
 
-        assert_eq!(result, "P@ssw0rd!\n");
+        assert_eq!(result, "P@ssw0rd!");
     }
 
     #[test]
@@ -909,7 +909,7 @@ USER_NAME = "Enter your name"
         // Verify prompted variables were captured
         assert_eq!(
             result.get("USER_NAME"),
-            Some(&toml::Value::String("John Doe\n".to_string()))
+            Some(&toml::Value::String("John Doe".to_string()))
         );
 
         // Verify .uservariables.toml was created
@@ -964,7 +964,7 @@ USER_NAME = "Enter your name"
         // Verify new variable was prompted
         assert_eq!(
             result.get("USER_NAME"),
-            Some(&toml::Value::String("John Doe\n".to_string()))
+            Some(&toml::Value::String("John Doe".to_string()))
         );
     }
 
@@ -1032,7 +1032,7 @@ USER_NAME = "Enter your name"
         // Verify profile prompt was processed
         assert_eq!(
             result.get("WORK_EMAIL"),
-            Some(&toml::Value::String("work@example.com\n".to_string()))
+            Some(&toml::Value::String("work@example.com".to_string()))
         );
     }
 
@@ -1071,7 +1071,7 @@ API_KEY = "Enter your API key"
         // Verify context was updated
         assert_eq!(
             ctx.get_user_variable("API_KEY"),
-            Some(&toml::Value::String("secret-key-123\n".to_string()))
+            Some(&toml::Value::String("secret-key-123".to_string()))
         );
     }
 
@@ -1165,7 +1165,7 @@ USER_EMAIL = "Enter your email"
     }
 
     #[test]
-    fn test_get_prompted_variables_with_io_file_backend_untrimmed() {
+    fn test_get_prompted_variables_with_io_drops_the_line_ending() {
         let temp_dir = create_temp_dir();
         fs::write(
             temp_dir.join(".uservariables.toml"),
@@ -1197,8 +1197,8 @@ NEW = "Enter new"
         );
         assert_eq!(
             resolved.get("NEW"),
-            Some(&toml::Value::String("typed-value\n".to_string())),
-            "the file backend keeps its historical untrimmed behavior"
+            Some(&toml::Value::String("typed-value".to_string())),
+            "the answer, not the Enter that ended it"
         );
     }
 
@@ -1231,7 +1231,7 @@ VAR = "Enter a value"
 
         assert_eq!(
             resolved.get("VAR"),
-            Some(&toml::Value::String("a-value\n".to_string()))
+            Some(&toml::Value::String("a-value".to_string()))
         );
         let saved = fs::read_to_string(temp_dir.join(".uservariables.toml")).unwrap();
         assert!(
@@ -1276,7 +1276,7 @@ prompt_backend = "file"
 
         assert_eq!(
             resolved.get("VAR"),
-            Some(&toml::Value::String("a-value\n".to_string()))
+            Some(&toml::Value::String("a-value".to_string()))
         );
         let saved = fs::read_to_string(temp_dir.join(".uservariables.toml")).unwrap();
         assert!(
@@ -1626,5 +1626,41 @@ dependencies = []
                 "profile-note"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod line_ending_tests {
+    use std::fs;
+
+    use crate::{config::Config, context::Context};
+
+    #[test]
+    fn an_answer_drops_a_windows_line_ending_but_keeps_its_spaces() {
+        let mut output = Vec::new();
+        let answer =
+            super::super::get_prompted_variables("Password?", &b" p4ss \r\n"[..], &mut output)
+                .unwrap();
+        assert_eq!(answer, " p4ss ");
+    }
+
+    #[test]
+    fn a_secret_saved_with_a_newline_is_looked_for_without_it() {
+        let dir = std::env::temp_dir().join(format!("dotr-secrets-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("config.toml"), "").unwrap();
+        fs::write(
+            dir.join(".uservariables.toml"),
+            "TOKEN = \"tok-123456\\n\"\n",
+        )
+        .unwrap();
+        let config = Config::from_path(&dir).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+
+        assert_eq!(
+            ctx.secrets(),
+            vec![("TOKEN".to_string(), "tok-123456".to_string())]
+        );
+        fs::remove_dir_all(&dir).ok();
     }
 }

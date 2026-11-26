@@ -32,7 +32,11 @@ variables: `deploy`, `diff`, `print-vars`, and `dump-user-vars` — plus their
 package holds a templated file, since those are what it renders. `import`, `packages list`, `remove` and the
 `profiles` commands never touch prompts, since none of them reads variables. Any key not already answered (via
 whichever [backend](#where-answers-go-backends) is configured) triggers an
-interactive prompt; the rest are skipped silently.
+interactive prompt; the rest are skipped silently. An answer is saved as typed, without
+the line ending Enter adds (spaces you type are kept). Answers saved by dotr
+2.4.0 and earlier kept that newline, and a template using one renders it: delete the
+key from `.uservariables.toml` (or the keychain or Bitwarden note) to be asked
+again.
 
 ## Where answers go: backends
 
