@@ -204,13 +204,9 @@ impl Package {
         Ok(())
     }
 
+    /// The variables this package's templates see: its own among the context's ([`Context::layered_variables`]).
     pub fn get_context_variables(&self, ctx: &Context) -> Table {
-        let mut vars = ctx.get_variables().clone();
-        vars.extend(ctx.profile.platform_variables.clone());
-        vars.extend(self.variables.clone());
-        vars.extend(ctx.profile.variables.clone());
-        vars.extend(ctx.get_user_variables().clone());
-        vars
+        ctx.layered_variables(&self.variables)
     }
 
     pub fn should_ignore(&self, rel_path: &Path) -> bool {

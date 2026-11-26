@@ -557,7 +557,7 @@ impl Config {
         self.save(&ctx.working_dir)?;
         cprintln(&format!("Profile '{}' added", args.name), &LogLevel::Info);
         if args.set_as_current {
-            ctx.save_to_uservariables("DOTR_PROFILE", toml::Value::String(profile.name.clone()))?;
+            ctx.save_to_uservariables("DOTR_PROFILE", toml::Value::String(profile.name))?;
             cprintln(
                 &format!("Setting profile '{}' as current", args.name),
                 &LogLevel::Info,

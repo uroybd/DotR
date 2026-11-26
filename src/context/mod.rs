@@ -354,12 +354,25 @@ impl Context {
             .collect()
     }
 
+    /// The variables a template outside any package sees. See [`Self::layered_variables`].
     pub fn get_context_variables(&self) -> Table {
-        let mut context_vars = self.variables.clone();
-        context_vars.extend(self.profile.platform_variables.clone());
-        context_vars.extend(self.profile.variables.clone());
-        context_vars.extend(self.user_variables.clone());
-        context_vars
+        self.layered_variables(&Table::new())
+    }
+
+    /// The variables a template sees, each layer overriding the ones before: config and environment, the profile's
+    /// platform, `package` (a package's own variables), the profile, then the user's (prompted) variables. The one
+    /// place that order is written down.
+    pub fn layered_variables(&self, package: &Table) -> Table {
+        let mut vars = self.variables.clone();
+        for layer in [
+            &self.profile.platform_variables,
+            package,
+            &self.profile.variables,
+            &self.user_variables,
+        ] {
+            vars.extend(layer.iter().map(|(k, v)| (k.clone(), v.clone())));
+        }
+        vars
     }
 
     pub fn extend_variables(&mut self, new_vars: Table) {
