@@ -7,47 +7,23 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
 use dotr_dear::{
     cli::{
-        Cli, Command, InitArgs, PackagesArgs, PackagesCommand, PackagesListArgs, ProfileRemoveArgs,
+        Command, PackagesArgs, PackagesCommand, PackagesListArgs, ProfileRemoveArgs,
         ProfilesAddArgs, ProfilesArgs, ProfilesCommand, ProfilesListArgs, RemovePackageArgs,
         run_cli,
     },
-    config::Config,
     package::Package,
     profile::Profile,
 };
 
 mod common;
 
-struct TestFixture {
-    cwd: PathBuf,
-}
+use common::Playground as TestFixture;
 
 impl TestFixture {
-    fn new() -> Self {
-        let temp_dir = std::env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-        Self { cwd: temp_dir }
-    }
-
-    fn get_cli(&self, command: Option<Command>) -> Cli {
-        Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(InitArgs {})))).expect("Init failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn write_file(&self, path: &str, content: &str) {
         let file_path = self.cwd.join(path);
         if let Some(parent) = file_path.parent() {
@@ -65,19 +41,13 @@ impl TestFixture {
     }
 }
 
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
-    }
-}
-
 // ==========================
 // Packages Subcommand Tests
 // ==========================
 
 #[test]
 fn test_packages_list_empty() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
@@ -93,7 +63,7 @@ fn test_packages_list_empty() {
 
 #[test]
 fn test_packages_list_with_packages() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add some packages to config
@@ -133,7 +103,7 @@ fn test_packages_list_with_packages() {
 
 #[test]
 fn test_packages_list_verbose() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add a package with details
@@ -177,7 +147,7 @@ fn test_packages_list_verbose() {
 
 #[test]
 fn test_packages_list_with_specific_profile() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create packages
@@ -208,7 +178,7 @@ fn test_packages_list_with_specific_profile() {
 
 #[test]
 fn test_packages_list_skipped_packages() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create package with skip flag
@@ -247,7 +217,7 @@ fn test_packages_list_skipped_packages() {
 
 #[test]
 fn test_profiles_list_empty() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
@@ -262,7 +232,7 @@ fn test_profiles_list_empty() {
 
 #[test]
 fn test_profiles_list_with_profiles() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add profiles
@@ -287,7 +257,7 @@ fn test_profiles_list_with_profiles() {
 
 #[test]
 fn test_profiles_list_verbose() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add profile with details
@@ -317,7 +287,7 @@ fn test_profiles_list_verbose() {
 
 #[test]
 fn test_profiles_add_new_profile() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
@@ -339,7 +309,7 @@ fn test_profiles_add_new_profile() {
 
 #[test]
 fn test_profiles_add_duplicate_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add a profile first
@@ -363,7 +333,7 @@ fn test_profiles_add_duplicate_fails() {
 
 #[test]
 fn test_profiles_add_with_set_as_current() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
@@ -397,7 +367,7 @@ fn test_profiles_add_with_set_as_current() {
 
 #[test]
 fn test_profiles_add_preserves_existing_uservariables() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Set some existing user variables
@@ -430,7 +400,7 @@ fn test_profiles_add_preserves_existing_uservariables() {
 
 #[test]
 fn test_packages_no_subcommand() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Packages(PackagesArgs {
@@ -446,7 +416,7 @@ fn test_packages_no_subcommand() {
 
 #[test]
 fn test_profiles_no_subcommand() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs { command: None }))));
@@ -463,7 +433,7 @@ fn test_profiles_no_subcommand() {
 
 #[test]
 fn test_remove_command_success() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create a package
@@ -495,7 +465,7 @@ fn test_remove_command_success() {
 
 #[test]
 fn test_remove_command_with_force() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create a package and add it to a profile dependency
@@ -529,7 +499,7 @@ fn test_remove_command_with_force() {
 
 #[test]
 fn test_remove_command_dry_run() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -557,7 +527,7 @@ fn test_remove_command_dry_run() {
 
 #[test]
 fn test_remove_command_nonexistent_package() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Remove(RemovePackageArgs {
@@ -577,7 +547,7 @@ fn test_remove_command_nonexistent_package() {
 
 #[test]
 fn test_packages_remove_subcommand() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create a package
@@ -606,7 +576,7 @@ fn test_packages_remove_subcommand() {
 
 #[test]
 fn test_packages_remove_with_orphan_cleanup() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -652,7 +622,7 @@ fn test_packages_remove_with_orphan_cleanup() {
 
 #[test]
 fn test_profiles_remove_subcommand() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Add a test profile
@@ -677,7 +647,7 @@ fn test_profiles_remove_subcommand() {
 
 #[test]
 fn test_profiles_remove_default_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {
@@ -693,7 +663,7 @@ fn test_profiles_remove_default_fails() {
 
 #[test]
 fn test_profiles_remove_with_orphan_cleanup() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -729,7 +699,7 @@ fn test_profiles_remove_with_orphan_cleanup() {
 
 #[test]
 fn test_profiles_remove_dry_run() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -756,7 +726,7 @@ fn test_profiles_remove_dry_run() {
 
 #[test]
 fn test_profiles_remove_nonexistent() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Profiles(ProfilesArgs {

@@ -7,75 +7,25 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use dotr_dear::{
-    cli::{DeployArgs, InitArgs, run_cli},
-    config::Config,
-    context::Context,
-};
+use dotr_dear::context::Context;
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: PathBuf,
-}
+use common::Playground as TestFixture;
 
 impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn get_context(&self) -> Context {
         let config = self.get_config();
         let (mut ctx, _) =
             Context::new(&self.cwd, &config, None, false).expect("Failed to create context");
-        ctx.extend_variables(config.variables.clone());
+        ctx.extend_variables(config.variables);
         ctx
     }
 
     fn get_context_variables(&self) -> toml::Table {
         self.get_context().get_context_variables()
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 

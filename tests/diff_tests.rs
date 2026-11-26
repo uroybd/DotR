@@ -7,64 +7,19 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use dotr_dear::cli::{DeployArgs, DiffArgs, ImportArgs, InitArgs, run_cli};
+use dotr_dear::cli::{DiffArgs, ImportArgs, run_cli};
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
+use common::Playground as TestFixture;
+
 const NVIM_PATH: &str = "src/nvim/";
 const BASHRC_PATH: &str = "src/.bashrc";
 const TMUX_PATH: &str = "src/tmux/";
 
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        let cwd = PathBuf::from(PLAYGROUND_DIR);
-        common::setup(&cwd);
-        Self { cwd }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn import(&self, path: &str) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
-                path: path.to_string(),
-                ..Default::default()
-            }))),
-        )
-        .expect("Import failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
     fn diff(&self, packages: Option<Vec<String>>) -> Result<(), anyhow::Error> {
         run_cli(self.get_cli(Some(dotr_dear::cli::Command::Diff(DiffArgs {
             packages,
@@ -86,12 +41,6 @@ impl TestFixture {
         dotr_dear::package::get_pkg_name_and_rel_path(&args, &self.cwd)
             .unwrap()
             .0
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 

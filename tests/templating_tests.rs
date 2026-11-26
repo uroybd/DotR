@@ -10,79 +10,18 @@
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
-    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
-    config::Config,
+    cli::{ImportArgs, UpdateArgs, run_cli},
     merge::Resolution,
     package::get_pkg_name_and_rel_path,
 };
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
+use common::Playground as TestFixture;
+
 const BASHRC_PATH: &str = "src/.bashrc";
 
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn import(&self, path: &str) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
-                path: path.to_string(),
-                ..Default::default()
-            }))),
-        )
-        .expect("Import failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                conflict: Some(dotr_dear::merge::Resolution::Skip),
-                allow_secrets: false,
-            }))),
-        )
-        .expect("Update failed");
-    }
-
     fn update_with(&self, package: &str, conflict: Resolution, dry_run: bool) {
         run_cli(
             self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
@@ -126,10 +65,6 @@ impl TestFixture {
         fs::read_to_string(self.cwd.join("dotfiles").join(name)).unwrap()
     }
 
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn get_package_name(&self, path: &str) -> String {
         let args = ImportArgs {
             path: path.to_string(),
@@ -148,12 +83,6 @@ impl TestFixture {
 
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 

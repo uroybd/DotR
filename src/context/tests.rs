@@ -9,12 +9,34 @@ mod context_tests {
 
     static TEST_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-    fn create_temp_dir() -> PathBuf {
+    /// A temporary directory, removed when the test is done with it (dropped).
+    struct TempDir(PathBuf);
+
+    impl std::ops::Deref for TempDir {
+        type Target = PathBuf;
+        fn deref(&self) -> &PathBuf {
+            &self.0
+        }
+    }
+
+    impl AsRef<Path> for TempDir {
+        fn as_ref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).ok();
+        }
+    }
+
+    fn create_temp_dir() -> TempDir {
         let counter = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let temp_dir =
             std::env::temp_dir().join(format!("dotr_test_{}_{}", std::process::id(), counter));
         fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-        temp_dir
+        TempDir(temp_dir)
     }
 
     fn create_test_config(temp_dir: &Path) -> Config {
@@ -32,7 +54,7 @@ mod context_tests {
         let (ctx, _) =
             Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
-        assert_eq!(&ctx.working_dir, &temp_dir);
+        assert_eq!(&ctx.working_dir, &*temp_dir);
         assert!(
             !ctx.variables.is_empty(),
             "Should have environment variables"
@@ -538,7 +560,7 @@ value = 2
         let (ctx, _) =
             Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
-        assert_eq!(ctx.working_dir, temp_dir);
+        assert_eq!(ctx.working_dir, *temp_dir);
     }
 
     #[test]

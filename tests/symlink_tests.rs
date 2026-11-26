@@ -7,89 +7,24 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
 use dotr_dear::{
-    cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
+    cli::{DeployArgs, run_cli},
     config::Config,
     utils::SYMLINK_FOLDER,
 };
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
+use common::Playground as TestFixture;
+
 const BASHRC_PATH: &str = "src/.bashrc";
 const NVIM_PATH: &str = "src/nvim";
 const ZSHRC_PATH: &str = "src/.zshrc";
 const TMUX_PATH: &str = "src/tmux";
 
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        let cwd = PathBuf::from(PLAYGROUND_DIR);
-        common::setup(&cwd);
-        Self { cwd }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn import(&self, path: &str, symlink: bool) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
-                path: path.to_string(),
-                symlink,
-                ..Default::default()
-            }))),
-        )
-        .expect("Import failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                conflict: Some(dotr_dear::merge::Resolution::Skip),
-                allow_secrets: false,
-            }))),
-        )
-        .expect("Update failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
     }
@@ -142,30 +77,11 @@ impl TestFixture {
     }
 }
 
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        // Clean up the deployed directory before teardown (unless NO_CLEANUP is set)
-        if std::env::var("NO_CLEANUP").is_err() {
-            let deployed_dir = self.cwd.join(SYMLINK_FOLDER);
-            if deployed_dir.exists() {
-                fs::remove_dir_all(&deployed_dir).ok();
-            }
-            // Ad-hoc foreign files created by unfold_symlink tests aren't known
-            // to `common::teardown`'s restore list; remove them explicitly so a
-            // panicking test can't leave a dangling symlink for the next run.
-            // `remove_file` works on both real files and (possibly broken)
-            // symlinks, so this is safe even if nothing was ever created.
-            fs::remove_file(self.cwd.join("src/tmux/foreign.txt")).ok();
-        }
-        common::teardown(&self.cwd);
-    }
-}
-
 #[test]
 fn test_import_with_symlink_flag() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     let config = fixture.get_config();
     let package = config
@@ -185,7 +101,7 @@ fn test_import_with_symlink_flag() {
 fn test_import_without_symlink_flag() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let config = fixture.get_config();
     let package = config
@@ -204,7 +120,7 @@ fn test_import_without_symlink_flag() {
 fn test_deploy_with_symlink_creates_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Import with symlink flag automatically deploys
     fixture.assert_file_exists(
@@ -217,7 +133,7 @@ fn test_deploy_with_symlink_creates_deployed_folder() {
 fn test_deploy_with_symlink_creates_symlink_at_dest() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Import with symlink flag automatically deploys and creates symlink
     fixture.assert_is_symlink(
@@ -230,7 +146,7 @@ fn test_deploy_with_symlink_creates_symlink_at_dest() {
 fn test_deploy_with_symlink_points_to_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     let config = fixture.get_config();
     let package_name = config
@@ -252,7 +168,7 @@ fn test_deploy_with_symlink_points_to_deployed_folder() {
 fn test_deploy_with_symlink_deploys_to_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     let config = fixture.get_config();
     let package_name = config
@@ -273,7 +189,7 @@ fn test_deploy_with_symlink_deploys_to_deployed_folder() {
 fn test_deploy_with_symlink_directory() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(NVIM_PATH, true);
+    fixture.import_with(NVIM_PATH, true);
 
     let config = fixture.get_config();
     let package_name = config
@@ -301,7 +217,7 @@ fn test_deploy_with_symlink_directory() {
 fn test_deploy_without_symlink_does_not_create_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     fixture.deploy(None);
 
@@ -315,7 +231,7 @@ fn test_deploy_without_symlink_does_not_create_deployed_folder() {
 fn test_deploy_without_symlink_creates_regular_file() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     fixture.deploy(None);
 
@@ -332,7 +248,7 @@ fn test_symlink_replaces_existing_file() {
 
     // File already exists from setup in src/.bashrc
     // Import with symlink should replace it with a symlink
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     fixture.assert_is_symlink(
         BASHRC_PATH,
@@ -347,7 +263,7 @@ fn test_symlink_replaces_existing_directory() {
 
     // Directory already exists from setup in src/nvim/
     // Import with symlink should replace it with a symlink
-    fixture.import(NVIM_PATH, true);
+    fixture.import_with(NVIM_PATH, true);
 
     fixture.assert_is_symlink(
         NVIM_PATH,
@@ -376,7 +292,7 @@ fn test_symlink_replaces_existing_symlink() {
     std::os::unix::fs::symlink(".bashrc.old", &bashrc).expect("Failed to create symlink");
 
     // Import with symlink should replace the old symlink with a new one
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Should still be a symlink but pointing to new location
     fixture.assert_is_symlink(
@@ -404,9 +320,9 @@ fn test_multiple_symlink_packages() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    fixture.import(BASHRC_PATH, true);
-    fixture.import(ZSHRC_PATH, true);
-    fixture.import(NVIM_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
+    fixture.import_with(ZSHRC_PATH, true);
+    fixture.import_with(NVIM_PATH, true);
 
     // All should be symlinked after import with symlink flag
     fixture.assert_is_symlink(BASHRC_PATH, "bashrc should be symlinked");
@@ -429,8 +345,8 @@ fn test_mixed_symlink_and_regular_packages() {
     let fixture = TestFixture::new();
     fixture.init();
 
-    fixture.import(BASHRC_PATH, true); // symlink
-    fixture.import(ZSHRC_PATH, false); // regular
+    fixture.import_with(BASHRC_PATH, true); // symlink
+    fixture.import_with(ZSHRC_PATH, false); // regular
 
     // Deploy regular package manually
     fixture.deploy(Some(vec!["f_zshrc".to_string()]));
@@ -443,7 +359,7 @@ fn test_mixed_symlink_and_regular_packages() {
 fn test_update_symlink_package() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Modify the file through the symlink (which modifies deployed/f_bashrc)
     fixture.write_file(BASHRC_PATH, "# Modified through symlink\n");
@@ -472,7 +388,7 @@ fn test_update_symlink_package() {
 fn test_symlink_config_serialization() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Read the config file
     let config_content = fixture.read_file("config.toml");
@@ -490,7 +406,7 @@ fn test_symlink_not_backed_up() {
     fixture.init();
 
     // Import with symlink - existing file is backed up to dotfiles during import
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Verify no .dotrbak backup was created at destination (since we create symlink)
     fixture.assert_file_not_exists(
@@ -506,7 +422,7 @@ fn test_symlink_with_nested_directory() {
 
     // Create nested directory structure (already exists from common setup)
     let nested_path = "src/config/alacritty";
-    fixture.import(nested_path, true);
+    fixture.import_with(nested_path, true);
 
     // Import with symlink automatically creates symlink
     fixture.assert_is_symlink(
@@ -537,7 +453,7 @@ fn test_symlink_dry_run() {
     fixture.init();
 
     // Import without symlink first
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     // Manually update config to add symlink flag
     let mut config = fixture.get_config();
@@ -576,7 +492,7 @@ fn test_symlink_dry_run() {
 fn test_symlink_preserves_file_through_link() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, true);
+    fixture.import_with(BASHRC_PATH, true);
 
     // Read original content through symlink
     let original_content = fixture.read_file(BASHRC_PATH);
@@ -594,7 +510,7 @@ fn test_symlink_preserves_file_through_link() {
 fn test_symlink_directory_preserves_structure() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(NVIM_PATH, true);
+    fixture.import_with(NVIM_PATH, true);
 
     // Verify symlinked directory has correct structure
     let init_lua = fixture.cwd.join(NVIM_PATH).join("init.lua");
@@ -625,7 +541,7 @@ fn test_global_symlink_flag_deploys_package_without_own_flag() {
     fixture.init();
 
     // Import without the package-level symlink flag
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     // Enable symlinking globally instead
     let mut config = fixture.get_config();
@@ -657,7 +573,7 @@ fn test_global_symlink_flag_deploys_package_without_own_flag() {
 fn test_global_symlink_flag_creates_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -675,7 +591,7 @@ fn test_global_symlink_flag_creates_deployed_folder() {
 fn test_global_symlink_flag_target_points_to_deployed_folder() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -702,7 +618,7 @@ fn test_global_symlink_flag_target_points_to_deployed_folder() {
 fn test_global_symlink_flag_applies_to_directory_package() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(NVIM_PATH, false);
+    fixture.import_with(NVIM_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -736,7 +652,7 @@ fn test_global_symlink_flag_persists_after_save() {
 fn test_global_symlink_flag_does_not_leak_into_package_config() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -757,7 +673,7 @@ fn test_global_symlink_flag_does_not_leak_into_package_config() {
 fn test_global_symlink_flag_skips_backup_on_redeploy() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -803,7 +719,7 @@ fn package_name_src(config: &Config) -> String {
 fn test_unfold_symlink_defaults_to_false() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let config = fixture.get_config();
     let package = config
@@ -821,7 +737,7 @@ fn test_unfold_symlink_defaults_to_false() {
 fn test_unfold_symlink_creates_real_directory_with_symlinked_files() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -858,7 +774,7 @@ fn test_unfold_symlink_creates_real_directory_with_symlinked_files() {
 fn test_unfold_symlink_target_points_to_staged_file() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -885,7 +801,7 @@ fn test_unfold_symlink_target_points_to_staged_file() {
 fn test_unfold_symlink_preserves_foreign_file_on_redeploy() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -922,7 +838,7 @@ fn test_unfold_symlink_preserves_foreign_file_on_redeploy() {
 fn test_ignore_non_empty_implies_unfold_without_explicit_flag() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -954,7 +870,7 @@ fn test_ignore_non_empty_implies_unfold_without_explicit_flag() {
 fn test_unfold_symlink_removes_stale_symlink_after_source_file_removed() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -1004,7 +920,7 @@ fn test_unfold_symlink_removes_stale_symlink_after_source_file_removed() {
 fn test_unfold_symlink_clean_does_not_remove_foreign_file() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -1054,7 +970,7 @@ fn test_unfold_symlink_clean_does_not_remove_foreign_file() {
 fn test_unfold_symlink_update_pulls_changes_without_absorbing_foreign_file() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -1093,7 +1009,7 @@ fn test_unfold_symlink_update_pulls_changes_without_absorbing_foreign_file() {
 fn test_unfold_symlink_dry_run_makes_no_changes() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -1132,7 +1048,7 @@ fn test_unfold_symlink_dry_run_makes_no_changes() {
 fn test_unfold_symlink_field_omitted_when_false() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let config_content = fixture.read_file("config.toml");
     assert!(
@@ -1145,7 +1061,7 @@ fn test_unfold_symlink_field_omitted_when_false() {
 fn test_unfold_symlink_field_present_when_true() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(TMUX_PATH, false);
+    fixture.import_with(TMUX_PATH, false);
 
     let mut config = fixture.get_config();
     let pkg_name = config
@@ -1169,7 +1085,7 @@ fn test_unfold_symlink_field_present_when_true() {
 fn test_package_can_opt_out_of_global_symlink_flag() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;
@@ -1199,7 +1115,7 @@ fn test_package_can_opt_out_of_global_symlink_flag() {
 fn test_package_without_explicit_symlink_follows_global_flag() {
     let fixture = TestFixture::new();
     fixture.init();
-    fixture.import(BASHRC_PATH, false);
+    fixture.import_with(BASHRC_PATH, false);
 
     let mut config = fixture.get_config();
     config.symlink = true;

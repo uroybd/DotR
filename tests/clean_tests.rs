@@ -7,42 +7,18 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
+
+mod common;
+
+use common::Playground as TestFixture;
 
 use dotr_dear::{
-    cli::{Cli, Command, DeployArgs, UpdateArgs, run_cli},
-    config::Config,
+    cli::{Command, DeployArgs, UpdateArgs, run_cli},
     package::Package,
 };
 
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        let temp_dir =
-            std::env::temp_dir().join(format!("dotr_clean_test_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-        Self { cwd: temp_dir }
-    }
-
-    fn get_cli(&self, command: Option<Command>) -> Cli {
-        Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(dotr_dear::cli::InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
     }
@@ -60,15 +36,9 @@ impl TestFixture {
     }
 }
 
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.cwd).ok();
-    }
-}
-
 #[test]
 fn test_deploy_clean_by_default() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -119,7 +89,7 @@ fn test_deploy_clean_by_default() {
 
 #[test]
 fn test_update_clean_by_default() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -171,7 +141,7 @@ fn test_update_clean_by_default() {
 
 #[test]
 fn test_deploy_explicit_no_clean_overrides_default() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -222,7 +192,7 @@ fn test_deploy_explicit_no_clean_overrides_default() {
 
 #[test]
 fn test_package_clean_false_overrides_default() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -274,7 +244,7 @@ fn test_package_clean_false_overrides_default() {
 
 #[test]
 fn test_cli_clean_arg_overrides_package_setting() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -326,7 +296,7 @@ fn test_cli_clean_arg_overrides_package_setting() {
 
 #[test]
 fn test_package_clean_true_explicit() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -377,7 +347,7 @@ fn test_package_clean_true_explicit() {
 
 #[test]
 fn test_update_with_package_clean_false() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();
@@ -432,7 +402,7 @@ fn test_update_with_package_clean_false() {
 
 #[test]
 fn test_update_cli_override_package_clean() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let mut config = fixture.get_config();

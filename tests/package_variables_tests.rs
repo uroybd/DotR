@@ -7,64 +7,11 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{collections::HashMap, fs, path::PathBuf};
-
-use dotr_dear::{
-    cli::{DeployArgs, InitArgs, run_cli},
-    config::Config,
-};
+use std::{collections::HashMap, fs};
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: PathBuf,
-}
-
-impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
-    }
-}
+use common::Playground as TestFixture;
 
 #[test]
 fn test_package_variables_basic() {

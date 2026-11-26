@@ -7,50 +7,13 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use dotr_dear::cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli};
+use dotr_dear::cli::{Command, DeployArgs, UpdateArgs, run_cli};
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: PathBuf,
-}
-
-impl TestFixture {
-    fn new() -> Self {
-        let cwd = PathBuf::from(PLAYGROUND_DIR);
-        common::setup(&cwd);
-        Self { cwd }
-    }
-
-    fn get_cli(&self, command: Option<Command>) -> Cli {
-        Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(InitArgs {})))).expect("Init failed");
-    }
-
-    fn import(&self, path: &str) {
-        run_cli(self.get_cli(Some(Command::Import(ImportArgs {
-            path: path.to_string(),
-            ..Default::default()
-        }))))
-        .expect("Import failed");
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
-    }
-}
+use common::Playground as TestFixture;
 
 #[test]
 fn test_dry_run_deploy_no_files_created() {

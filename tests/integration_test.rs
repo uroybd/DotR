@@ -7,11 +7,10 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
 use dotr_dear::{
-    cli::{DeployArgs, ImportArgs, InitArgs, PrintVarsArgs, UpdateArgs, run_cli},
-    config::Config,
+    cli::{DeployArgs, ImportArgs, PrintVarsArgs, run_cli},
     context::Context,
     package::get_pkg_name_and_rel_path,
     utils,
@@ -19,8 +18,9 @@ use dotr_dear::{
 
 mod common;
 
+use common::Playground as TestFixture;
+
 // Test constants
-const PLAYGROUND_DIR: &str = "tests/playground";
 const NVIM_PATH: &str = "src/nvim/";
 const BASHRC_PATH: &str = "src/.bashrc";
 const ZSHRC_PATH: &str = "src/.zshrc";
@@ -30,73 +30,7 @@ const TMUX_PATH: &str = "src/tmux/";
 const ALACRITTY_PATH: &str = "src/config/alacritty/";
 
 // Test fixture helper
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        let cwd = PathBuf::from(PLAYGROUND_DIR);
-        // Ensure test files exist
-        common::setup(&cwd);
-        Self { cwd }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn import(&self, path: &str) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Import(ImportArgs {
-                path: path.to_string(),
-                ..Default::default()
-            }))),
-        )
-        .expect("Import failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn update(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                conflict: Some(dotr_dear::merge::Resolution::Skip),
-                allow_secrets: false,
-            }))),
-        )
-        .expect("Update failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn get_package_name(&self, path: &str) -> String {
         let args = ImportArgs {
             path: path.to_string(),
@@ -129,14 +63,8 @@ impl TestFixture {
         let config = self.get_config();
         let (mut ctx, _) =
             Context::new(&self.cwd, &config, None, false).expect("Failed to create context");
-        ctx.extend_variables(config.variables.clone());
+        ctx.extend_variables(config.variables);
         ctx.get_context_variables()
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 
@@ -916,7 +844,7 @@ fn test_config_variables_override_environment_variables() {
     );
     assert_ne!(
         reloaded_config.variables.get("HOME"),
-        Some(&toml::Value::String(original_home.clone())),
+        Some(&toml::Value::String(original_home)),
         "Config HOME should be different from environment HOME"
     );
 

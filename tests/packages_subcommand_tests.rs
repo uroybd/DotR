@@ -9,45 +9,16 @@
 
 use std::fs;
 
-use dotr_dear::{
-    cli::{
-        Cli, Command, DeployArgs, DiffArgs, ImportArgs, PackagesArgs, PackagesCommand,
-        RemovePackageArgs, UpdateArgs, run_cli,
-    },
-    config::Config,
+use dotr_dear::cli::{
+    Command, DeployArgs, DiffArgs, ImportArgs, PackagesArgs, PackagesCommand, RemovePackageArgs,
+    UpdateArgs, run_cli,
 };
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: std::path::PathBuf,
-}
+use common::Playground as TestFixture;
 
 impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: std::path::PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<Command>) -> Cli {
-        Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(dotr_dear::cli::InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn create_test_file(&self, name: &str, content: &str) {
         fs::create_dir_all(self.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
         fs::write(self.cwd.join(format!("dotfiles/{name}")), content)
@@ -63,12 +34,6 @@ impl TestFixture {
             !self.cwd.join(path).exists(),
             "File should not exist: {path}"
         );
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 

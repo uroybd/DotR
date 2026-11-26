@@ -9,56 +9,11 @@
 
 use std::fs;
 
-use dotr_dear::{
-    cli::{DeployArgs, InitArgs, run_cli},
-    config::Config,
-};
-
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: std::path::PathBuf,
-}
+use common::Playground as TestFixture;
 
 impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: std::path::PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>, profile: Option<String>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
     }
@@ -67,12 +22,6 @@ impl TestFixture {
         let file_content = fs::read_to_string(self.cwd.join(path))
             .unwrap_or_else(|_| panic!("Failed to read file: {path}"));
         assert!(file_content.contains(content), "{}", message);
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 
@@ -106,7 +55,7 @@ fn test_dest_with_variable_substitution() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy the package
-    fixture.deploy(Some(vec!["f_test_config".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_test_config".to_string()]), None);
 
     // Verify the file was deployed to the correct location
     fixture.assert_file_exists(
@@ -143,7 +92,7 @@ fn test_dest_with_home_variable() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["f_bashrc".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_bashrc".to_string()]), None);
 
     // Verify deployment - should be in home directory
     let home = std::env::home_dir().expect("Failed to get home directory");
@@ -179,7 +128,7 @@ fn test_dest_with_user_variable() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["f_user_config".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_user_config".to_string()]), None);
 
     // Get the current username
     let username = std::env::var("USER")
@@ -227,7 +176,7 @@ fn test_dest_with_multiple_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["f_app_config".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_app_config".to_string()]), None);
 
     // Verify
     fixture.assert_file_exists(
@@ -289,7 +238,7 @@ fn test_targets_with_templated_dest() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with dev profile
-    fixture.deploy(
+    fixture.deploy_as(
         Some(vec!["f_env_config".to_string()]),
         Some("dev".to_string()),
     );
@@ -305,7 +254,7 @@ fn test_targets_with_templated_dest() {
         .expect("Failed to cleanup dev file");
 
     // Deploy with prod profile
-    fixture.deploy(
+    fixture.deploy_as(
         Some(vec!["f_env_config".to_string()]),
         Some("prod".to_string()),
     );
@@ -346,7 +295,7 @@ fn test_dest_with_package_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["f_pkg_config".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_pkg_config".to_string()]), None);
 
     // Verify
     fixture.assert_file_exists(
@@ -400,7 +349,7 @@ fn test_dest_with_profile_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with custom profile
-    fixture.deploy(
+    fixture.deploy_as(
         Some(vec!["f_profile_config".to_string()]),
         Some("custom".to_string()),
     );
@@ -446,7 +395,7 @@ fn test_dest_with_variable_priority() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with default profile (should use global variable)
-    fixture.deploy(Some(vec!["f_priority_test".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_priority_test".to_string()]), None);
 
     // Verify global variable was used
     fixture.assert_file_exists(
@@ -469,7 +418,7 @@ fn test_dest_with_variable_priority() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with profile
-    fixture.deploy(
+    fixture.deploy_as(
         Some(vec!["f_priority_test".to_string()]),
         Some("test_profile".to_string()),
     );
@@ -513,7 +462,7 @@ fn test_dest_with_conditional_templating() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["f_conditional".to_string()]), None);
+    fixture.deploy_as(Some(vec!["f_conditional".to_string()]), None);
 
     // Verify conditional was evaluated
     fixture.assert_file_exists(
@@ -561,7 +510,7 @@ fn test_dest_directory_with_templated_path() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy
-    fixture.deploy(Some(vec!["d_config_dir".to_string()]), None);
+    fixture.deploy_as(Some(vec!["d_config_dir".to_string()]), None);
 
     // Verify all files were deployed to templated path
     fixture.assert_file_exists(

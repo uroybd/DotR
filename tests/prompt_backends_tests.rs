@@ -7,54 +7,13 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use dotr_dear::{
-    cli::{InitArgs, run_cli},
-    config::Config,
-    prompt_store::PromptBackendType,
-};
+use dotr_dear::{config::Config, prompt_store::PromptBackendType};
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: PathBuf,
-}
-
-impl TestFixture {
-    fn new() -> Self {
-        let cwd = PathBuf::from(PLAYGROUND_DIR);
-        common::setup(&cwd);
-        // A prior interrupted run can leave this behind.
-        fs::remove_file(cwd.join(".uservariables.toml")).ok();
-        Self { cwd }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        fs::remove_file(self.cwd.join(".uservariables.toml")).ok();
-        common::teardown(&self.cwd);
-    }
-}
+use common::Playground as TestFixture;
 
 // ==========================
 // prompt_backend: config-level default + profile-level override.

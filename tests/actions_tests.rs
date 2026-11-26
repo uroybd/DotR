@@ -7,62 +7,15 @@
     reason = "test code: a failure is the point"
 )]
 
-use std::{fs, path::PathBuf};
+use std::fs;
 
-use dotr_dear::{
-    cli::{DeployArgs, InitArgs, run_cli},
-    config::Config,
-};
+use dotr_dear::cli::{DeployArgs, run_cli};
 
 mod common;
 
-const PLAYGROUND_DIR: &str = "tests/playground";
-
-struct TestFixture {
-    cwd: PathBuf,
-}
+use common::Playground as TestFixture;
 
 impl TestFixture {
-    fn new() -> Self {
-        Self {
-            cwd: PathBuf::from(PLAYGROUND_DIR),
-        }
-    }
-
-    fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
-        dotr_dear::cli::Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(dotr_dear::cli::Command::Init(InitArgs {}))))
-            .expect("Init failed");
-
-        // Set SHELL to /bin/sh in config for consistent test execution
-        let mut config = self.get_config();
-        config.variables.insert(
-            "SHELL".to_string(),
-            toml::Value::String("/bin/sh".to_string()),
-        );
-        config.save(&self.cwd).expect("Failed to save config");
-    }
-
-    fn deploy(&self, packages: Option<Vec<String>>) {
-        run_cli(
-            self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
-                packages,
-                profile: None,
-                ignore_errors: false,
-                clean: Some(false),
-                dry_run: false,
-                ..Default::default()
-            }))),
-        )
-        .expect("Deploy failed");
-    }
-
     fn deploy_with_args(&self, packages: Option<Vec<String>>, args: &DeployArgs) {
         run_cli(
             self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
@@ -75,16 +28,6 @@ impl TestFixture {
             }))),
         )
         .expect("Deploy failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-}
-
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        common::teardown(&self.cwd);
     }
 }
 
@@ -1043,7 +986,7 @@ fn test_platform_and_profile_actions_wrap_the_deploy() {
             clean: Some(false),
             ..Default::default()
         })),
-        working_dir: Some(PLAYGROUND_DIR.to_string()),
+        working_dir: Some(common::PLAYGROUND_DIR.to_string()),
     })
     .expect("Deploy failed");
 
@@ -1110,7 +1053,7 @@ fn test_skip_actions_also_skips_platform_and_profile_actions() {
             skip_actions: true,
             ..Default::default()
         })),
-        working_dir: Some(PLAYGROUND_DIR.to_string()),
+        working_dir: Some(common::PLAYGROUND_DIR.to_string()),
     })
     .expect("Deploy failed");
 

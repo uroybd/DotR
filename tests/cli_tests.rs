@@ -9,42 +9,20 @@
 
 use std::{fs, path::PathBuf};
 
+mod common;
+
+use common::Playground as TestFixture;
+
 use dotr_dear::{
     cli::{
         Cli, Command, CompletionShell, CompletionsArgs, DeployArgs, ImportArgs, InitArgs,
         PrintVarsArgs, UpdateArgs, run_cli,
     },
-    config::Config,
     package::Package,
     profile::Profile,
 };
 
-struct TestFixture {
-    cwd: PathBuf,
-}
-
 impl TestFixture {
-    fn new() -> Self {
-        let temp_dir = std::env::temp_dir().join(format!("dotr_cli_test_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-        Self { cwd: temp_dir }
-    }
-
-    fn get_cli(&self, command: Option<Command>) -> Cli {
-        Cli {
-            command,
-            working_dir: Some(self.cwd.display().to_string()),
-        }
-    }
-
-    fn init(&self) {
-        run_cli(self.get_cli(Some(Command::Init(InitArgs {})))).expect("Init failed");
-    }
-
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
     }
@@ -66,15 +44,9 @@ impl TestFixture {
     }
 }
 
-impl Drop for TestFixture {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.cwd).ok();
-    }
-}
-
 #[test]
 fn test_init_creates_config() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -91,7 +63,7 @@ fn test_init_creates_config() {
 
 #[test]
 fn test_init_idempotent() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     // First init
     fixture.init();
@@ -109,7 +81,7 @@ fn test_init_idempotent() {
 
 #[test]
 fn test_init_writes_schema_directive() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -134,7 +106,7 @@ fn test_init_writes_schema_directive() {
 
 #[test]
 fn test_schema_directive_persists_across_saves() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Any mutating command re-saves config.toml. `Config::save()` has no
@@ -162,7 +134,7 @@ fn test_schema_directive_persists_across_saves() {
 
 #[test]
 fn test_completions_all_shells_succeed() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     for shell in [
         CompletionShell::Bash,
@@ -247,7 +219,7 @@ since the two are expected to stay embedded/identical (see include_str! in cli/m
 
 #[test]
 fn test_packages_and_profiles_list_plain_output_is_scriptable() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     let bin = env!("CARGO_BIN_EXE_dotr");
     let cwd = fixture.cwd.to_str().unwrap();
 
@@ -306,7 +278,7 @@ fn test_packages_and_profiles_list_plain_output_is_scriptable() {
 
 #[test]
 fn test_packages_list_plain_suppresses_banner_even_when_enabled() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     let bin = env!("CARGO_BIN_EXE_dotr");
     let cwd = fixture.cwd.to_str().unwrap();
 
@@ -329,7 +301,7 @@ fn test_packages_list_plain_suppresses_banner_even_when_enabled() {
 
 #[test]
 fn test_import_creates_package() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("test.conf", "test content");
@@ -353,7 +325,7 @@ fn test_import_creates_package() {
 
 #[test]
 fn test_import_with_profile() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("work.conf", "work content");
@@ -387,7 +359,7 @@ fn test_import_with_profile() {
 
 #[test]
 fn test_deploy_creates_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("dotfiles/f_test/config.txt", "test config");
@@ -423,7 +395,7 @@ fn test_deploy_creates_files() {
 
 #[test]
 fn test_deploy_with_profile() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("dotfiles/f_app/app.conf", "app config");
@@ -482,7 +454,7 @@ fn test_deploy_with_profile() {
 
 #[test]
 fn test_deploy_specific_packages() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("dotfiles/f_pkg1/file1.txt", "file 1");
@@ -538,7 +510,7 @@ fn test_deploy_specific_packages() {
 
 #[test]
 fn test_update_backs_up_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -576,7 +548,7 @@ fn test_update_backs_up_files() {
 
 #[test]
 fn test_print_vars_shows_variables() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -595,7 +567,7 @@ fn test_print_vars_shows_variables() {
 
 #[test]
 fn test_print_vars_with_profile() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -618,7 +590,7 @@ fn test_print_vars_with_profile() {
 
 #[test]
 fn test_banner_display() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -635,7 +607,7 @@ fn test_banner_display() {
 
 #[test]
 fn test_banner_disabled() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -652,7 +624,7 @@ fn test_banner_disabled() {
 
 #[test]
 fn test_working_dir_relative_path() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     // Create a subdirectory
     fs::create_dir_all(fixture.cwd.join("subdir")).expect("Failed to create subdir");
@@ -669,7 +641,7 @@ fn test_working_dir_relative_path() {
 
 #[test]
 fn test_skip_flag_prevents_deployment() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("dotfiles/f_skip/skip.txt", "skip content");
@@ -700,7 +672,7 @@ fn test_skip_flag_prevents_deployment() {
 
 #[test]
 fn test_profile_dependencies_deployment() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
     fixture.write_file("dotfiles/f_dep1/dep1.txt", "dep1");
@@ -770,7 +742,7 @@ fn test_profile_dependencies_deployment() {
 
 #[test]
 fn test_no_command_shows_help_message() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     let cli = Cli {
         command: None,
@@ -802,7 +774,7 @@ fn test_nonexistent_working_directory_fails() {
 
 #[test]
 fn test_deploy_without_config_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
 
@@ -818,7 +790,7 @@ fn test_deploy_without_config_fails() {
 
 #[test]
 fn test_import_nonexistent_file_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(
@@ -844,7 +816,7 @@ fn test_import_nonexistent_file_fails() {
 
 #[test]
 fn test_deploy_with_invalid_profile_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
@@ -865,7 +837,7 @@ fn test_deploy_with_invalid_profile_fails() {
 
 #[test]
 fn test_update_with_invalid_profile_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
@@ -887,7 +859,7 @@ fn test_update_with_invalid_profile_fails() {
 
 #[test]
 fn test_print_vars_with_invalid_profile_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
@@ -906,7 +878,7 @@ fn test_print_vars_with_invalid_profile_fails() {
 
 #[test]
 fn test_deploy_nonexistent_package_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
@@ -931,7 +903,7 @@ fn test_deploy_nonexistent_package_fails() {
 
 #[test]
 fn test_update_nonexistent_package_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     let result = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs {
@@ -957,7 +929,7 @@ fn test_update_nonexistent_package_fails() {
 
 #[test]
 fn test_invalid_toml_config_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Corrupt the config file
@@ -970,7 +942,7 @@ fn test_invalid_toml_config_fails() {
 
 #[test]
 fn test_invalid_uservariables_toml_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create invalid .uservariables.toml
@@ -990,7 +962,7 @@ fn test_invalid_uservariables_toml_fails() {
 
 #[test]
 fn test_package_with_missing_dependency_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create package with nonexistent dependency
@@ -1032,7 +1004,7 @@ fn test_package_with_missing_dependency_fails() {
 
 #[test]
 fn test_deploy_missing_source_fails() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create package but don't create source files
@@ -1067,7 +1039,7 @@ fn test_deploy_missing_source_fails() {
 
 #[test]
 fn test_import_normalizes_home_path() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create a test file in a subdirectory
@@ -1126,7 +1098,7 @@ fn test_import_preserves_tilde_path() {
 
 #[test]
 fn test_import_converts_absolute_home_path_to_tilde() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Test 1: Path outside home should remain absolute
@@ -1136,7 +1108,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
     let abs_path = test_file.to_str().unwrap().to_string();
     run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         name: None,
-        path: abs_path.clone(),
+        path: abs_path,
         profile: None,
         ..Default::default()
     }))))
@@ -1172,7 +1144,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
 
 #[test]
 fn test_dotr_profile_env_var_deploy() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create a test file
@@ -1217,7 +1189,7 @@ fn test_dotr_profile_env_var_deploy() {
 
 #[test]
 fn test_dotr_profile_env_var_update() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create dest directory
@@ -1287,7 +1259,7 @@ fn test_dotr_profile_env_var_update() {
 
 #[test]
 fn test_dotr_profile_env_var_print_vars() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     // Create profile with variables
@@ -1322,7 +1294,7 @@ fn test_dotr_profile_env_var_print_vars() {
 
 #[test]
 fn test_cli_profile_overrides_env_var() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     fixture.write_file("dotfiles/f_override/override.txt", "content");
@@ -1380,7 +1352,7 @@ fn test_cli_profile_overrides_env_var() {
 
 #[test]
 fn test_invalid_dotr_profile_env_var_ignored() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
     fixture.init();
 
     fixture.write_file("dotfiles/f_invalid_env/test.txt", "content");
@@ -1416,7 +1388,7 @@ fn test_invalid_dotr_profile_env_var_ignored() {
 
 #[test]
 fn test_deploy_with_ignore_errors_continues_on_failure() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1503,7 +1475,7 @@ fn test_deploy_with_ignore_errors_continues_on_failure() {
 
 #[test]
 fn test_deploy_without_ignore_errors_stops_on_failure() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1556,7 +1528,7 @@ fn test_deploy_without_ignore_errors_stops_on_failure() {
 
 #[test]
 fn test_backup_with_ignore_errors_continues_on_failure() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1625,7 +1597,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
 
 #[test]
 fn test_update_without_ignore_errors_stops_on_failure() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1676,7 +1648,7 @@ fn test_update_without_ignore_errors_stops_on_failure() {
 
 #[test]
 fn test_deploy_with_clean_removes_extra_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1735,7 +1707,7 @@ fn test_deploy_with_clean_removes_extra_files() {
 
 #[test]
 fn test_deploy_without_clean_keeps_extra_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1785,7 +1757,7 @@ fn test_deploy_without_clean_keeps_extra_files() {
 
 #[test]
 fn test_backup_with_clean_removes_extra_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1845,7 +1817,7 @@ fn test_backup_with_clean_removes_extra_files() {
 
 #[test]
 fn test_backup_without_clean_keeps_extra_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1895,7 +1867,7 @@ fn test_backup_without_clean_keeps_extra_files() {
 
 #[test]
 fn test_clean_preserves_backup_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -1961,7 +1933,7 @@ fn test_clean_preserves_backup_files() {
 
 #[test]
 fn test_clean_removes_empty_directories() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2018,7 +1990,7 @@ fn test_clean_removes_empty_directories() {
 
 #[test]
 fn test_clean_removes_non_empty_directories() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2086,7 +2058,7 @@ fn test_clean_removes_non_empty_directories() {
 
 #[test]
 fn test_clean_handles_nested_directory_structure() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2153,7 +2125,7 @@ fn test_clean_handles_nested_directory_structure() {
 
 #[test]
 fn test_clean_preserves_kept_directories() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2217,7 +2189,7 @@ fn test_clean_preserves_kept_directories() {
 
 #[test]
 fn test_clean_respects_ignore_patterns_files() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2293,7 +2265,7 @@ fn test_clean_respects_ignore_patterns_files() {
 
 #[test]
 fn test_clean_respects_ignore_patterns_directories() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2362,7 +2334,7 @@ fn test_clean_respects_ignore_patterns_directories() {
 
 #[test]
 fn test_clean_ignore_patterns_in_backup() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2434,7 +2406,7 @@ fn test_clean_ignore_patterns_in_backup() {
 
 #[test]
 fn test_clean_ignore_patterns_with_nested_paths() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
@@ -2520,7 +2492,7 @@ fn test_clean_ignore_patterns_with_nested_paths() {
 
 #[test]
 fn test_clean_without_ignore_patterns() {
-    let fixture = TestFixture::new();
+    let fixture = TestFixture::temp();
 
     fixture.init();
 
