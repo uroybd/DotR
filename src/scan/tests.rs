@@ -135,3 +135,23 @@ fn staged_works_from_a_folder_inside_a_bigger_repository() {
     assert_eq!(findings, vec![found("a.conf", Some(2), "TOKEN")]);
     fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn staged_handles_names_with_spaces_and_non_ascii() {
+    let dir = temp_dir();
+    git(&dir, &["init", "-q"]);
+    fs::write(dir.join("my file ü.conf"), "token = tok-123456\n").unwrap();
+    fs::write(dir.join("gone.conf"), "x\n").unwrap();
+    git(&dir, &["add", "."]);
+    git(&dir, &["commit", "-q", "-m", "c"]);
+    // Staged for deletion: nothing of it goes into the commit, so there is nothing to look in.
+    git(&dir, &["rm", "-q", "gone.conf"]);
+    fs::write(dir.join("my file ü.conf"), "token = tok-123456\nmore\n").unwrap();
+    git(&dir, &["add", "my file ü.conf"]);
+
+    let (findings, files) = scan(&dir, Source::Staged, &secrets()).unwrap();
+
+    assert_eq!(files, 1);
+    assert_eq!(findings, vec![found("my file ü.conf", Some(1), "TOKEN")]);
+    fs::remove_dir_all(&dir).ok();
+}

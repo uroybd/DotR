@@ -3,8 +3,8 @@ use std::{collections::BTreeSet, path::Path};
 use toml::Table;
 
 use super::{
-    Change, Edited, Outcome, Resolution, ask, check_edit, diff3, edit_in_editor, merge_template,
-    span,
+    Change, Edited, Outcome, Resolution, ask, ask_reopen, check_edit, diff3, edit_in_editor,
+    merge_template, span,
 };
 
 fn vars(pairs: &[(&str, &str)]) -> Table {
@@ -542,4 +542,53 @@ fn a_template_that_does_not_render_is_not_merged() {
         panic!("expected NotRendered, got {outcome:?}");
     };
     assert!(error.contains("NEVER_DEFINED"), "{error}");
+}
+
+#[test]
+fn ask_reopen_reopens_only_when_asked() {
+    for (answer, reopen) in [
+        ("r\n", true),
+        ("Reopen\n", true),
+        ("s\n", false),
+        ("x\n", false),
+        ("", false),
+    ] {
+        let mut out = vec![];
+        assert_eq!(
+            ask_reopen(&mut answer.as_bytes(), &mut out).unwrap(),
+            reopen,
+            "{answer:?}"
+        );
+    }
+}
+
+#[test]
+fn a_file_too_big_to_line_up_by_pattern_still_merges_by_exact_lines() {
+    // 2,001 lines against 2,001 is past MAX_PATTERN_PAIRS: the template is lined up with its render by exact matches
+    // only, and an edit to a plain line still merges, the tag line kept.
+    let mut template = String::from("name = {{ NAME }}\n");
+    for i in 0..2000 {
+        template.push_str(&format!("line {i}\n"));
+    }
+    let deployed = template
+        .replace("{{ NAME }}", "dotr-user")
+        .replace("line 1500\n", "line 1500 changed\n");
+
+    let outcome = merge_template(
+        &template,
+        deployed.as_bytes(),
+        &vars(&[("NAME", "dotr-user")]),
+        &BTreeSet::new(),
+        &mut |_| Ok(Resolution::Skip),
+    )
+    .unwrap();
+
+    let Outcome::Merged {
+        template: merged, ..
+    } = outcome
+    else {
+        panic!("expected a merge, got {outcome:?}");
+    };
+    assert!(merged.starts_with("name = {{ NAME }}\n"));
+    assert!(merged.contains("line 1500 changed\n"));
 }
