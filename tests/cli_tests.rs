@@ -875,6 +875,7 @@ fn test_update_with_invalid_profile_fails() {
         clean: Some(false),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -940,6 +941,7 @@ fn test_update_nonexistent_package_fails() {
         clean: Some(false),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     // Update should fail with error for nonexistent package
@@ -1274,6 +1276,7 @@ fn test_dotr_profile_env_var_update() {
         clean: Some(false),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(
@@ -1605,6 +1608,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         clean: Some(false),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(
@@ -1823,6 +1827,7 @@ fn test_backup_with_clean_removes_extra_files() {
         clean: Some(true),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");
@@ -2399,6 +2404,7 @@ fn test_clean_ignore_patterns_in_backup() {
         clean: Some(true),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");

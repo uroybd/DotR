@@ -184,6 +184,7 @@ fn test_packages_update_subcommand() {
             clean: Some(false),
             dry_run: false,
             conflict: Some(dotr_dear::merge::Resolution::Skip),
+            allow_secrets: false,
         })),
     }))))
     .expect("Packages update failed");
@@ -450,6 +451,7 @@ fn test_packages_update_dry_run() {
             clean: Some(false),
             dry_run: true,
             conflict: Some(dotr_dear::merge::Resolution::Skip),
+            allow_secrets: false,
         })),
     }))))
     .expect("Packages update dry-run failed");

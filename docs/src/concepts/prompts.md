@@ -124,7 +124,8 @@ repository as text.
   [WARNING] Not backing up 'dotfiles/f_npmrc': line 3 of '~/.npmrc' holds the value of the secret `NPM_TOKEN`. Put {{ NPM_TOKEN }} in its place in 'dotfiles/f_npmrc' (making it a template, which `update` then merges), or take the value out of the deployed file.
   ```
 
-Values shorter than four characters are not looked for in plain files,
+If you do mean to commit the value, `dotr update --allow-secrets` backs the
+file up anyway, with a warning saying so. Values shorter than four characters are not looked for in plain files,
 since they turn up by chance.
 
 Two limits to know: only a secret's exact text is recognised (not, say, its

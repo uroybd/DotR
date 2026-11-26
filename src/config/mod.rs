@@ -178,6 +178,7 @@ impl Config {
             clean: Some(false),
             dry_run: false,
             conflict: Some(crate::merge::Resolution::Skip),
+            allow_secrets: false,
         };
         package.backup(ctx, &backup_args)?;
         profile.dependencies.push(pkg_name.clone());

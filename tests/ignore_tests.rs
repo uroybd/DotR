@@ -74,6 +74,7 @@ impl TestFixture {
                 clean: Some(false),
                 dry_run: false,
                 conflict: Some(dotr_dear::merge::Resolution::Skip),
+                allow_secrets: false,
             }))),
         )
         .expect("Update failed");

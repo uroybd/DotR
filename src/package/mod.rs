@@ -286,7 +286,7 @@ impl Package {
                         continue;
                     }
                     // Not a template (binary files included): copied byte for byte, unless it holds a secret.
-                    if holds_secret(&dest_path, entry.path(), &secrets)? {
+                    if holds_secret(&dest_path, entry.path(), &secrets, args.allow_secrets)? {
                         all_copied_paths.push(dest_path);
                         continue;
                     }
@@ -304,7 +304,7 @@ impl Package {
             }
         } else if is_templated(&copy_to) {
             return self.backup_templated(&copy_to, &copy_from, ctx, args);
-        } else if holds_secret(&copy_to, &copy_from, &secrets)? {
+        } else if holds_secret(&copy_to, &copy_from, &secrets, args.allow_secrets)? {
             return Ok(BackupDeployResult::Skipped);
         } else if !args.dry_run {
             std::fs::copy(&copy_from, &copy_to)?;
@@ -878,12 +878,13 @@ pub fn find_secret<'a>(
         })
 }
 
-/// Whether a plain file's deployed copy holds a secret, and so must not be copied into the repository; says so if it
-/// does (the variable's name, never its value).
+/// Whether a plain file's deployed copy holds a secret, and so must not be copied into the repository (`false` with
+/// `allow`, which copies it anyway); says so either way (the variable's name, never its value).
 fn holds_secret(
     repo: &Path,
     deployed: &Path,
     secrets: &[(String, String)],
+    allow: bool,
 ) -> anyhow::Result<bool> {
     if secrets.is_empty() {
         return Ok(false);
@@ -892,11 +893,23 @@ fn holds_secret(
         return Ok(false);
     };
     let place = line.map_or_else(String::new, |n| format!("line {n} of "));
+    if allow {
+        cprintln(
+            &format!(
+                "Backing up '{}' anyway (--allow-secrets): {place}'{}' holds the value of the secret \
+`{name}`, which goes into the repository as text.",
+                repo.display(),
+                deployed.display()
+            ),
+            &LogLevel::Warning,
+        );
+        return Ok(false);
+    }
     cprintln(
         &format!(
             "Not backing up '{}': {place}'{}' holds the value of the secret `{name}`. Put {{{{ {name} }}}} in \
-its place in '{}' (making it a template, which `update` then merges), or take the value out of the \
-deployed file.",
+its place in '{}' (making it a template, which `update` then merges), take the value out of the \
+deployed file, or pass --allow-secrets to back it up anyway.",
             repo.display(),
             deployed.display(),
             repo.display()

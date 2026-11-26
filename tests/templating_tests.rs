@@ -77,6 +77,7 @@ impl TestFixture {
                 clean: Some(false),
                 dry_run: false,
                 conflict: Some(dotr_dear::merge::Resolution::Skip),
+                allow_secrets: false,
             }))),
         )
         .expect("Update failed");
@@ -387,6 +388,7 @@ fn test_clean_does_not_delete_templated_file() {
             clean: None,
             dry_run: false,
             conflict: Some(dotr_dear::merge::Resolution::Skip),
+            allow_secrets: false,
         }))),
     )
     .expect("Update failed");
@@ -777,6 +779,32 @@ fn test_update_does_not_copy_a_plain_file_holding_a_secret() {
     });
 
     assert_eq!(fixture.template("f_plain_secret"), "plain = yes\n");
+}
+
+#[test]
+fn test_update_allow_secrets_backs_the_file_up_anyway() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template("f_plain_secret_allowed", "plain = yes\n", &[]);
+    fs::write(&deployed, "plain = yes\ntoken = tok-123456\n").unwrap();
+
+    with_token(&fixture, || {
+        run_cli(
+            fixture.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages: Some(vec!["f_plain_secret_allowed".to_string()]),
+                clean: Some(false),
+                conflict: Some(Resolution::Skip),
+                allow_secrets: true,
+                ..Default::default()
+            }))),
+        )
+        .expect("Update failed");
+    });
+
+    assert_eq!(
+        fixture.template("f_plain_secret_allowed"),
+        "plain = yes\ntoken = tok-123456\n"
+    );
 }
 
 #[test]

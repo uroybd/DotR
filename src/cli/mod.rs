@@ -250,6 +250,11 @@ pub struct UpdateArgs {
     /// VISUAL or EDITOR), or leave the file (skip). Asked for each conflict in a terminal; skip otherwise.
     #[arg(long, value_enum)]
     pub conflict: Option<crate::merge::Resolution>,
+
+    /// Back up a plain file even when its deployed copy holds a secret's value (the value then goes into the
+    /// repository as text). Without it, such a file is left out, with a warning.
+    #[arg(long, default_value_t = false)]
+    pub allow_secrets: bool,
 }
 
 #[derive(Debug, Args, Default)]

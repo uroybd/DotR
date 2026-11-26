@@ -58,6 +58,7 @@ Copy changes from deployed files back into the repository.
 | `--clean <true\|false>`       | Override clean mode for this run.                                          |
 | `--dry-run`                   | Preview without changing anything.                                        |
 | `--conflict <CHOICE>`         | Settle every conflict in a templated file: `ours`, `theirs`, `both`, `edit` or `skip`. Without it, `update` asks in a terminal and skips otherwise. |
+| `--allow-secrets`             | Back up a plain file even when its deployed copy holds a secret's value. See [Keeping answers out of the repository](../concepts/prompts.md#keeping-answers-out-of-the-repository). |
 
 Templated files are merged into their templates, values written back as
 `{{ tags }}`, and every change is reported — see

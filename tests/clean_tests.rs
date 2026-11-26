@@ -156,6 +156,7 @@ fn test_update_clean_by_default() {
         clean: None,
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -416,6 +417,7 @@ fn test_update_with_package_clean_false() {
         clean: None,
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -468,6 +470,7 @@ fn test_update_cli_override_package_clean() {
         clean: Some(true),
         dry_run: false,
         conflict: Some(dotr_dear::merge::Resolution::Skip),
+        allow_secrets: false,
     }))));
 
     assert!(result.is_ok(), "Update should succeed");

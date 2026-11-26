@@ -64,6 +64,7 @@ commands:
       --clean=: Override clean mode for this run
       --dry-run: Preview without changing anything
       --conflict=: Settle every conflict in a templated file
+      --allow-secrets: Back up a plain file even when it holds a secret's value
     completion:
       flag:
         packages: ["$(dotr packages list --plain)"]
@@ -155,6 +156,7 @@ commands:
           --clean=: Override clean mode for this run
           --dry-run: Preview without changing anything
           --conflict=: Settle every conflict in a templated file
+          --allow-secrets: Back up a plain file even when it holds a secret's value
         completion:
           flag:
             packages: ["$(dotr packages list --plain)"]
