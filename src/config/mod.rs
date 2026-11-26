@@ -813,6 +813,9 @@ pub(crate) fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpT
     if let Some(count) = stats.get(&BackupDeployResult::Skipped) {
         summary_parts.push(format!("🔄 {count} no changes"));
     }
+    if let Some(count) = stats.get(&BackupDeployResult::LeftOut) {
+        summary_parts.push(format!("⚠️ {count} left out (see the warnings above)"));
+    }
     if let Some(count) = stats.get(&BackupDeployResult::Failed) {
         summary_parts.push(format!("❌ {count} failed"));
     }

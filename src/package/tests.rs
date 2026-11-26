@@ -546,3 +546,28 @@ mod find_secret_tests {
         assert_eq!(find_secret(b"token = {{ TOKEN }}\n", &s), None);
     }
 }
+
+#[cfg(test)]
+mod is_templated_tests {
+    use std::{fs, os::unix::fs::PermissionsExt};
+
+    use crate::package::is_templated;
+
+    #[test]
+    fn a_missing_file_is_no_template_but_an_unreadable_one_is_an_error() {
+        let dir = std::env::temp_dir().join(format!("dotr-templated-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        assert!(!is_templated(&dir.join("missing")).unwrap());
+
+        let template = dir.join("t.conf");
+        fs::write(&template, "x = {{ X }}\n").unwrap();
+        assert!(is_templated(&template).unwrap());
+        fs::set_permissions(&template, fs::Permissions::from_mode(0o000)).unwrap();
+        if fs::read(&template).is_err() {
+            // (Run as root, the file is readable anyway and there is nothing to check.)
+            assert!(is_templated(&template).is_err());
+        }
+        fs::set_permissions(&template, fs::Permissions::from_mode(0o644)).unwrap();
+        fs::remove_dir_all(&dir).ok();
+    }
+}

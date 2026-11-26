@@ -93,7 +93,11 @@ impl Default for Package {
 #[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
 pub enum BackupDeployResult {
     Success,
+    /// Nothing to do: already up to date.
     Skipped,
+    /// Not (all) backed up, though it changed: a file left out over a conflict, a secret or a merge that would not
+    /// round-trip, each with its warning.
+    LeftOut,
     Failed,
 }
 
@@ -250,7 +254,7 @@ impl Package {
     /// Backup the package by copying files from dest to a backup location, recursively.
     pub fn backup(&self, ctx: &Context, args: &UpdateArgs) -> anyhow::Result<BackupDeployResult> {
         let copy_from = self.resolve_dest(ctx)?;
-        let copy_to = ctx.working_dir.join(self.src.clone());
+        let copy_to = ctx.working_dir.join(&self.src);
         let secrets = ctx.secrets();
         let unfolded_staging_root = if self.effective_symlink(ctx) && self.should_unfold() {
             Some(self.resolve_deployment_path(ctx)?)
@@ -259,10 +263,11 @@ impl Package {
         };
         if copy_from.is_dir() {
             let mut all_copied_paths = vec![];
+            let mut left_out = false;
             for entry in walkdir::WalkDir::new(&copy_from) {
                 let entry = entry?;
                 let relative_path = entry.path().strip_prefix(&copy_from)?;
-                let dest_path = copy_to.clone().join(relative_path);
+                let dest_path = copy_to.join(relative_path);
                 if self.should_ignore(relative_path) {
                     continue;
                 }
@@ -280,13 +285,15 @@ impl Package {
                     }
                     all_copied_paths.push(dest_path);
                 } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
-                    if is_templated(&dest_path) {
-                        self.backup_templated(&dest_path, entry.path(), ctx, args)?;
+                    if is_templated(&dest_path)? {
+                        left_out |= self.backup_templated(&dest_path, entry.path(), ctx, args)?
+                            == BackupDeployResult::LeftOut;
                         all_copied_paths.push(dest_path);
                         continue;
                     }
                     // Not a template (binary files included): copied byte for byte, unless it holds a secret.
                     if holds_secret(&dest_path, entry.path(), &secrets, args.allow_secrets)? {
+                        left_out = true;
                         all_copied_paths.push(dest_path);
                         continue;
                     }
@@ -302,10 +309,13 @@ impl Package {
             if self.should_clean(args.clean) {
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
-        } else if is_templated(&copy_to) {
+            if left_out {
+                return Ok(BackupDeployResult::LeftOut);
+            }
+        } else if is_templated(&copy_to)? {
             return self.backup_templated(&copy_to, &copy_from, ctx, args);
         } else if holds_secret(&copy_to, &copy_from, &secrets, args.allow_secrets)? {
-            return Ok(BackupDeployResult::Skipped);
+            return Ok(BackupDeployResult::LeftOut);
         } else if !args.dry_run {
             std::fs::copy(&copy_from, &copy_to)?;
         }
@@ -347,7 +357,7 @@ impl Package {
                 &format!("Not backing up templated file '{t}': {why}"),
                 &LogLevel::Warning,
             );
-            Ok(BackupDeployResult::Skipped)
+            Ok(BackupDeployResult::LeftOut)
         };
         match outcome {
             Outcome::Unchanged => Ok(BackupDeployResult::Skipped),
@@ -392,7 +402,7 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
                         &format!("Would open '{t}' in your editor to settle its conflicts"),
                         &LogLevel::Info,
                     );
-                    return Ok(BackupDeployResult::Skipped);
+                    return Ok(BackupDeployResult::Success);
                 }
                 let Some(editor) = merge::editor_command() else {
                     return not_backed_up(
@@ -440,7 +450,7 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
             let relative = entry.path().strip_prefix(&src)?;
             if entry.file_type().is_file()
                 && !self.should_ignore(relative)
-                && is_templated(entry.path())
+                && is_templated(entry.path())?
             {
                 return Ok(true);
             }
@@ -802,13 +812,15 @@ fn create_backup_path(path: &Path) -> PathBuf {
     PathBuf::from(backup_path)
 }
 
-/// Whether the file at `p` is a template: text (see [`utils::as_text`]) holding template tags.
-pub fn is_templated(p: &Path) -> bool {
-    std::fs::read(p)
-        .ok()
-        .as_deref()
-        .and_then(utils::as_text)
-        .is_some_and(is_templated_str)
+/// Whether the file at `p` is a template: text (see [`utils::as_text`]) holding template tags. A file not there is
+/// none (a package never backed up); one that can't be read is an error, not "no template", or `update` would copy
+/// the deployed file over a template it could not read.
+pub fn is_templated(p: &Path) -> anyhow::Result<bool> {
+    match std::fs::read(p) {
+        Ok(bytes) => Ok(utils::as_text(&bytes).is_some_and(is_templated_str)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(anyhow::anyhow!("Failed to read '{}': {e}", p.display())),
+    }
 }
 
 /// Whether text holds template tags. Text with a NUL byte is binary, however its bytes happen to read.

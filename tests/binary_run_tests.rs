@@ -128,3 +128,43 @@ fn diff_reports_what_deploy_would_write() {
         "a changed binary file: {diff}"
     );
 }
+
+#[test]
+fn the_update_summary_counts_a_file_left_out() {
+    let repo = Repo::new();
+    fs::write(
+        repo.path("repo/dotfiles/d_app/sub/a.conf"),
+        "a = {{ COLOR }}\n",
+    )
+    .unwrap();
+    repo.run(&["deploy"]);
+    // A change to a line the template computes: a conflict, which `--conflict skip` leaves unsettled.
+    fs::write(repo.deployed("sub/a.conf"), "a = blue\n").unwrap();
+
+    let update = repo.run(&["update", "--conflict", "skip"]);
+
+    assert!(!update.contains("1 backed up"), "{update}");
+    assert!(update.contains("1 left out"), "{update}");
+}
+
+#[test]
+fn a_single_file_left_out_is_not_counted_as_unchanged() {
+    let repo = Repo::new();
+    fs::write(repo.path("repo/dotfiles/f_rc"), "rc = {{ COLOR }}\n").unwrap();
+    let config = fs::read_to_string(repo.path("repo/config.toml")).unwrap();
+    fs::write(
+        repo.path("repo/config.toml"),
+        config.replace(
+            "dependencies = [\"d_app\"]",
+            "dependencies = [\"f_rc\"]\n\n[packages.f_rc]\nsrc = \"dotfiles/f_rc\"\ndest = \"~/.rc\"",
+        ),
+    )
+    .unwrap();
+    repo.run(&["deploy"]);
+    fs::write(repo.path("home/.rc"), "rc = blue\n").unwrap();
+
+    let update = repo.run(&["update", "--conflict", "skip"]);
+
+    assert!(!update.contains("no changes"), "{update}");
+    assert!(update.contains("1 left out"), "{update}");
+}
