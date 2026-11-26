@@ -71,6 +71,9 @@ pub enum Outcome {
     /// The merged template would not render to the deployed file, so it is not written. `error` is Tera's, when it
     /// did not compile at all.
     RoundTripFailed { error: Option<String> },
+    /// The template does not render with the variables at hand (one is not defined here, say): there is nothing
+    /// to merge the deployed copy into. Deploying it would fail the same way.
+    NotRendered { error: String },
     /// The deployed file is not text, so it is not merged into a text template.
     NotText,
     /// A conflict was answered `Edit`: the merged file with the conflicts marked, for the user to finish. `changes`
@@ -172,7 +175,14 @@ pub fn merge_template(
     let Some(deployed) = as_text(deployed) else {
         return Ok(Outcome::NotText);
     };
-    let base = compile_string(template, vars)?;
+    let base = match compile_string(template, vars) {
+        Ok(base) => base,
+        Err(e) => {
+            return Ok(Outcome::NotRendered {
+                error: format!("{e:#}"),
+            });
+        }
+    };
     if base == deployed {
         return Ok(Outcome::Unchanged);
     }

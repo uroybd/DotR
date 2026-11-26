@@ -348,6 +348,9 @@ impl Package {
         match outcome {
             Outcome::Unchanged => Ok(BackupDeployResult::Skipped),
             Outcome::NotText => not_backed_up(&format!("its deployed copy '{d}' is not text")),
+            Outcome::NotRendered { error } => not_backed_up(&format!(
+                "it does not render here ({error}), so there is nothing to merge '{d}' into"
+            )),
             Outcome::RoundTripFailed { error } => not_backed_up(&match error {
                 Some(error) => format!(
                     "the merged template does not compile ({error}); the deployed file may hold \

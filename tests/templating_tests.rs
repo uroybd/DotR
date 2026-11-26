@@ -380,6 +380,8 @@ fn test_directory_backup_skips_only_templated_files() {
         name: "d_nushell".to_string(),
         src: "dotfiles/d_nushell".to_string(),
         dest: "src/.config/nushell".to_string(),
+        // A package variable beats the environment: the test does not depend on the machine's JIRA_API_TOKEN.
+        variables: toml::toml! { JIRA_API_TOKEN = "test-token" },
         ..Default::default()
     };
     config.packages.insert("d_nushell".to_string(), package);
@@ -400,6 +402,47 @@ fn test_directory_backup_skips_only_templated_files() {
     assert!(
         env_content.contains("{{ HOME }}") && env_content.contains("{{ JIRA_API_TOKEN }}"),
         "Templated file in a mixed directory should not be overwritten by backup"
+    );
+}
+
+#[test]
+fn test_update_leaves_out_a_template_that_does_not_render_here() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let pkg_dir = fixture.cwd.join("dotfiles/d_unrendered");
+    fs::create_dir_all(&pkg_dir).unwrap();
+    fs::write(pkg_dir.join("plain.conf"), "plain = 1\n").unwrap();
+    fs::write(
+        pkg_dir.join("t.conf"),
+        "t = {{ DOTR_TEST_NEVER_DEFINED }}\n",
+    )
+    .unwrap();
+    let deployed = fixture.cwd.join("src/.d_unrendered");
+    fs::create_dir_all(&deployed).unwrap();
+    fs::write(deployed.join("plain.conf"), "plain = 2\n").unwrap();
+    fs::write(deployed.join("t.conf"), "t = something\n").unwrap();
+    let mut config = fixture.get_config();
+    config.packages.insert(
+        "d_unrendered".into(),
+        dotr_dear::package::Package {
+            name: "d_unrendered".into(),
+            src: "dotfiles/d_unrendered".into(),
+            dest: "src/.d_unrendered".into(),
+            ..Default::default()
+        },
+    );
+    config.save(&fixture.cwd).unwrap();
+
+    // One template that can't render is left out; it does not fail the update.
+    fixture.update(Some(vec!["d_unrendered".to_string()]));
+
+    assert_eq!(
+        fs::read_to_string(pkg_dir.join("plain.conf")).unwrap(),
+        "plain = 2\n"
+    );
+    assert_eq!(
+        fs::read_to_string(pkg_dir.join("t.conf")).unwrap(),
+        "t = {{ DOTR_TEST_NEVER_DEFINED }}\n"
     );
 }
 

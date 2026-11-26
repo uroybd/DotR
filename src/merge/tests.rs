@@ -527,3 +527,19 @@ fn the_editor_round_trip_returns_what_was_saved_and_reports_a_failed_editor() {
     assert!(err.to_string().contains("exited"), "{err}");
     assert!(edit_in_editor("  ", "d", Path::new("x")).is_err());
 }
+
+#[test]
+fn a_template_that_does_not_render_is_not_merged() {
+    let outcome = merge_template(
+        "t = {{ NEVER_DEFINED }}\n",
+        b"t = x\n",
+        &toml::Table::new(),
+        &BTreeSet::new(),
+        &mut |_| Ok(Resolution::Skip),
+    )
+    .unwrap();
+    let Outcome::NotRendered { error } = outcome else {
+        panic!("expected NotRendered, got {outcome:?}");
+    };
+    assert!(error.contains("NEVER_DEFINED"), "{error}");
+}

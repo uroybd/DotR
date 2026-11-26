@@ -70,6 +70,9 @@ current variables as the common ancestor:
 Nothing is written unless it round-trips: compiled again, the merged
 template must give the deployed file exactly. A file that won't (say, the
 deployed file now holds `{{` as text) is left alone, and you're told why.
+So is a template that doesn't render on this machine (a variable it uses is
+not defined here): it is left out with the reason, and the rest of the update
+goes on.
 
 ### Conflicts
 
