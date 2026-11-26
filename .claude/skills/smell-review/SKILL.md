@@ -54,24 +54,25 @@ CARGO_TARGET_DIR=<scratchpad>/clippy-probe cargo clippy -q --all-targets --all-f
   -W clippy::rc_buffer -W clippy::significant_drop_tightening -W clippy::type_complexity -W clippy::too_many_lines
 ```
 
-(Baseline when this skill was adopted, 2026-11-26, before any review: one `too_many_lines`, `run_cli` in
-`src/cli/mod.rs`, a flat dispatch over the commands; five `redundant_clone`, one in `src/config/mod.rs` and four in
-tests.) `option_if_let_else` is noise here; leave it out. A lint that stays at zero over two reviews can move into
-`[lints.clippy]` in `Cargo.toml`, with its reason.
+(Baseline after the first review, 2026-11-26: two `too_many_lines`, `run_cli` in `src/cli/mod.rs` (a flat dispatch
+over the commands) and `Package::backup_templated` (a flat match over the merge's outcomes; its editor arm would need
+eight parameters on its own); no `redundant_clone`.) `option_if_let_else` is noise here; leave it out. A lint that
+stays at zero over two reviews can move into `[lints.clippy]` in `Cargo.toml`, with its reason: `redundant_clone` is
+one review in.
 
 A long function or a big file is a lead, not a finding: read it before saying it is a smell.
 
-Leads already known, for the first full review to verify:
-- `&Option<Vec<String>>` / `&Option<String>` throughout the public API (`Config::filter_packages`,
-  `Context::get_prompts`, `Context::new`); two private functions carry `#[expect(clippy::ref_option)]` because of it.
-- `Package::diff_file` reads an unreadable deployed file as empty (`unwrap_or_default`), so the diff shows the whole
-  file as added instead of saying it could not be read.
-- Each `tests/*.rs` has its own `TestFixture` with near-identical helpers.
-- `is_templated` reads an unreadable file as "not a template", so `backup` would copy the deployed file over a
-  template it could not read.
-- In a directory package, `backup` counts the package as backed up even when one of its templated files ended in a
-  conflict (the warning says so, the summary does not).
-- `merge_template` is 117 lines: the conflict-resolution arm could move into its own function.
+Leads the first review left, for the next to weigh:
+- `dotr print-vars` prints every variable, secrets included, unmasked: it is the debugging command for templates, but
+  `update` and `scan` never show a secret's value.
+- A profile's `platform` that names no `[platforms]` entry is taken silently (it can key `targets` alone), so a typo
+  there means no platform variables and no error.
+- Answers saved by 2.4.0 and earlier end in a newline; the secret scan looks past it, templates do not.
+
+What the first review fixed, so it is not re-found: prompted answers keeping the Enter; deploy and diff deciding
+"changed" differently (binary files redeployed, dry-run listing directories, diff silent on missing and binary
+files); the update summary miscounting files left out; config fields of the wrong type read as their default; the
+sixteen test fixtures (now one `Playground` in `tests/common`) and the temp directories tests leaked.
 
 ## 2. Rust pitfalls to look for
 
