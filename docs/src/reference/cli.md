@@ -96,6 +96,20 @@ Print every variable resolved for the given (or default) profile — see
 | ----------------------- | ------------------------------------ |
 | `-p, --profile <NAME>` | Resolve variables for this profile. |
 
+## `dotr scan`
+
+Look for the value of every secret (everything in `.uservariables.toml`, and
+every answer the keychain or Bitwarden already holds) in the repository's
+files, or with `--staged` in what is staged for commit. Prints each finding as
+`path:line` and the variable's name, never the value, and exits 1 when there is
+one. It never asks for an answer, only reads the saved ones. See
+[Checking before a commit](../concepts/prompts.md#checking-before-a-commit).
+
+| Flag                   | Description                                                                 |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `--staged`             | Look in the git index (what the next commit holds) instead of every file.  |
+| `-p, --profile <NAME>` | Look for the secrets of this profile's prompts.                             |
+
 ## `dotr dump-user-vars`
 
 Resolves every prompted (user) variable for the given (or default)

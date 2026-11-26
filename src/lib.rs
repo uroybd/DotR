@@ -6,4 +6,5 @@ pub mod package;
 pub mod platform;
 pub mod profile;
 pub mod prompt_store;
+pub mod scan;
 pub mod utils;

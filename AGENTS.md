@@ -14,6 +14,7 @@ src/package      one package: deploy, backup (update), diff, clean, symlinks
 src/merge        backing up a templated file: three-way merge plus reverse substitution
 src/context      the variables a template sees: env, config, platform, package, profile, prompted
 src/prompt_store where prompted (user) variables live: a file, the OS keychain, or a Bitwarden note
+src/scan         `dotr scan`: secrets' values in the repository or the git index, for a pre-commit hook
 src/profile, src/platform   their config types
 src/utils        paths, Tera compiling, and the crate's only way to print (`out!`, `outln!`, `cprintln`)
 tests/           integration tests on a playground directory (`tests/playground`), run single-threaded

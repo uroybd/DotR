@@ -103,6 +103,15 @@ commands:
       flag:
         profile: ["$(dotr profiles list --plain)"]
 
+  - name: scan
+    description: Look for secrets' values in the repository, or in what is staged for commit
+    flags:
+      --staged: Look in what is staged for commit instead of every file
+      -p, --profile=: Look for the secrets of this profile's prompts
+    completion:
+      flag:
+        profile: ["$(dotr profiles list --plain)"]
+
   - name: packages
     description: Groups package-scoped commands under one namespace
     flags:

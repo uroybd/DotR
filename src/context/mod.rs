@@ -128,6 +128,22 @@ impl Context {
         prompts
     }
 
+    /// Loads the answers the configured backend already holds for this profile's prompts, asking for none: what a
+    /// command with nobody to answer (a pre-commit hook running `dotr scan`) can know.
+    pub fn load_stored_answers(&mut self, conf: &Config) -> anyhow::Result<()> {
+        let missing_keys: Vec<String> = Self::get_prompts(&self.profile, conf, &None)
+            .into_keys()
+            .filter(|key| !self.user_variables.contains_key(key))
+            .collect();
+        if missing_keys.is_empty() {
+            return Ok(());
+        }
+        let mut backend = Self::get_backend(&self.profile, conf, &self.variables);
+        let stored = backend.get(&self.working_dir, &missing_keys)?;
+        self.user_variables.extend(stored);
+        Ok(())
+    }
+
     #[expect(
         clippy::ref_option,
         reason = "passed straight to `get_prompts`, which takes `&Option` like the rest of the public API"

@@ -125,8 +125,41 @@ repository as text.
   ```
 
 If you do mean to commit the value, `dotr update --allow-secrets` backs the
-file up anyway, with a warning saying so. Values shorter than four characters are not looked for in plain files,
-since they turn up by chance.
+file up anyway, with a warning saying so. Values shorter than four
+characters are not looked for in plain files, since they turn up by chance.
+
+## Checking before a commit
+
+`update` is not the only way a secret reaches the repository: you can paste
+one into a file yourself. `dotr scan` looks for every secret's value in the
+repository (in git: every file it tracks or would add; `.uservariables.toml`
+and `deployed` are skipped), and `dotr scan --staged` in what is staged for
+the next commit. Each finding names the file, the line and the variable,
+never the value, and the command exits 1, so it can stop a commit:
+
+```sh
+# .git/hooks/pre-commit (make it executable)
+#!/bin/sh
+exec dotr scan --staged
+```
+
+With [pre-commit](https://pre-commit.com), the same as a local hook:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: dotr-scan
+        name: dotr scan
+        entry: dotr scan --staged
+        language: system
+        pass_filenames: false
+```
+
+`scan` never prompts: it looks for the answers already saved, in
+`.uservariables.toml` and in the keychain or Bitwarden note the profile uses
+(a locked Bitwarden vault still asks to be unlocked). `git commit --no-verify`
+skips the hook when you do mean to commit a value.
 
 Two limits to know: only a secret's exact text is recognised (not, say, its
 base64 encoding), and keychain or Bitwarden answers are only at hand when

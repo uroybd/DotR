@@ -21,7 +21,7 @@ A dotfiles manager that is as dear as a daughter.
 - 🔧 **Variables** — environment, config, platform, package, profile, and prompt-sourced, with nested TOML structures
 - 📝 **Templating** — full [Tera](https://keats.github.io/tera/) support, detected automatically, no config needed
 - ⚡ **Pre/post actions** — run shell commands around deployment, with variable interpolation
-- 💬 **Interactive prompts** — ask once for secrets, remember the answer outside version control
+- 💬 **Interactive prompts** — ask once for secrets, remember the answer outside version control, and `dotr scan` before a commit to keep them there
 - 🔗 **Symlink support** — deploy as symlinks for live-editing workflows
 - 🧹 **Clean mode** — deployed directories stay in sync, stray files get removed automatically
 - 🔍 **Diff & dry run** — preview every change before it happens

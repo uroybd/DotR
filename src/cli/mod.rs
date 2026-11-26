@@ -39,6 +39,7 @@ pub enum Command {
     Diff(DiffArgs),
     Remove(RemovePackageArgs),
     PrintVars(PrintVarsArgs),
+    Scan(ScanArgs),
     DumpUserVars(DumpUserVarsArgs),
     Packages(PackagesArgs),
     Profiles(ProfilesArgs),
@@ -135,6 +136,24 @@ template rendered the way it did."
 )]
 pub struct PrintVarsArgs {
     /// Resolve variables for this profile instead of the default.
+    #[arg(short, long)]
+    pub profile: Option<String>,
+}
+
+#[derive(Debug, Args, Default)]
+#[command(
+    about = "Look for secrets' values in the repository, or in what is staged for commit",
+    long_about = "Look for the value of every secret (everything in .uservariables.toml, and every answer the \
+keychain or Bitwarden already holds for a prompt) in the repository's files, or with --staged in what is staged for \
+commit. Each finding is printed as path:line and the variable's name, never its value, and the command exits 1 when \
+there is one: run it from a pre-commit hook to stop a secret before it reaches git history. It never asks for an \
+answer, only reads the saved ones."
+)]
+pub struct ScanArgs {
+    /// Look in what is staged for commit (the git index) instead of every file in the repository.
+    #[arg(long, default_value_t = false)]
+    pub staged: bool,
+    /// Look for the secrets of this profile's prompts instead of the default's.
     #[arg(short, long)]
     pub profile: Option<String>,
 }
@@ -472,6 +491,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             ctx.get_prompted_variables(&conf, &args.packages)?;
             conf.diff_packages(&ctx, &args)?;
         }
+        Some(Command::Scan(args)) => scan(&working_dir, &args)?,
         Some(Command::PrintVars(args)) => {
             let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
             ctx.get_prompted_variables(&conf, &None)?;
@@ -630,4 +650,33 @@ it: it is not in .gitignore, or was committed already. Run `dotr init` to add it
         conf.update_profiles(&ctx.profile, &ctx)?;
     }
     Ok((conf, ctx))
+}
+
+/// `dotr scan`: prints every secret value found, and fails when there is one (so a pre-commit hook stops the commit).
+fn scan(working_dir: &Path, args: &ScanArgs) -> anyhow::Result<()> {
+    let (conf, mut ctx) = init_config(working_dir, &args.profile, false, false)?;
+    ctx.load_stored_answers(&conf)?;
+    let secrets = ctx.secrets();
+    if secrets.is_empty() {
+        outln!("No secrets to look for.");
+        return Ok(());
+    }
+    let source = if args.staged {
+        crate::scan::Source::Staged
+    } else {
+        crate::scan::Source::Repository
+    };
+    let (findings, files) = crate::scan::scan(working_dir, source, &secrets)?;
+    for finding in &findings {
+        cprintln(&finding.describe(), &LogLevel::Error);
+    }
+    if !findings.is_empty() {
+        anyhow::bail!(
+            "Found {} secret value(s) in the {files} file(s) looked in. Put {{{{ NAME }}}} in each one's \
+place (making the file a template), or take the value out.",
+            findings.len()
+        );
+    }
+    outln!("No secrets found in {files} file(s).");
+    Ok(())
 }

@@ -863,10 +863,19 @@ pub fn find_secret<'a>(
     bytes: &[u8],
     secrets: &'a [(String, String)],
 ) -> Option<(&'a str, Option<usize>)> {
+    find_secrets(bytes, secrets).into_iter().next()
+}
+
+/// Every secret value at least [`merge::MIN_VALUE_CHARS`] long found in `bytes`, each with the 1-based line of its
+/// first appearance when the bytes are text.
+pub fn find_secrets<'a>(
+    bytes: &[u8],
+    secrets: &'a [(String, String)],
+) -> Vec<(&'a str, Option<usize>)> {
     secrets
         .iter()
         .filter(|(_, value)| value.chars().count() >= merge::MIN_VALUE_CHARS)
-        .find_map(|(name, value)| {
+        .filter_map(|(name, value)| {
             let at = bytes
                 .windows(value.len())
                 .position(|window| window == value.as_bytes())?;
@@ -876,6 +885,7 @@ pub fn find_secret<'a>(
             });
             Some((name.as_str(), line))
         })
+        .collect()
 }
 
 /// Whether a plain file's deployed copy holds a secret, and so must not be copied into the repository (`false` with
