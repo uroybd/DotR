@@ -51,8 +51,10 @@ make test         # cargo test, single-threaded: the tests share tests/playgroun
   taken or added beside the template's, an edit saved from the editor that renders differently), or leaves a file or a
   part of one out, it says so on the console, one line per change, with the file and line. A new kind of change gets
   a `merge::Change` variant and a line in `report_merge` (`src/package`).
-- **Secrets stay out of the repository.** Prompted variables can hold secrets: `update` never writes their values into
-  a tracked file (they go back as `{{ name }}`), and anything it prints about a templated file shows them as `***`.
+- **Secrets stay out of the repository.** Everything in `.uservariables.toml` or answered at a prompt is a secret
+  (`Context::secret_names`): `update` never writes its value into a tracked file (in a template it goes back as
+  `{{ name }}`; a plain file holding one is not backed up), anything it prints shows it as `***` or by name, and
+  `.uservariables.toml` itself stays in `.gitignore` (`Config::ensure_gitignore`, warned about when exposed).
   Keep tests that prove it, and add one for any new path that copies content into the repository.
 - **The template stays the source of truth.** Backing up a templated file must round-trip: compiling what is written
   must give the deployed file exactly (or, where the user chose to keep the template's lines, what the template gave

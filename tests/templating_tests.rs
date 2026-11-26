@@ -756,12 +756,83 @@ fn test_update_dry_run_leaves_the_template_alone() {
     assert_eq!(fixture.template("f_merge_dry"), template);
 }
 
+/// Writes `.uservariables.toml` with `TOKEN`, runs `body`, and removes it again (the playground teardown does not).
+fn with_token<T>(fixture: &TestFixture, body: impl FnOnce() -> T) -> T {
+    let path = fixture.cwd.join(".uservariables.toml");
+    fs::write(&path, "TOKEN = \"tok-123456\"\n").unwrap();
+    let result = body();
+    fs::remove_file(&path).unwrap();
+    result
+}
+
+#[test]
+fn test_update_does_not_copy_a_plain_file_holding_a_secret() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template("f_plain_secret", "plain = yes\n", &[]);
+    fs::write(&deployed, "plain = yes\ntoken = tok-123456\n").unwrap();
+
+    with_token(&fixture, || {
+        fixture.update_with("f_plain_secret", Resolution::Skip, false);
+    });
+
+    assert_eq!(fixture.template("f_plain_secret"), "plain = yes\n");
+}
+
+#[test]
+fn test_update_keeps_other_files_and_the_skipped_one_in_a_directory() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let pkg_dir = fixture.cwd.join("dotfiles/d_secret_dir");
+    fs::create_dir_all(&pkg_dir).unwrap();
+    fs::write(pkg_dir.join("ok.conf"), "ok = 1\n").unwrap();
+    fs::write(pkg_dir.join("leaky.conf"), "leaky = 1\n").unwrap();
+    fs::write(pkg_dir.join("blob.bin"), b"\x00\xffold").unwrap();
+    let mut config = fixture.get_config();
+    config.packages.insert(
+        "d_secret_dir".into(),
+        dotr_dear::package::Package {
+            name: "d_secret_dir".into(),
+            src: "dotfiles/d_secret_dir".into(),
+            dest: "src/.d_secret_dir".into(),
+            ..Default::default()
+        },
+    );
+    config.save(&fixture.cwd).unwrap();
+    fixture.deploy(Some(vec!["d_secret_dir".to_string()]));
+    let deployed = fixture.cwd.join("src/.d_secret_dir");
+    fs::write(deployed.join("ok.conf"), "ok = 2\n").unwrap();
+    fs::write(deployed.join("leaky.conf"), "leaky = tok-123456\n").unwrap();
+    fs::write(deployed.join("blob.bin"), b"\x00\xfftok-123456").unwrap();
+
+    with_token(&fixture, || {
+        run_cli(
+            fixture.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages: Some(vec!["d_secret_dir".to_string()]),
+                clean: Some(true),
+                conflict: Some(Resolution::Skip),
+                ..Default::default()
+            }))),
+        )
+        .expect("Update failed");
+    });
+
+    assert_eq!(
+        fs::read_to_string(pkg_dir.join("ok.conf")).unwrap(),
+        "ok = 2\n"
+    );
+    assert_eq!(
+        fs::read_to_string(pkg_dir.join("leaky.conf")).unwrap(),
+        "leaky = 1\n",
+        "not copied, and not removed by clean either"
+    );
+    assert_eq!(fs::read(pkg_dir.join("blob.bin")).unwrap(), b"\x00\xffold");
+}
+
 #[test]
 fn test_update_writes_a_secret_back_as_its_tag() {
     let fixture = TestFixture::new();
     fixture.init();
-    let secrets = fixture.cwd.join(".uservariables.toml");
-    fs::write(&secrets, "TOKEN = \"tok-123456\"\n").unwrap();
     let deployed = fixture.deployed_template(
         "f_merge_secret",
         "dir = {{ APP_DIR }}\n",
@@ -769,11 +840,14 @@ fn test_update_writes_a_secret_back_as_its_tag() {
     );
     fs::write(&deployed, "dir = /opt/app-test\ntoken = tok-123456\n").unwrap();
 
-    fixture.update_with("f_merge_secret", Resolution::Skip, false);
-    let template = fixture.template("f_merge_secret");
-    fs::remove_file(&secrets).unwrap();
+    with_token(&fixture, || {
+        fixture.update_with("f_merge_secret", Resolution::Skip, false);
+    });
 
-    assert_eq!(template, "dir = {{ APP_DIR }}\ntoken = {{ TOKEN }}\n");
+    assert_eq!(
+        fixture.template("f_merge_secret"),
+        "dir = {{ APP_DIR }}\ntoken = {{ TOKEN }}\n"
+    );
 }
 
 #[test]

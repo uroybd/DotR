@@ -251,6 +251,7 @@ impl Package {
     pub fn backup(&self, ctx: &Context, args: &UpdateArgs) -> anyhow::Result<BackupDeployResult> {
         let copy_from = self.resolve_dest(ctx)?;
         let copy_to = ctx.working_dir.join(self.src.clone());
+        let secrets = ctx.secrets();
         let unfolded_staging_root = if self.effective_symlink(ctx) && self.should_unfold() {
             Some(self.resolve_deployment_path(ctx)?)
         } else {
@@ -284,7 +285,11 @@ impl Package {
                         all_copied_paths.push(dest_path);
                         continue;
                     }
-                    // Not a template (binary files included): copied byte for byte.
+                    // Not a template (binary files included): copied byte for byte, unless it holds a secret.
+                    if holds_secret(&dest_path, entry.path(), &secrets)? {
+                        all_copied_paths.push(dest_path);
+                        continue;
+                    }
                     if !args.dry_run {
                         if let Some(parent) = dest_path.parent() {
                             std::fs::create_dir_all(parent)?;
@@ -299,6 +304,8 @@ impl Package {
             }
         } else if is_templated(&copy_to) {
             return self.backup_templated(&copy_to, &copy_from, ctx, args);
+        } else if holds_secret(&copy_to, &copy_from, &secrets)? {
+            return Ok(BackupDeployResult::Skipped);
         } else if !args.dry_run {
             std::fs::copy(&copy_from, &copy_to)?;
         }
@@ -849,6 +856,55 @@ pub fn is_templated_str(s: &str) -> bool {
 
 const RED: &str = "31";
 const GREEN: &str = "32";
+
+/// Where the first secret value at least [`merge::MIN_VALUE_CHARS`] long appears in `bytes`: the variable, and the
+/// 1-based line when the bytes are text.
+pub fn find_secret<'a>(
+    bytes: &[u8],
+    secrets: &'a [(String, String)],
+) -> Option<(&'a str, Option<usize>)> {
+    secrets
+        .iter()
+        .filter(|(_, value)| value.chars().count() >= merge::MIN_VALUE_CHARS)
+        .find_map(|(name, value)| {
+            let at = bytes
+                .windows(value.len())
+                .position(|window| window == value.as_bytes())?;
+            let line = utils::as_text(bytes).and_then(|text| {
+                let before = text.get(..at)?;
+                Some(before.matches('\n').count() + 1)
+            });
+            Some((name.as_str(), line))
+        })
+}
+
+/// Whether a plain file's deployed copy holds a secret, and so must not be copied into the repository; says so if it
+/// does (the variable's name, never its value).
+fn holds_secret(
+    repo: &Path,
+    deployed: &Path,
+    secrets: &[(String, String)],
+) -> anyhow::Result<bool> {
+    if secrets.is_empty() {
+        return Ok(false);
+    }
+    let Some((name, line)) = find_secret(&std::fs::read(deployed)?, secrets) else {
+        return Ok(false);
+    };
+    let place = line.map_or_else(String::new, |n| format!("line {n} of "));
+    cprintln(
+        &format!(
+            "Not backing up '{}': {place}'{}' holds the value of the secret `{name}`. Put {{{{ {name} }}}} in \
+its place in '{}' (making it a template, which `update` then merges), or take the value out of the \
+deployed file.",
+            repo.display(),
+            deployed.display(),
+            repo.display()
+        ),
+        &LogLevel::Warning,
+    );
+    Ok(true)
+}
 
 /// Reports a merge into a template: one line per change it made to the deployed content on the way.
 fn report_merge(template: &Path, deployed: &Path, changes: &[Change], dry_run: bool) {

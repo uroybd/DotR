@@ -104,3 +104,30 @@ fresh each run and never written to the plaintext file. Use
 [`dotr dump-user-vars`](../reference/cli.md#dotr-dump-user-vars) to export
 every prompted variable — any backend — to a portable TOML file, e.g. to
 migrate a value from one backend to another.
+
+## Keeping answers out of the repository
+
+Everything in `.uservariables.toml`, and every answer read from the keychain
+or Bitwarden, counts as a secret: `dotr update` never writes one into your
+repository as text.
+
+- **`.uservariables.toml` stays ignored.** `dotr init` adds it to
+  `.gitignore`, and every command warns if git would commit it.
+- **In a templated file**, a secret's value is written back as its tag
+  (`{{ API_TOKEN }}`), whether the template used it before or not. See
+  [Backing up templated files](./templating.md#backing-up-templated-files).
+- **A plain file** (no template tags, text or binary) whose deployed copy
+  holds a secret's value is not backed up. You get a warning naming the file,
+  the line and the variable, never the value:
+
+  ```
+  [WARNING] Not backing up 'dotfiles/f_npmrc': line 3 of '~/.npmrc' holds the value of the secret `NPM_TOKEN`. Put {{ NPM_TOKEN }} in its place in 'dotfiles/f_npmrc' (making it a template, which `update` then merges), or take the value out of the deployed file.
+  ```
+
+Values shorter than four characters are not looked for in plain files,
+since they turn up by chance.
+
+Two limits to know: only a secret's exact text is recognised (not, say, its
+base64 encoding), and keychain or Bitwarden answers are only at hand when
+`update` loads them, which it does when any package it updates has a
+template (a templated file or destination). `.uservariables.toml` is always read.

@@ -35,8 +35,8 @@ const MARK_SPLIT: &str = "=======";
 const MARK_THEIRS: &str = ">>>>>>>";
 
 /// A variable's value shorter than this is too likely to occur by chance to be written back as a tag (a secret's is
-/// written back whatever its length).
-const MIN_VALUE_CHARS: usize = 4;
+/// written back whatever its length), or to stop a plain file's backup (`Package::backup`).
+pub const MIN_VALUE_CHARS: usize = 4;
 
 /// A bare variable tag: `{{ name }}` or `{{ a.b }}`, with Tera's whitespace control allowed, nothing else.
 #[expect(

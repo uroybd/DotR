@@ -337,6 +337,17 @@ impl Context {
             .collect()
     }
 
+    /// The secrets ([`Self::secret_names`]) that hold text, with their values, for finding them in files.
+    pub fn secrets(&self) -> Vec<(String, String)> {
+        self.secret_names()
+            .into_iter()
+            .filter_map(|name| {
+                let value = self.user_variables.get(&name)?.as_str()?.to_string();
+                Some((name, value))
+            })
+            .collect()
+    }
+
     pub fn get_context_variables(&self) -> Table {
         let mut context_vars = self.variables.clone();
         context_vars.extend(self.profile.platform_variables.clone());

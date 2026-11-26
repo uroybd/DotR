@@ -503,3 +503,46 @@ mod get_context_variables_tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 }
+
+#[cfg(test)]
+mod find_secret_tests {
+    use crate::package::find_secret;
+
+    fn secrets(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn finds_a_secret_and_its_line_in_text() {
+        let s = secrets(&[("TOKEN", "tok-123456")]);
+        assert_eq!(
+            find_secret(b"a = 1\nb = 2\ntoken = tok-123456\n", &s),
+            Some(("TOKEN", Some(3)))
+        );
+    }
+
+    #[test]
+    fn finds_a_secret_in_binary_without_a_line() {
+        let s = secrets(&[("TOKEN", "tok-123456")]);
+        assert_eq!(
+            find_secret(b"\x89PNG\x00\xfftok-123456\x00", &s),
+            Some(("TOKEN", None))
+        );
+    }
+
+    #[test]
+    fn ignores_short_and_empty_values() {
+        let s = secrets(&[("EMPTY", ""), ("SHORT", "abc")]);
+        assert_eq!(find_secret(b"abc abc abc", &s), None);
+        assert_eq!(find_secret(b"", &s), None);
+    }
+
+    #[test]
+    fn finds_nothing_in_a_clean_file() {
+        let s = secrets(&[("TOKEN", "tok-123456")]);
+        assert_eq!(find_secret(b"token = {{ TOKEN }}\n", &s), None);
+    }
+}
