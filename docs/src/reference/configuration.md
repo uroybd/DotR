@@ -172,6 +172,6 @@ simply yields nothing.
 | ------------------------ | ---------------- | ------------------------------------------------------------------------ |
 | `config.toml`            | Yes              | The configuration described above.                                     |
 | `dotfiles/`              | Yes              | Package sources — the actual file/directory content for each package.  |
-| `.gitignore`             | Yes              | Written by `dotr init`; excludes `.uservariables.toml` and `deployed`. |
+| `.gitignore`             | Yes              | `dotr init` adds `.uservariables.toml` and `deployed` to it, keeping the rest. |
 | `.uservariables.toml`    | **No**           | Answers to [prompts](../concepts/prompts.md) — secrets live here.      |
 | `deployed/`              | **No**           | Staging directory for [symlinked](../concepts/symlinks.md) packages.   |

@@ -1558,3 +1558,105 @@ mod update_needs_variables_for_templated_sources_tests {
         assert!(!check("data.bin", b"utf-8, but\0binary {{ x }}"));
     }
 }
+
+#[cfg(test)]
+mod gitignore_tests {
+    use std::{fs, path::PathBuf, process::Command};
+
+    use crate::config::{Config, uservariables_exposed};
+
+    fn temp_dir() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("dotr-gitignore-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(dir: &PathBuf, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .output()
+            .unwrap()
+            .status;
+        assert!(status.success(), "git {args:?} failed");
+    }
+
+    #[test]
+    fn creates_a_gitignore_with_both_entries() {
+        let dir = temp_dir();
+        assert_eq!(
+            Config::ensure_gitignore(&dir).unwrap(),
+            vec![".uservariables.toml", "deployed"]
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(".gitignore")).unwrap(),
+            ".uservariables.toml\ndeployed\n"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn keeps_what_an_existing_gitignore_lists() {
+        let dir = temp_dir();
+        fs::write(dir.join(".gitignore"), "*.log\n/deployed/").unwrap();
+        assert_eq!(
+            Config::ensure_gitignore(&dir).unwrap(),
+            vec![".uservariables.toml"]
+        );
+        assert_eq!(
+            fs::read_to_string(dir.join(".gitignore")).unwrap(),
+            "*.log\n/deployed/\n.uservariables.toml\n"
+        );
+        assert!(
+            Config::ensure_gitignore(&dir).unwrap().is_empty(),
+            "nothing left to add"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn re_running_init_puts_the_entries_back() {
+        let dir = temp_dir();
+        Config::init(&dir).unwrap();
+        fs::write(dir.join(".gitignore"), "target\n").unwrap();
+        Config::init(&dir).unwrap();
+        assert_eq!(
+            fs::read_to_string(dir.join(".gitignore")).unwrap(),
+            "target\n.uservariables.toml\ndeployed\n"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn uservariables_are_exposed_until_git_ignores_them() {
+        let dir = temp_dir();
+        assert!(!uservariables_exposed(&dir), "no file, nothing exposed");
+        fs::write(dir.join(".uservariables.toml"), "TOKEN = \"x\"\n").unwrap();
+        assert!(
+            !uservariables_exposed(&dir),
+            "outside a repository there is nothing to check"
+        );
+
+        git(&dir, &["init", "-q"]);
+        assert!(uservariables_exposed(&dir), "not ignored");
+        Config::ensure_gitignore(&dir).unwrap();
+        assert!(!uservariables_exposed(&dir), "ignored");
+
+        git(&dir, &["add", "-f", ".uservariables.toml"]);
+        git(&dir, &["commit", "-q", "-m", "oops"]);
+        assert!(
+            uservariables_exposed(&dir),
+            "committed, so ignoring it no longer helps"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+}

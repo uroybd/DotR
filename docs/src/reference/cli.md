@@ -15,8 +15,10 @@ dotr [OPTIONS] [COMMAND]
 ## `dotr init`
 
 Initialize a dotfiles repository in the working directory: writes
-`config.toml`, creates `dotfiles/`, and writes a `.gitignore`. Safe to
-re-run — if `config.toml` already exists, it's left untouched.
+`config.toml`, creates `dotfiles/`, and adds `.uservariables.toml` and
+`deployed` to `.gitignore` (creating it if needed, keeping what it already
+lists). Safe to re-run — if `config.toml` already exists, it's left
+untouched, and the `.gitignore` entries are put back if they went missing.
 
 ## `dotr import <PATH>`
 

@@ -64,7 +64,7 @@ impl FileStore {
     }
 
     fn get_file_path(cwd: &Path) -> PathBuf {
-        cwd.join(".uservariables.toml")
+        cwd.join(crate::context::USERVARIABLES_FILE)
     }
 }
 

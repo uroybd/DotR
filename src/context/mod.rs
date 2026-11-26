@@ -26,6 +26,10 @@ const BITWARDEN_NOTE_OVERRIDE_KEY: &str = "DOTR_BITWARDEN_NOTE";
 
 const DOTR_PROFILE_KEY: &str = "DOTR_PROFILE";
 
+/// The machine-local answers file at the repository root: prompted answers (secrets among them) and other local
+/// variables. It must stay out of version control (`Config::ensure_gitignore`).
+pub const USERVARIABLES_FILE: &str = ".uservariables.toml";
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Context {
     pub working_dir: PathBuf,
@@ -192,14 +196,14 @@ impl Context {
         let mut on_disk = Self::parse_uservariables(&self.working_dir)?;
         on_disk.insert(key.to_string(), val.clone());
         let toml_string = toml::to_string(&on_disk)?;
-        let path = self.working_dir.join(".uservariables.toml");
+        let path = self.working_dir.join(USERVARIABLES_FILE);
         fs::write(&path, toml_string)?;
         self.user_variables.insert(key.to_string(), val);
         Ok(())
     }
 
     pub fn parse_uservariables(cwd: &Path) -> Result<Table, anyhow::Error> {
-        let path = cwd.join(".uservariables.toml");
+        let path = cwd.join(USERVARIABLES_FILE);
         if path.exists() {
             let content = fs::read_to_string(&path)?;
             let table: Table = toml::de::from_str(&content).map_err(|e| {

@@ -4,7 +4,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 
 use crate::{
     config::{self, Config},
-    context::Context,
+    context::{Context, USERVARIABLES_FILE},
     out, outln,
     utils::{LogLevel, cprintln},
 };
@@ -118,8 +118,10 @@ pub struct RemovePackageArgs {
 #[command(
     name = "init",
     about = "Initialize dotfiles repository.",
-    long_about = "Creates config.toml, a dotfiles/ directory, and a .gitignore in the \
-working directory. Safe to re-run - if config.toml already exists, it's left untouched."
+    long_about = "Creates config.toml and a dotfiles/ directory in the working directory, and \
+adds .uservariables.toml and deployed to .gitignore (keeping what it already lists). Safe to \
+re-run - if config.toml already exists, it's left untouched, and the .gitignore entries are put \
+back if they went missing."
 )]
 pub struct InitArgs {}
 
@@ -607,6 +609,16 @@ fn init_config(
     let mut conf = config::Config::from_path(working_dir)?;
     if conf.banner && show_banner {
         outln!("{BANNER}");
+    }
+    if config::uservariables_exposed(working_dir) {
+        cprintln(
+            &format!(
+                "'{USERVARIABLES_FILE}' holds your prompted answers, secrets among them, but git would commit \
+it: it is not in .gitignore, or was committed already. Run `dotr init` to add it to .gitignore, and `git rm \
+--cached {USERVARIABLES_FILE}` if it was committed (its history still holds it)."
+            ),
+            &LogLevel::Warning,
+        );
     }
     let (ctx, profile_created) = Context::new(working_dir, &conf, profile, create_if_missing)?;
     if profile_created {

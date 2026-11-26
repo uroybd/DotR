@@ -39,7 +39,10 @@ interactive prompt; the rest are skipped silently.
 By default, answers are saved to `.uservariables.toml` in the repository
 root, which `dotr init` adds to `.gitignore`. That's fine for low-stakes
 values, but real secrets (API tokens, passwords) then sit in plaintext on
-disk indefinitely. Two other backends are available:
+disk indefinitely. Should the file ever stop being ignored (the entry
+removed, or the file committed), every command that reads the config warns;
+run `dotr init` again to put the entry back. Two other backends are
+available:
 
 ```toml
 prompt_backend = "keychain"   # or "bitwarden" — repo-wide default

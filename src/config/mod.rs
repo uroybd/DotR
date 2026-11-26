@@ -8,7 +8,7 @@ use crate::{
         DeployArgs, DiffArgs, ImportArgs, PackagesListArgs, ProfileRemoveArgs, ProfilesAddArgs,
         RemovePackageArgs, UpdateArgs,
     },
-    context::Context,
+    context::{Context, USERVARIABLES_FILE},
     out, outln,
     package::{BackupDeployResult, Package, is_templated_str},
     platform::Platform,
@@ -46,6 +46,25 @@ pub struct Config {
     /// `prompt_backend` overrides this when that profile is active.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_backend: Option<crate::prompt_store::PromptBackendType>,
+}
+
+/// What `.gitignore` must list: the machine-local answers file, and the folder symlinked packages are staged in.
+pub const GITIGNORE_ENTRIES: [&str; 2] = [USERVARIABLES_FILE, "deployed"];
+
+/// Whether `.uservariables.toml` exists in `cwd` but git would commit it: not ignored, or already tracked (git
+/// ignores no tracked file). `false` outside a git repository, or without git, where there is nothing to check.
+pub fn uservariables_exposed(cwd: &Path) -> bool {
+    if !cwd.join(USERVARIABLES_FILE).exists() {
+        return false;
+    }
+    std::process::Command::new("git")
+        .arg("-C")
+        .arg(cwd)
+        .args(["check-ignore", "-q", USERVARIABLES_FILE])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.code() == Some(1))
 }
 
 #[derive(Clone, Copy)]
@@ -409,6 +428,8 @@ impl Config {
         let config_path = cwd.join("config.toml");
         if config_path.exists() {
             cprintln("config.toml exists, skipping", &LogLevel::Warning);
+            // Running `init` again is how an existing repository gets its ignore entries back.
+            Self::ensure_gitignore(cwd)?;
             return Self::from_path(cwd);
         }
         let default_config = Config::new();
@@ -421,12 +442,46 @@ impl Config {
         default_config.save(cwd)?;
         std::fs::create_dir_all(cwd.join("dotfiles"))?;
 
-        let gitignore_path = cwd.join(".gitignore");
-        let gitignore_content = ".uservariables.toml\ndeployed";
-        std::fs::write(gitignore_path, gitignore_content)?;
+        Self::ensure_gitignore(cwd)?;
 
         cprintln("Repository initialized", &LogLevel::Info);
         Ok(default_config)
+    }
+
+    /// Adds to the repository's `.gitignore` each of [`GITIGNORE_ENTRIES`] it does not list yet, keeping everything
+    /// else in it (creating it if there is none), and says which were added.
+    pub fn ensure_gitignore(cwd: &Path) -> anyhow::Result<Vec<&'static str>> {
+        let path = cwd.join(".gitignore");
+        let existing = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e.into()),
+        };
+        let listed: Vec<&str> = existing
+            .lines()
+            .map(|line| line.trim().trim_start_matches('/').trim_end_matches('/'))
+            .collect();
+        let missing: Vec<&'static str> = GITIGNORE_ENTRIES
+            .into_iter()
+            .filter(|entry| !listed.contains(entry))
+            .collect();
+        if missing.is_empty() {
+            return Ok(missing);
+        }
+        let mut text = existing;
+        if !text.is_empty() && !text.ends_with('\n') {
+            text.push('\n');
+        }
+        for entry in &missing {
+            text.push_str(entry);
+            text.push('\n');
+        }
+        std::fs::write(&path, text)?;
+        cprintln(
+            &format!("Added {} to .gitignore", missing.join(", ")),
+            &LogLevel::Info,
+        );
+        Ok(missing)
     }
 
     pub fn new() -> Self {
