@@ -182,34 +182,39 @@ pub fn merge_template(
     let ours = split_lines(template);
     let theirs = split_lines(deployed);
 
-    let mut merged: Vec<String> = Vec::with_capacity(ours.len());
-    // What `merged` must render to: the deployed lines, except the template's own output where it was kept.
-    let mut expected: Vec<&str> = Vec::with_capacity(theirs.len());
-    let mut changes = vec![];
-    let mut unresolved = vec![];
-    let mut editing = false;
+    let mut m = Merging {
+        merged: Vec::with_capacity(ours.len()),
+        expected: Vec::with_capacity(theirs.len()),
+        changes: vec![],
+        unresolved: vec![],
+        editing: false,
+        candidates: &candidates,
+        secrets,
+    };
     for chunk in diff3(&base_lines, &ours, &theirs) {
         let b = slice(&base_lines, &chunk.base)?;
         let o = slice(&ours, &chunk.ours)?;
         let t = slice(&theirs, &chunk.theirs)?;
         if chunk.stable || o == t || t == b {
-            merged.extend(o.iter().map(|l| (*l).to_string()));
-            expected.extend(t);
+            m.keep(o);
+            m.expected.extend(t);
         } else if o == b {
-            take(t, &mut merged, &candidates, secrets, &mut changes);
-            expected.extend(t);
+            m.take(t);
+            m.expected.extend(t);
         } else if let Some((head, tail)) = tag_edges(o, b) {
-            merged.extend(head.iter().map(|l| (*l).to_string()));
-            take(t, &mut merged, &candidates, secrets, &mut changes);
-            merged.extend(tail.iter().map(|l| (*l).to_string()));
-            expected.extend(t);
-        } else if let Some(lines) = settle(o, t, &candidates, secrets, merged.len(), &mut changes) {
-            let start = merged.len() + 1;
-            merged.extend(lines);
-            changes.push(Change::Rewritten {
-                lines: start..merged.len() + 1,
+            m.keep(head);
+            m.take(t);
+            m.keep(tail);
+            m.expected.extend(t);
+        } else if let Some(lines) =
+            settle(o, t, m.candidates, secrets, m.merged.len(), &mut m.changes)
+        {
+            let start = m.next_line();
+            m.merged.extend(lines);
+            m.changes.push(Change::Rewritten {
+                lines: start..m.next_line(),
             });
-            expected.extend(t);
+            m.expected.extend(t);
         } else {
             let conflict = Conflict {
                 template_lines: chunk.ours.start + 1..chunk.ours.end + 1,
@@ -220,57 +225,24 @@ pub fn merge_template(
                     .map(|l| mask(trim_newline(l), &candidates))
                     .collect(),
             };
-            let resolution = if !unresolved.is_empty() {
+            let resolution = if !m.unresolved.is_empty() {
                 Resolution::Skip
-            } else if editing {
+            } else if m.editing {
                 Resolution::Edit
             } else {
                 resolve(&conflict)?
             };
-            let start = merged.len() + 1;
-            match resolution {
-                Resolution::Skip => unresolved.push(conflict),
-                Resolution::Edit => {
-                    editing = true;
-                    mark(&conflict, o, t, &mut merged, &candidates, secrets);
-                }
-                Resolution::Ours => {
-                    merged.extend(o.iter().map(|l| (*l).to_string()));
-                    expected.extend(b);
-                    changes.push(Change::KeptTemplate {
-                        lines: start..merged.len() + 1,
-                        deployed_lines: conflict.deployed_lines,
-                    });
-                }
-                Resolution::Theirs => {
-                    take(t, &mut merged, &candidates, secrets, &mut changes);
-                    expected.extend(t);
-                    changes.push(Change::TookDeployed {
-                        lines: start..merged.len() + 1,
-                    });
-                }
-                Resolution::Both => {
-                    merged.extend(o.iter().map(|l| (*l).to_string()));
-                    let added = merged.len() + 1;
-                    expected.extend(b);
-                    // The kept lines must end in a newline, or the first added line would run on from the last;
-                    // that newline is text, so it renders too.
-                    if !o.is_empty()
-                        && let Some(last) = merged.last_mut().filter(|l| !l.ends_with('\n'))
-                    {
-                        last.push('\n');
-                        expected.push("\n");
-                    }
-                    take(t, &mut merged, &candidates, secrets, &mut changes);
-                    expected.extend(t);
-                    changes.push(Change::Union {
-                        lines: start..added,
-                        added: added..merged.len() + 1,
-                    });
-                }
-            }
+            m.resolve(resolution, conflict, b, o, t);
         }
     }
+    let Merging {
+        merged,
+        expected,
+        changes,
+        unresolved,
+        editing,
+        ..
+    } = m;
     if !unresolved.is_empty() {
         return Ok(Outcome::Conflicts(unresolved));
     }
@@ -296,6 +268,105 @@ pub fn merge_template(
         Err(e) => Ok(Outcome::RoundTripFailed {
             error: Some(format!("{e:#}")),
         }),
+    }
+}
+
+/// A merge as it is built, chunk by chunk.
+struct Merging<'a> {
+    /// The template's lines so far.
+    merged: Vec<String>,
+    /// What `merged` must render to: the deployed lines, except the template's own output where it was kept.
+    expected: Vec<&'a str>,
+    changes: Vec<Change>,
+    /// Conflicts left unsettled: once there is one, the file is not written, and every later one is only reported.
+    unresolved: Vec<Conflict>,
+    /// Whether a conflict went to the editor, so every later one goes there too.
+    editing: bool,
+    candidates: &'a [Candidate],
+    secrets: &'a BTreeSet<String>,
+}
+
+impl<'a> Merging<'a> {
+    /// The number the next merged line will have.
+    fn next_line(&self) -> usize {
+        self.merged.len() + 1
+    }
+
+    /// Keeps the template's lines as they are.
+    fn keep(&mut self, lines: &[&str]) {
+        self.merged.extend(lines.iter().map(|l| (*l).to_string()));
+    }
+
+    /// Takes deployed lines, their values written back as tags.
+    fn take(&mut self, lines: &[&str]) {
+        take(
+            lines,
+            &mut self.merged,
+            self.candidates,
+            self.secrets,
+            &mut self.changes,
+        );
+    }
+
+    /// Settles a conflict as `resolution` says: `ours` and `base` are the template's lines and their render,
+    /// `theirs` the deployed lines.
+    fn resolve(
+        &mut self,
+        resolution: Resolution,
+        conflict: Conflict,
+        base: &[&'a str],
+        ours: &[&str],
+        theirs: &[&'a str],
+    ) {
+        let start = self.next_line();
+        match resolution {
+            Resolution::Skip => self.unresolved.push(conflict),
+            Resolution::Edit => {
+                self.editing = true;
+                mark(
+                    &conflict,
+                    ours,
+                    theirs,
+                    &mut self.merged,
+                    self.candidates,
+                    self.secrets,
+                );
+            }
+            Resolution::Ours => {
+                self.keep(ours);
+                self.expected.extend(base);
+                self.changes.push(Change::KeptTemplate {
+                    lines: start..self.next_line(),
+                    deployed_lines: conflict.deployed_lines,
+                });
+            }
+            Resolution::Theirs => {
+                self.take(theirs);
+                self.expected.extend(theirs);
+                self.changes.push(Change::TookDeployed {
+                    lines: start..self.next_line(),
+                });
+            }
+            Resolution::Both => {
+                self.keep(ours);
+                let added = self.next_line();
+                self.expected.extend(base);
+                // The kept lines must end in a newline, or the first added line would run on from the last; that
+                // newline is text, so it renders too.
+                if !ours.is_empty()
+                    && let Some(last) = self.merged.last_mut().filter(|l| !l.ends_with('\n'))
+                {
+                    last.push('\n');
+                    self.expected.push("\n");
+                }
+                self.take(theirs);
+                self.expected.extend(theirs);
+                self.changes.push(Change::Union {
+                    lines: start..added,
+                    added: added..self.next_line(),
+                });
+            }
+        }
     }
 }
 
