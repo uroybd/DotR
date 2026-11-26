@@ -1664,7 +1664,10 @@ mod strict_parsing_tests {
     }
 
     fn error(toml: &str) -> String {
-        parse(toml).err().map(|e| e.to_string()).unwrap_or_default()
+        match parse(toml) {
+            Ok(_) => String::new(),
+            Err(e) => e.to_string(),
+        }
     }
 
     #[test]
