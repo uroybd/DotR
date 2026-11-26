@@ -110,8 +110,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # llvm-tools is the toolchain's own reader of the coverage data its compiler writes, so the two always match
+      # (cargo-tarpaulin's built-in reader, pinned, stopped parsing what newer rustc writes).
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
 
       - name: Cache cargo registry
         uses: actions/cache@v6
@@ -125,20 +129,19 @@ jobs:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache tarpaulin
-        uses: actions/cache@v6
-        id: cache-tarpaulin
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
         with:
-          path: ~/.cargo/bin/cargo-tarpaulin
-          key: ${{ runner.os }}-tarpaulin-0.34.1
+          tool: cargo-llvm-cov
 
-      - name: Install cargo-tarpaulin
-        if: steps.cache-tarpaulin.outputs.cache-hit != 'true'
-        run: cargo install cargo-tarpaulin --version 0.34.1
-
+      # The same as `just coverage` (justfile): the tests once, single-threaded as they must be, then the reports
+      # from that one run. The dotr binary the CLI tests spawn is instrumented too, so they count.
       - name: Generate coverage
         run: |
-          cargo tarpaulin --verbose --all-features --workspace --timeout 300 --out Xml --out Html --engine llvm -- --test-threads=1
+          cargo llvm-cov --no-report --all-features --workspace -- --test-threads=1
+          cargo llvm-cov report --cobertura --output-path cobertura.xml
+          cargo llvm-cov report --html
+          cargo llvm-cov report --summary-only
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -211,7 +214,7 @@ jobs:
           name: coverage-report
           path: |
             cobertura.xml
-            tarpaulin-report.html
+            target/llvm-cov/html
 
   security-audit:
     name: Security Audit

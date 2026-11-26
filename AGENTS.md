@@ -31,7 +31,9 @@ just test         # cargo test, single-threaded: the tests share tests/playgroun
 just check        # all three, in that order
 ```
 
-The `justfile` holds the common tasks (`just` lists them); CI runs the same cargo commands directly.
+The `justfile` holds the common tasks (`just` lists them); CI runs the same cargo commands directly. `just coverage`
+measures line coverage as CI does (with `cargo-llvm-cov`; `just setup` installs it); new code comes with the tests
+that reach it.
 
 - Clippy is clean; keep it so. Fix a warning rather than silencing it.
 - The lints are set in `[lints]` in `Cargo.toml`, and CI makes every one an error. Beyond clippy's defaults they forbid

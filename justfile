@@ -28,6 +28,27 @@ test *args:
 # Everything before a change is done: fix, lint, test
 check: lint-fix lint test
 
+# Line coverage of the whole suite, as CI measures it: a summary per file, and an HTML report (`open` to open it)
+coverage open="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! cargo llvm-cov --version >/dev/null 2>&1; then
+      echo "cargo-llvm-cov is not installed: run \`just setup\`." >&2
+      exit 1
+    fi
+    cargo llvm-cov --no-report --all-features --workspace -- --test-threads=1
+    cargo llvm-cov report --html
+    cargo llvm-cov report --summary-only
+    echo "HTML report: target/llvm-cov/html/index.html"
+    if [ "{{ open }}" = "open" ]; then
+      "$(command -v open || command -v xdg-open)" target/llvm-cov/html/index.html
+    fi
+
+# Install the tools the recipes use beyond cargo: cargo-llvm-cov and the toolchain's llvm-tools (for `coverage`)
+setup:
+    rustup component add llvm-tools-preview
+    cargo install cargo-llvm-cov --locked
+
 # --- Building ---
 
 # Regenerate the man pages into man/
