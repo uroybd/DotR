@@ -10,4 +10,4 @@ This is a dotfiles manager to backup and restore dotfiles in multiple machines a
 
 ## After making changes.
 - Make sure all tests pass. Always run tests in single thread.
-- Format code with `make lint-fix` to find any formatting errors and fix them.
+- Format code with `just lint-fix` to find any formatting errors and fix them.

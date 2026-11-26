@@ -128,7 +128,7 @@ that reason is a finding.
 Check AGENTS.md before calling something a smell; these are by design:
 
 - The integration tests share `tests/playground` and the process environment, so they run single-threaded
-  (`make test`, CI). Serial tests are not a finding; a test that only passes in one order is.
+  (`just test`, CI). Serial tests are not a finding; a test that only passes in one order is.
 - `unsafe` around `std::env::set_var` in tests, with its SAFETY comment: that is the edition-2024 API.
 - `anyhow` everywhere in `src`: a CLI's errors are read by a person.
 
@@ -142,7 +142,7 @@ Check AGENTS.md before calling something a smell; these are by design:
 ## 5. Fix and commit
 
 - Fix with tests: a test that fails before the fix for each bug, and the existing tests green after.
-- Run the checks of "Before you say a change is done" in AGENTS.md (`make lint-fix`, `make lint`, `make test`).
+- Run the checks of "Before you say a change is done" in AGENTS.md (`just check`).
 - Commit (when asked) under the `smells` scope with the honest type: `fix(smells): …` for a bug the review found,
   `refactor(smells): …` for the rest; a formatting-only change in its own commit. That scope is how the next reminder
   finds this review.

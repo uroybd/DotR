@@ -1496,7 +1496,7 @@ dependencies = []
         )
         .expect("Failed to write .uservariables.toml");
 
-        // SAFETY: the suite runs single-threaded (`make test` and CI pass `--test-threads=1`), so no other thread
+        // SAFETY: the suite runs single-threaded (`just test` and CI pass `--test-threads=1`), so no other thread
         // reads the environment while it changes.
         unsafe {
             std::env::set_var("DOTR_PROFILE", "env-value");
@@ -1526,7 +1526,7 @@ dependencies = []
         )
         .expect("Failed to write .uservariables.toml");
 
-        // SAFETY: the suite runs single-threaded (`make test` and CI pass `--test-threads=1`), so no other thread
+        // SAFETY: the suite runs single-threaded (`just test` and CI pass `--test-threads=1`), so no other thread
         // reads the environment while it changes.
         unsafe {
             std::env::set_var("DOTR_BITWARDEN_NOTE", "env-note");

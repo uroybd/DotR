@@ -916,7 +916,7 @@ fn test_update_edit_uses_what_the_editor_saved() {
     .unwrap();
     fs::set_permissions(&editor, fs::Permissions::from_mode(0o755)).unwrap();
 
-    // SAFETY: the integration tests run single-threaded (`make test` and CI pass `--test-threads=1`), so no other
+    // SAFETY: the integration tests run single-threaded (`just test` and CI pass `--test-threads=1`), so no other
     // thread reads the environment while it changes.
     unsafe { std::env::set_var("DOTR_EDITOR", fs::canonicalize(&editor).unwrap()) };
     fixture.update_with("f_merge_edit", Resolution::Edit, false);

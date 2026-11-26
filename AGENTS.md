@@ -24,10 +24,13 @@ tests/           integration tests on a playground directory (`tests/playground`
 Format, lint and test, in that order. CI (`.github/workflows/pr-check.yml`) runs the same and fails on any of them.
 
 ```bash
-make lint-fix     # clippy --fix and cargo fmt, in place
-make lint         # rustfmt check + clippy --all-targets --all-features -D warnings
-make test         # cargo test, single-threaded: the tests share tests/playground and the environment
+just lint-fix     # clippy --fix and cargo fmt, in place
+just lint         # rustfmt check + clippy --all-targets --all-features -D warnings
+just test         # cargo test, single-threaded: the tests share tests/playground and the environment
+just check        # all three, in that order
 ```
+
+The `justfile` holds the common tasks (`just` lists them); CI runs the same cargo commands directly.
 
 - Clippy is clean; keep it so. Fix a warning rather than silencing it.
 - The lints are set in `[lints]` in `Cargo.toml`, and CI makes every one an error. Beyond clippy's defaults they forbid
@@ -63,12 +66,12 @@ make test         # cargo test, single-threaded: the tests share tests/playgroun
 - **Binary files are copied, never diffed.** Text means UTF-8 without a NUL byte (`is_templated_str`,
   `utils::as_text`); anything else is copied byte for byte and compared as bytes.
 - **Tests never wait on a terminal.** `update` asks about conflicts when stdin and stdout are terminals, which they
-  are under `make test`: a test that builds `UpdateArgs` for a templated package sets `conflict` explicitly.
+  are under `just test`: a test that builds `UpdateArgs` for a templated package sets `conflict` explicitly.
 
 ## Releases
 
-`make release` (or `release-minor`, `release-major`) bumps the version, whitelists it in cargo-vet, then commits,
-publishes, tags and pushes. Commit messages are conventional (`feat:`, `fix:`, `doc:`, `test:`, `refactor:`, `style:`,
+`just release <patch|minor|major>` bumps the version, whitelists it in cargo-vet, then commits, publishes, tags and
+pushes. Commit messages are conventional (`feat:`, `fix:`, `doc:`, `test:`, `refactor:`, `style:`,
 `chore:`); `cliff.toml` groups them into the changelog.
 
 **Smell reviews.** A commit that fixes what a holistic code-smell review found takes the scope `smells`, with its
@@ -80,9 +83,9 @@ last=$(git log -1 --format=%H -E --grep='^[a-z]+\(smells\)!?:')
 git diff --shortstat "${last:-$(git rev-list --max-parents=0 HEAD)}"..HEAD -- src tests
 ```
 
-When you cut a release, run that; at 5,000 lines added or more, say in your reply that a smell review is due (the
-`smell-review` skill in `.claude/skills/`). Don't start one unasked. Code you write in a change gets the skill's
-section 2 checklist and its clippy probe before you call it done.
+When you cut a release, run that (`just smells`); at 5,000 lines added or more, say in your reply that a smell review
+is due (the `smell-review` skill in `.claude/skills/`). Don't start one unasked. Code you write in a change gets the
+skill's section 2 checklist and its clippy probe before you call it done.
 
 ## Git
 

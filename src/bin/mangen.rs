@@ -1,5 +1,5 @@
 //! Generates man pages for `dotr` and every subcommand into `man/`.
-//! Run with `cargo run --bin mangen --features mangen` (or `make man`).
+//! Run with `cargo run --bin mangen --features mangen` (or `just man`).
 
 use clap::CommandFactory;
 use dotr_dear::{cli::Cli, outln};
