@@ -17,8 +17,9 @@ use crate::{
     profile::Profile,
     utils::{
         self, BACKUP_EXT, LogLevel, compile_string, cprintln, execute_action,
-        get_string_from_value, get_string_hashmap_from_value, get_vec_string_from_value,
-        is_empty_table, normalize_home_path, resolve_path,
+        get_opt_bool_from_value, get_string_from_value, get_string_hashmap_from_value,
+        get_table_from_value, get_vec_string_from_value, is_empty_table, normalize_home_path,
+        resolve_path,
     },
 };
 
@@ -150,35 +151,24 @@ impl Package {
     }
 
     pub fn from_table(pkg_name: &str, pkg_val: &Table) -> Result<Self, anyhow::Error> {
-        let dependencies: Option<Vec<String>> =
-            get_vec_string_from_value(pkg_val.get("dependencies")).ok();
-        let variables = match pkg_val.get("variables") {
-            Some(var_block) => var_block
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("The 'variables' field must be a table"))?
-                .clone(),
-            None => Table::new(),
-        };
+        let dependencies = pkg_val
+            .get("dependencies")
+            .map(|v| get_vec_string_from_value(Some(v)))
+            .transpose()?;
+        let variables = get_table_from_value(pkg_val.get("variables"), "variables")?;
         let pre_actions = get_vec_string_from_value(pkg_val.get("pre_actions"))?;
         let post_actions = get_vec_string_from_value(pkg_val.get("post_actions"))?;
         let targets = get_string_hashmap_from_value(pkg_val.get("targets"))?;
         let src = get_string_from_value(pkg_val.get("src"), "src")?;
         let dest = get_string_from_value(pkg_val.get("dest"), "dest")?;
-        let skip = pkg_val
-            .get("skip")
-            .and_then(toml::Value::as_bool)
-            .unwrap_or(false);
+        let skip = get_opt_bool_from_value(pkg_val.get("skip"), "skip")?.unwrap_or(false);
         let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))?;
         let ignore = get_vec_string_from_value(pkg_val.get("ignore"))?;
-        let symlink = pkg_val.get("symlink").and_then(toml::Value::as_bool);
-        let unfold_symlink = pkg_val
-            .get("unfold_symlink")
-            .and_then(toml::Value::as_bool)
-            .unwrap_or(false);
-        let clean = pkg_val
-            .get("clean")
-            .and_then(toml::Value::as_bool)
-            .unwrap_or(true);
+        let symlink = get_opt_bool_from_value(pkg_val.get("symlink"), "symlink")?;
+        let unfold_symlink =
+            get_opt_bool_from_value(pkg_val.get("unfold_symlink"), "unfold_symlink")?
+                .unwrap_or(false);
+        let clean = get_opt_bool_from_value(pkg_val.get("clean"), "clean")?.unwrap_or(true);
 
         Ok(Self {
             name: pkg_name.to_string(),

@@ -216,3 +216,41 @@ pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<Str
     let ctx = tera::Context::from_serialize(context)?;
     Ok(tera::Tera::one_off(template_str, &ctx, false)?)
 }
+
+/// An optional boolean field: `None` when absent, an error when it holds anything but a boolean (never read as if
+/// it were absent: `skip = "true"` must not mean "don't skip").
+pub fn get_opt_bool_from_value(
+    v: Option<&toml::Value>,
+    field_name: &str,
+) -> anyhow::Result<Option<bool>> {
+    v.map(|v| {
+        v.as_bool()
+            .ok_or_else(|| anyhow::anyhow!("'{field_name}' must be true or false"))
+    })
+    .transpose()
+}
+
+/// An optional string field: `None` when absent, an error when it holds anything but a string.
+pub fn get_opt_string_from_value(
+    v: Option<&toml::Value>,
+    field_name: &str,
+) -> anyhow::Result<Option<String>> {
+    v.map(|v| {
+        v.as_str()
+            .map(ToString::to_string)
+            .ok_or_else(|| anyhow::anyhow!("'{field_name}' must be a string"))
+    })
+    .transpose()
+}
+
+/// An optional table field: empty when absent, an error when it holds anything but a table.
+pub fn get_table_from_value(v: Option<&toml::Value>, field_name: &str) -> anyhow::Result<Table> {
+    v.map_or_else(
+        || Ok(Table::new()),
+        |v| {
+            v.as_table()
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("'{field_name}' must be a table"))
+        },
+    )
+}

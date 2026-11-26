@@ -29,13 +29,7 @@ impl Platform {
     }
 
     pub fn from_table(name: &str, table: &Table) -> anyhow::Result<Self> {
-        let variables = match table.get("variables") {
-            Some(var_block) => var_block
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("The 'variables' field must be a table"))?
-                .clone(),
-            None => Table::new(),
-        };
+        let variables = crate::utils::get_table_from_value(table.get("variables"), "variables")?;
         let pre_actions = get_vec_string_from_value(table.get("pre_actions"))?;
         let post_actions = get_vec_string_from_value(table.get("post_actions"))?;
         Ok(Self {
@@ -51,14 +45,12 @@ pub fn get_platforms_from_table(
     value: Option<&toml::Value>,
 ) -> anyhow::Result<HashMap<String, Platform>> {
     let mut platforms: HashMap<String, Platform> = HashMap::new();
-    if let Some(table) = value.and_then(|v| v.as_table()) {
-        for (key, val) in table {
-            let val_table = val
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("Platform '{key}' must be a table"))?;
-            let platform = Platform::from_table(key, val_table)?;
-            platforms.insert(platform.name.clone(), platform);
-        }
+    for (key, val) in &crate::utils::get_table_from_value(value, "platforms")? {
+        let val_table = val
+            .as_table()
+            .ok_or_else(|| anyhow::anyhow!("Platform '{key}' must be a table"))?;
+        let platform = Platform::from_table(key, val_table)?;
+        platforms.insert(platform.name.clone(), platform);
     }
     Ok(platforms)
 }

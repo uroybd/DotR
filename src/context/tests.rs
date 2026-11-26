@@ -1630,7 +1630,18 @@ dependencies = []
 }
 
 #[cfg(test)]
-mod line_ending_tests {
+mod input_tests {
+    #[test]
+    fn a_dotr_profile_that_is_not_a_string_is_an_error() {
+        let mut variables = toml::Table::new();
+        variables.insert("DOTR_PROFILE".into(), toml::Value::Integer(1));
+        let config = Config::default();
+        let error = Context::get_profile_from_config(&config, &None, false, &variables)
+            .err()
+            .map(|e| e.to_string());
+        assert_eq!(error.as_deref(), Some("'DOTR_PROFILE' must be a string"));
+    }
+
     use std::fs;
 
     use crate::{config::Config, context::Context};

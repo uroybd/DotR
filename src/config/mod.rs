@@ -13,7 +13,10 @@ use crate::{
     package::{BackupDeployResult, Package, is_templated_str},
     platform::Platform,
     profile::Profile,
-    utils::{LogLevel, cprintln, is_empty_table},
+    utils::{
+        LogLevel, cprintln, get_opt_bool_from_value, get_opt_string_from_value,
+        get_table_from_value, is_empty_table,
+    },
 };
 
 #[cfg(test)]
@@ -97,63 +100,46 @@ impl Config {
 
     pub fn from_table(table: &Table) -> anyhow::Result<Self> {
         let mut packages: HashMap<String, Package> = HashMap::new();
-        let package_confs = table.get("packages").and_then(|v| v.as_table());
-        if let Some(pkg_confs) = package_confs {
-            for (key, val) in pkg_confs {
-                let pkg_val = val
-                    .as_table()
-                    .ok_or_else(|| anyhow::anyhow!("Package '{key}' must be a table"))?;
-                let pkg = Package::from_table(key, pkg_val)?;
-                packages.insert(pkg.name.clone(), pkg);
-            }
+        for (key, val) in &get_table_from_value(table.get("packages"), "packages")? {
+            let pkg_val = val
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("Package '{key}' must be a table"))?;
+            let pkg = Package::from_table(key, pkg_val)
+                .map_err(|e| anyhow::anyhow!("Package '{key}': {e}"))?;
+            packages.insert(pkg.name.clone(), pkg);
         }
 
         let platforms = crate::platform::get_platforms_from_table(table.get("platforms"))?;
         let mut profiles: HashMap<String, Profile> = HashMap::new();
-        let profile_confs = table.get("profiles").and_then(|v| v.as_table());
-        if let Some(prof_confs) = profile_confs {
-            for (key, val) in prof_confs {
-                let prof_val = val
-                    .as_table()
-                    .ok_or_else(|| anyhow::anyhow!("Profile '{key}' must be a table"))?;
-                let mut profile = Profile::from_table(key, prof_val)?;
-                // Resolved once here, at parse time, rather than on every
-                // `Context::new` - a profile's `platform` is fixed for the
-                // life of the config, so there's no need to re-look-up its
-                // platform's variables on every run.
-                if let Some(platform_name) = &profile.platform
-                    && let Some(platform) = platforms.get(platform_name)
-                {
-                    profile.platform_variables = platform.variables.clone();
-                }
-                profiles.insert(profile.name.clone(), profile);
+        for (key, val) in &get_table_from_value(table.get("profiles"), "profiles")? {
+            let prof_val = val
+                .as_table()
+                .ok_or_else(|| anyhow::anyhow!("Profile '{key}' must be a table"))?;
+            let mut profile = Profile::from_table(key, prof_val)
+                .map_err(|e| anyhow::anyhow!("Profile '{key}': {e}"))?;
+            // Resolved once here, at parse time, rather than on every
+            // `Context::new` - a profile's `platform` is fixed for the
+            // life of the config, so there's no need to re-look-up its
+            // platform's variables on every run.
+            if let Some(platform_name) = &profile.platform
+                && let Some(platform) = platforms.get(platform_name)
+            {
+                profile.platform_variables = platform.variables.clone();
             }
+            profiles.insert(profile.name.clone(), profile);
         }
-        let mut variables: Table = Table::new();
-        if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
-            for (k, v) in vars {
-                variables.insert(k.clone(), v.clone());
-            }
-        }
+        let variables = get_table_from_value(table.get("variables"), "variables")?;
         let prompts = crate::utils::get_string_hashmap_from_value(table.get("prompts"))?;
-        let bitwarden_note = table
-            .get("bitwarden_note")
-            .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string);
-        let prompt_backend = table
-            .get("prompt_backend")
-            .and_then(|v| v.as_str())
-            .map(crate::prompt_store::PromptBackendType::parse)
-            .transpose()?;
+        let bitwarden_note =
+            get_opt_string_from_value(table.get("bitwarden_note"), "bitwarden_note")?;
+        let prompt_backend =
+            get_opt_string_from_value(table.get("prompt_backend"), "prompt_backend")?
+                .as_deref()
+                .map(crate::prompt_store::PromptBackendType::parse)
+                .transpose()?;
         Ok(Self {
-            banner: table
-                .get("banner")
-                .and_then(toml::Value::as_bool)
-                .unwrap_or(false),
-            symlink: table
-                .get("symlink")
-                .and_then(toml::Value::as_bool)
-                .unwrap_or(false),
+            banner: get_opt_bool_from_value(table.get("banner"), "banner")?.unwrap_or(false),
+            symlink: get_opt_bool_from_value(table.get("symlink"), "symlink")?.unwrap_or(false),
             packages,
             profiles,
             variables,

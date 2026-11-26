@@ -112,26 +112,24 @@ impl Context {
         profile: &Profile,
         conf: &Config,
         packages: &Option<Vec<String>>,
-    ) -> HashMap<String, String> {
+    ) -> anyhow::Result<HashMap<String, String>> {
         // config -> profile -> package, later wins.
         let mut prompts = conf.prompts.clone();
         for (key, prompt) in &profile.prompts {
             prompts.insert(key.clone(), prompt.clone());
         }
-        if let Ok(filtered_packages) = conf.filter_packages(profile, packages, false) {
-            for package in filtered_packages.values() {
-                for (key, prompt) in &package.prompts {
-                    prompts.insert(key.clone(), prompt.clone());
-                }
+        for package in conf.filter_packages(profile, packages, false)?.values() {
+            for (key, prompt) in &package.prompts {
+                prompts.insert(key.clone(), prompt.clone());
             }
         }
-        prompts
+        Ok(prompts)
     }
 
     /// Loads the answers the configured backend already holds for this profile's prompts, asking for none: what a
     /// command with nobody to answer (a pre-commit hook running `dotr scan`) can know.
     pub fn load_stored_answers(&mut self, conf: &Config) -> anyhow::Result<()> {
-        let missing_keys: Vec<String> = Self::get_prompts(&self.profile, conf, &None)
+        let missing_keys: Vec<String> = Self::get_prompts(&self.profile, conf, &None)?
             .into_keys()
             .filter(|key| !self.user_variables.contains_key(key))
             .collect();
@@ -156,7 +154,7 @@ impl Context {
         writer: &mut W,
     ) -> Result<Table, anyhow::Error> {
         // config -> profile -> package, later wins.
-        let prompts = Self::get_prompts(&self.profile, conf, packages);
+        let prompts = Self::get_prompts(&self.profile, conf, packages)?;
         let missing_keys: Vec<String> = prompts
             .keys()
             .filter(|key| !self.user_variables.contains_key(*key))
@@ -313,17 +311,11 @@ impl Context {
     ) -> anyhow::Result<(Profile, bool)> {
         let profile_name = match pname {
             Some(name) => name.clone(),
-            None => {
-                if let Ok(env_p_name) = variables
-                    .get(DOTR_PROFILE_KEY)
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| anyhow::anyhow!("DOTR_PROFILE variable must be a string"))
-                {
-                    env_p_name.to_string()
-                } else {
-                    "default".to_string()
-                }
-            }
+            None => crate::utils::get_opt_string_from_value(
+                variables.get(DOTR_PROFILE_KEY),
+                DOTR_PROFILE_KEY,
+            )?
+            .unwrap_or_else(|| "default".to_string()),
         };
 
         let profile = conf.profiles.get(&profile_name);

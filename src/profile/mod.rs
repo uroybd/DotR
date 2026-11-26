@@ -44,28 +44,17 @@ impl Profile {
     }
 
     pub fn from_table(name: &str, table: &Table) -> anyhow::Result<Self> {
-        let variables = match table.get("variables") {
-            Some(var_block) => var_block
-                .as_table()
-                .ok_or_else(|| anyhow::anyhow!("The 'variables' field must be a table"))?
-                .clone(),
-            None => Table::new(),
-        };
+        let variables = crate::utils::get_table_from_value(table.get("variables"), "variables")?;
         let dependencies = get_vec_string_from_value(table.get("dependencies"))?;
         let prompts = get_string_hashmap_from_value(table.get("prompts"))?;
-        let prompt_backend = table
-            .get("prompt_backend")
-            .and_then(|v| v.as_str())
-            .map(PromptBackendType::parse)
-            .transpose()?;
-        let bitwarden_note = table
-            .get("bitwarden_note")
-            .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string);
-        let platform = table
-            .get("platform")
-            .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string);
+        let prompt_backend =
+            crate::utils::get_opt_string_from_value(table.get("prompt_backend"), "prompt_backend")?
+                .as_deref()
+                .map(PromptBackendType::parse)
+                .transpose()?;
+        let bitwarden_note =
+            crate::utils::get_opt_string_from_value(table.get("bitwarden_note"), "bitwarden_note")?;
+        let platform = crate::utils::get_opt_string_from_value(table.get("platform"), "platform")?;
         let pre_actions = get_vec_string_from_value(table.get("pre_actions"))?;
         let post_actions = get_vec_string_from_value(table.get("post_actions"))?;
         Ok(Self {

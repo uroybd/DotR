@@ -1660,3 +1660,48 @@ mod gitignore_tests {
         fs::remove_dir_all(&dir).ok();
     }
 }
+
+#[cfg(test)]
+mod strict_parsing_tests {
+    use crate::config::Config;
+
+    fn parse(toml: &str) -> anyhow::Result<Config> {
+        Config::from_table(&toml.parse::<toml::Table>().unwrap())
+    }
+
+    fn error(toml: &str) -> String {
+        parse(toml).err().map(|e| e.to_string()).unwrap_or_default()
+    }
+
+    #[test]
+    fn a_field_of_the_wrong_type_is_an_error_naming_where_it_is() {
+        let pkg = "[packages.p]\nsrc = \"s\"\ndest = \"d\"\n";
+        assert_eq!(
+            error(&format!("{pkg}skip = \"true\"\n")),
+            "Package 'p': 'skip' must be true or false"
+        );
+        assert_eq!(
+            error(&format!("{pkg}dependencies = \"q\"\n")),
+            "Package 'p': field must be an array"
+        );
+        assert_eq!(
+            error("[profiles.work]\nplatform = 1\n"),
+            "Profile 'work': 'platform' must be a string"
+        );
+        assert_eq!(
+            error("symlink = \"yes\"\n"),
+            "'symlink' must be true or false"
+        );
+        assert_eq!(error("variables = 3\n"), "'variables' must be a table");
+        assert_eq!(error("packages = []\n"), "'packages' must be a table");
+    }
+
+    #[test]
+    fn absent_fields_keep_their_defaults() {
+        let config = parse("[packages.p]\nsrc = \"s\"\ndest = \"d\"\n").unwrap();
+        let p = &config.packages["p"];
+        assert_eq!(p.dependencies, None);
+        assert!(!p.skip && p.clean && p.symlink.is_none());
+        assert!(!config.symlink && !config.banner);
+    }
+}
