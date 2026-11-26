@@ -49,7 +49,7 @@ impl TestFixture {
     fn get_context(&self) -> Context {
         let config = self.get_config();
         let (ctx, _) =
-            Context::new(&self.cwd, &config, &None, false).expect("Failed to create context");
+            Context::new(&self.cwd, &config, None, false).expect("Failed to create context");
         ctx
     }
 }
@@ -188,7 +188,7 @@ USER_EMAIL = "existing@example.com"
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let mut ctx = fixture.get_context();
-    ctx.get_prompted_variables(&config, &None)
+    ctx.get_prompted_variables(&config, None)
         .expect("Failed to resolve prompted variables");
 
     // Verify the existing value was read back from the file rather than
@@ -223,7 +223,7 @@ PROMPTED_VAR = "prompted_value"
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let mut ctx = fixture.get_context();
-    ctx.get_prompted_variables(&config, &None)
+    ctx.get_prompted_variables(&config, None)
         .expect("Failed to resolve prompted variables");
     let user_vars = ctx.get_user_variables();
 

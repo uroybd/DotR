@@ -471,35 +471,35 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             outln!("Configuration initialized successfully.");
         }
         Some(Command::Import(args)) => {
-            let (mut conf, ctx) = init_config(&working_dir, &args.profile, true, true)?;
+            let (mut conf, ctx) = init_config(&working_dir, args.profile.as_deref(), true, true)?;
             conf.import_package(&args, &ctx)?;
         }
         Some(Command::Deploy(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            ctx.get_prompted_variables(&conf, &args.packages)?;
+            let (conf, mut ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
+            ctx.get_prompted_variables(&conf, args.packages.as_deref())?;
             conf.deploy_packages(&ctx, &args)?;
         }
         Some(Command::Update(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            if conf.update_needs_variables(&ctx.profile, &args.packages, &working_dir)? {
-                ctx.get_prompted_variables(&conf, &args.packages)?;
+            let (conf, mut ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
+            if conf.update_needs_variables(&ctx.profile, args.packages.as_deref(), &working_dir)? {
+                ctx.get_prompted_variables(&conf, args.packages.as_deref())?;
             }
             conf.backup_packages(&ctx, &args)?;
         }
         Some(Command::Diff(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            ctx.get_prompted_variables(&conf, &args.packages)?;
+            let (conf, mut ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
+            ctx.get_prompted_variables(&conf, args.packages.as_deref())?;
             conf.diff_packages(&ctx, &args)?;
         }
         Some(Command::Scan(args)) => scan(&working_dir, &args)?,
         Some(Command::PrintVars(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            ctx.get_prompted_variables(&conf, &None)?;
+            let (conf, mut ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
+            ctx.get_prompted_variables(&conf, None)?;
             ctx.print_variables();
         }
         Some(Command::DumpUserVars(args)) => {
-            let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            let resolved = ctx.get_prompted_variables(&conf, &args.packages)?;
+            let (conf, mut ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
+            let resolved = ctx.get_prompted_variables(&conf, args.packages.as_deref())?;
             let toml_string = toml::to_string_pretty(&resolved)?;
             match &args.output {
                 Some(path) => {
@@ -513,12 +513,13 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
             }
         }
         Some(Command::Remove(args)) => {
-            let (mut conf, ctx) = init_config(&working_dir, &args.profile, false, true)?;
+            let (mut conf, ctx) = init_config(&working_dir, args.profile.as_deref(), false, true)?;
             conf.remove_packages(&args, &ctx)?;
         }
         Some(Command::Packages(args)) => {
             let show_banner = !matches!(&args.command, Some(PackagesCommand::List(a)) if a.plain);
-            let (mut conf, mut ctx) = init_config(&working_dir, &args.profile, false, show_banner)?;
+            let (mut conf, mut ctx) =
+                init_config(&working_dir, args.profile.as_deref(), false, show_banner)?;
             match args.command {
                 Some(PackagesCommand::List(args)) => {
                     conf.list_packages(&ctx, &args)?;
@@ -527,21 +528,21 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.import_package(&import_args, &ctx)?;
                 }
                 Some(PackagesCommand::Deploy(deploy_args)) => {
-                    ctx.get_prompted_variables(&conf, &deploy_args.packages)?;
+                    ctx.get_prompted_variables(&conf, deploy_args.packages.as_deref())?;
                     conf.deploy_packages(&ctx, &deploy_args)?;
                 }
                 Some(PackagesCommand::Update(update_args)) => {
                     if conf.update_needs_variables(
                         &ctx.profile,
-                        &update_args.packages,
+                        update_args.packages.as_deref(),
                         &working_dir,
                     )? {
-                        ctx.get_prompted_variables(&conf, &update_args.packages)?;
+                        ctx.get_prompted_variables(&conf, update_args.packages.as_deref())?;
                     }
                     conf.backup_packages(&ctx, &update_args)?;
                 }
                 Some(PackagesCommand::Diff(diff_args)) => {
-                    ctx.get_prompted_variables(&conf, &diff_args.packages)?;
+                    ctx.get_prompted_variables(&conf, diff_args.packages.as_deref())?;
                     conf.diff_packages(&ctx, &diff_args)?;
                 }
                 Some(PackagesCommand::Remove(remove_args)) => {
@@ -554,7 +555,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
         }
         Some(Command::Profiles(args)) => {
             let show_banner = !matches!(&args.command, Some(ProfilesCommand::List(a)) if a.plain);
-            let (mut conf, mut ctx) = init_config(&working_dir, &None, false, show_banner)?;
+            let (mut conf, mut ctx) = init_config(&working_dir, None, false, show_banner)?;
             match args.command {
                 Some(ProfilesCommand::List(list_args)) => {
                     conf.list_profiles(&list_args)?;
@@ -621,13 +622,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-#[expect(
-    clippy::ref_option,
-    reason = "passed straight to `Context::new`, which takes `&Option` like the rest of the public API"
-)]
 fn init_config(
     working_dir: &Path,
-    profile: &Option<String>,
+    profile: Option<&str>,
     create_if_missing: bool,
     show_banner: bool,
 ) -> anyhow::Result<(Config, Context)> {
@@ -654,7 +651,7 @@ it: it is not in .gitignore, or was committed already. Run `dotr init` to add it
 
 /// `dotr scan`: prints every secret value found, and fails when there is one (so a pre-commit hook stops the commit).
 fn scan(working_dir: &Path, args: &ScanArgs) -> anyhow::Result<()> {
-    let (conf, mut ctx) = init_config(working_dir, &args.profile, false, false)?;
+    let (conf, mut ctx) = init_config(working_dir, args.profile.as_deref(), false, false)?;
     ctx.load_stored_answers(&conf)?;
     let secrets = ctx.secrets();
     if secrets.is_empty() {

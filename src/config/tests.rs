@@ -30,10 +30,9 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) =
-            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, Some("test-profile"), false).unwrap();
 
-        let filtered = config.filter_packages(&ctx.profile, &None, false).unwrap();
+        let filtered = config.filter_packages(&ctx.profile, None, false).unwrap();
 
         // Should only contain pkg2 since pkg1 has skip=true
         assert_eq!(filtered.len(), 1);
@@ -62,10 +61,9 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) =
-            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, Some("test-profile"), false).unwrap();
 
-        let filtered = config.filter_packages(&ctx.profile, &None, false).unwrap();
+        let filtered = config.filter_packages(&ctx.profile, None, false).unwrap();
 
         assert_eq!(filtered.len(), 2);
         assert!(filtered.contains_key("pkg1"));
@@ -95,9 +93,9 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
-        let filtered = config.filter_packages(&ctx.profile, &None, false).unwrap();
+        let filtered = config.filter_packages(&ctx.profile, None, false).unwrap();
 
         assert_eq!(filtered.len(), 0);
 
@@ -124,13 +122,12 @@ mod filter_packages_tests {
 
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) =
-            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, Some("test-profile"), false).unwrap();
 
         // Explicitly request pkg1 even though it has skip=true
         let specific_packages = vec!["pkg1".to_string()];
         let filtered = config
-            .filter_packages(&ctx.profile, &Some(specific_packages), false)
+            .filter_packages(&ctx.profile, Some(&specific_packages), false)
             .unwrap();
 
         // When specifically requested, skip flag is ignored
@@ -154,11 +151,11 @@ mod filter_packages_tests {
         config.packages.insert("pkg1".to_string(), pkg1);
         config.packages.insert("pkg2".to_string(), pkg2);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Only request pkg2 explicitly; pkg1 should be pulled in as a dependency
         let filtered = config
-            .filter_packages(&ctx.profile, &Some(vec!["pkg2".to_string()]), false)
+            .filter_packages(&ctx.profile, Some(&["pkg2".to_string()]), false)
             .unwrap();
 
         assert_eq!(filtered.len(), 2);
@@ -182,11 +179,11 @@ mod filter_packages_tests {
         config.packages.insert("pkg1".to_string(), pkg1);
         config.packages.insert("pkg2".to_string(), pkg2);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // With ignore_dependencies=true, pkg1 should NOT be pulled in
         let filtered = config
-            .filter_packages(&ctx.profile, &Some(vec!["pkg2".to_string()]), true)
+            .filter_packages(&ctx.profile, Some(&["pkg2".to_string()]), true)
             .unwrap();
 
         assert_eq!(filtered.len(), 1);
@@ -214,11 +211,10 @@ mod filter_packages_tests {
         profile.dependencies.push("pkg2".to_string());
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) =
-            Context::new(&temp_dir, &config, &Some("test-profile".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, Some("test-profile"), false).unwrap();
 
         // No explicit package names (profile-driven selection), ignore_dependencies=true
-        let filtered = config.filter_packages(&ctx.profile, &None, true).unwrap();
+        let filtered = config.filter_packages(&ctx.profile, None, true).unwrap();
 
         assert_eq!(filtered.len(), 1);
         assert!(filtered.contains_key("pkg2"));
@@ -382,7 +378,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -405,7 +401,7 @@ mod remove_packages_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["nonexistent".to_string()]),
@@ -440,7 +436,7 @@ mod remove_packages_tests {
         profile.dependencies.push("pkg1".to_string());
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -478,7 +474,7 @@ mod remove_packages_tests {
             .profiles
             .insert("test-profile".to_string(), profile.clone());
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -517,7 +513,7 @@ mod remove_packages_tests {
         pkg2.dependencies = Some(vec!["pkg1".to_string()]);
         config.packages.insert("pkg2".to_string(), pkg2);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -550,7 +546,7 @@ mod remove_packages_tests {
             Package::new("pkg2", "dotfiles/pkg2", "/dest2"),
         );
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string(), "pkg2".to_string()]),
@@ -577,7 +573,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -616,7 +612,7 @@ mod remove_packages_tests {
             Package::new("used", "dotfiles/used", "/dest2"),
         );
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec![]), // Empty list to trigger only orphan removal
@@ -646,7 +642,7 @@ mod remove_packages_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: Some(vec!["pkg1".to_string()]),
@@ -669,7 +665,7 @@ mod remove_packages_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = RemovePackageArgs {
             packages: None,
@@ -710,7 +706,7 @@ mod remove_profile_tests {
         let profile = Profile::new("test-profile");
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -731,7 +727,7 @@ mod remove_profile_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "nonexistent".to_string(),
@@ -757,7 +753,7 @@ mod remove_profile_tests {
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "default".to_string(),
@@ -786,7 +782,7 @@ mod remove_profile_tests {
         let profile = Profile::new("test-profile");
         config.profiles.insert("test-profile".to_string(), profile);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -818,7 +814,7 @@ mod remove_profile_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -850,7 +846,7 @@ mod remove_profile_tests {
         let pkg = Package::new("pkg1", "dotfiles/pkg1", "/dest1");
         config.packages.insert("pkg1".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "test-profile".to_string(),
@@ -886,7 +882,7 @@ mod remove_profile_tests {
         let pkg = Package::new("shared", "dotfiles/shared", "/dest");
         config.packages.insert("shared".to_string(), pkg);
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let args = ProfileRemoveArgs {
             name: "profile1".to_string(),
@@ -1246,7 +1242,7 @@ post_actions = ["printf 'profile-post\n' >> log.txt"]
     fn pre_actions_run_platform_before_profile() {
         let dir = temp_dir("pre-order");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         config
             .execute_pre_actions(&ctx, &deploy_args(false))
@@ -1262,7 +1258,7 @@ post_actions = ["printf 'profile-post\n' >> log.txt"]
     fn post_actions_run_profile_before_platform() {
         let dir = temp_dir("post-order");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         config
             .execute_post_actions(&ctx, &deploy_args(false))
@@ -1278,7 +1274,7 @@ post_actions = ["printf 'profile-post\n' >> log.txt"]
     fn dry_run_does_not_execute_actions() {
         let dir = temp_dir("dry-run");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         config
             .execute_pre_actions(&ctx, &deploy_args(true))
@@ -1303,7 +1299,7 @@ post_actions = ["printf 'profile-post\n' >> log.txt"]
 ";
         let table: toml::Table = toml_str.parse().unwrap();
         let config = Config::from_table(&table).unwrap();
-        let (ctx, _) = Context::new(&dir, &config, &Some("plain".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("plain"), false).unwrap();
 
         config
             .execute_pre_actions(&ctx, &deploy_args(false))
@@ -1325,7 +1321,7 @@ pre_actions = ["printf 'profile-pre\n' >> log.txt"]
 "#;
         let table: toml::Table = toml_str.parse().unwrap();
         let config = Config::from_table(&table).unwrap();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         config
             .execute_pre_actions(&ctx, &deploy_args(false))
@@ -1350,7 +1346,7 @@ platform = "macos"
 "#;
         let table: toml::Table = toml_str.parse().unwrap();
         let config = Config::from_table(&table).unwrap();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         config
             .execute_pre_actions(&ctx, &deploy_args(false))
@@ -1371,7 +1367,7 @@ pre_actions = ["exit 1"]
 "#;
         let table: toml::Table = toml_str.parse().unwrap();
         let config = Config::from_table(&table).unwrap();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         assert!(
             config
@@ -1386,7 +1382,7 @@ pre_actions = ["exit 1"]
     fn deploy_packages_skips_actions_when_no_packages_selected() {
         let dir = temp_dir("empty-deploy");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         // `work` has no `dependencies` and we pass no explicit packages, so
         // nothing is selected - platform/profile actions must not run.
@@ -1404,7 +1400,7 @@ pre_actions = ["exit 1"]
     fn skip_actions_suppresses_both_pre_and_post() {
         let dir = temp_dir("skip-actions");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         let args = DeployArgs {
             skip_actions: true,
@@ -1425,7 +1421,7 @@ pre_actions = ["exit 1"]
     fn skip_pre_actions_suppresses_only_pre() {
         let dir = temp_dir("skip-pre");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         let args = DeployArgs {
             skip_pre_actions: true,
@@ -1447,7 +1443,7 @@ pre_actions = ["exit 1"]
     fn skip_post_actions_suppresses_only_post() {
         let dir = temp_dir("skip-post");
         let config = config_with_actions();
-        let (ctx, _) = Context::new(&dir, &config, &Some("work".to_string()), false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, Some("work"), false).unwrap();
 
         let args = DeployArgs {
             skip_post_actions: true,
@@ -1487,7 +1483,7 @@ mod update_needs_variables_tests {
             config_with(Package::new("nvim", "dotfiles/nvim", "~/.config/nvim"));
         assert!(
             !config
-                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .update_needs_variables(&profile, None, std::path::Path::new("does-not-exist"))
                 .unwrap()
         );
     }
@@ -1501,7 +1497,7 @@ mod update_needs_variables_tests {
         ));
         assert!(
             config
-                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .update_needs_variables(&profile, None, std::path::Path::new("does-not-exist"))
                 .unwrap()
         );
     }
@@ -1514,7 +1510,7 @@ mod update_needs_variables_tests {
         let (config, profile) = config_with(pkg);
         assert!(
             config
-                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .update_needs_variables(&profile, None, std::path::Path::new("does-not-exist"))
                 .unwrap()
         );
     }
@@ -1539,9 +1535,7 @@ mod update_needs_variables_for_templated_sources_tests {
             "app".to_string(),
             Package::new("app", "dotfiles/app", "~/.config/app"),
         );
-        let needs = config
-            .update_needs_variables(&profile, &None, &dir)
-            .unwrap();
+        let needs = config.update_needs_variables(&profile, None, &dir).unwrap();
         fs::remove_dir_all(&dir).ok();
         needs
     }

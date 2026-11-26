@@ -70,7 +70,7 @@ impl Context {
     pub fn get_prompted_variables(
         &mut self,
         conf: &Config,
-        packages: &Option<Vec<String>>,
+        packages: Option<&[String]>,
     ) -> anyhow::Result<Table> {
         self.get_prompted_variables_with_io(
             conf,
@@ -111,7 +111,7 @@ impl Context {
     pub fn get_prompts(
         profile: &Profile,
         conf: &Config,
-        packages: &Option<Vec<String>>,
+        packages: Option<&[String]>,
     ) -> anyhow::Result<HashMap<String, String>> {
         // config -> profile -> package, later wins.
         let mut prompts = conf.prompts.clone();
@@ -129,7 +129,7 @@ impl Context {
     /// Loads the answers the configured backend already holds for this profile's prompts, asking for none: what a
     /// command with nobody to answer (a pre-commit hook running `dotr scan`) can know.
     pub fn load_stored_answers(&mut self, conf: &Config) -> anyhow::Result<()> {
-        let missing_keys: Vec<String> = Self::get_prompts(&self.profile, conf, &None)?
+        let missing_keys: Vec<String> = Self::get_prompts(&self.profile, conf, None)?
             .into_keys()
             .filter(|key| !self.user_variables.contains_key(key))
             .collect();
@@ -142,14 +142,10 @@ impl Context {
         Ok(())
     }
 
-    #[expect(
-        clippy::ref_option,
-        reason = "passed straight to `get_prompts`, which takes `&Option` like the rest of the public API"
-    )]
     fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
         &mut self,
         conf: &Config,
-        packages: &Option<Vec<String>>,
+        packages: Option<&[String]>,
         reader: &mut R,
         writer: &mut W,
     ) -> Result<Table, anyhow::Error> {
@@ -236,7 +232,7 @@ impl Context {
     pub fn new(
         working_dir: &Path,
         conf: &Config,
-        profile_name: &Option<String>,
+        profile_name: Option<&str>,
         create_profile_if_missing: bool,
     ) -> Result<(Self, bool), anyhow::Error> {
         let mut variables = conf.variables.clone();
@@ -305,12 +301,12 @@ impl Context {
 
     pub fn get_profile_from_config(
         conf: &Config,
-        pname: &Option<String>,
+        pname: Option<&str>,
         create_if_missing: bool,
         variables: &Table,
     ) -> anyhow::Result<(Profile, bool)> {
         let profile_name = match pname {
-            Some(name) => name.clone(),
+            Some(name) => name.to_string(),
             None => crate::utils::get_opt_string_from_value(
                 variables.get(DOTR_PROFILE_KEY),
                 DOTR_PROFILE_KEY,

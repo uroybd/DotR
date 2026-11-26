@@ -79,7 +79,7 @@ mod get_context_variables_tests {
         config
             .variables
             .insert("PCV_LAYER".to_string(), var("config"));
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut platform_variables = Table::new();
         platform_variables.insert("PCV_LAYER".to_string(), var("platform"));
@@ -107,7 +107,7 @@ mod get_context_variables_tests {
         config
             .variables
             .insert("PCV_ONLY".to_string(), var("config"));
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut platform_variables = Table::new();
         platform_variables.insert("PCV_ONLY".to_string(), var("platform"));
@@ -130,7 +130,7 @@ mod get_context_variables_tests {
         std::fs::write(dir.join(".uservariables.toml"), r#"PCV_LAYER = "user""#).unwrap();
 
         let config = Config::new();
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut variables = Table::new();
         variables.insert("PCV_LAYER".to_string(), var("profile"));

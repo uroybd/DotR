@@ -233,7 +233,7 @@ mod resolve_dest_tests {
 
     fn ctx_with_profile(working_dir: &std::path::Path, profile: Profile) -> Context {
         let config = crate::config::Config::new();
-        let (mut ctx, _) = Context::new(working_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(working_dir, &config, None, false).unwrap();
         ctx.set_profile(profile);
         ctx
     }
@@ -414,7 +414,7 @@ mod get_context_variables_tests {
         let mut config = Config::new();
         config.variables.insert("LAYER".to_string(), var("config"));
 
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut platform_variables = Table::new();
         platform_variables.insert("LAYER".to_string(), var("platform"));
@@ -429,7 +429,7 @@ mod get_context_variables_tests {
         });
 
         std::fs::write(dir.join(".uservariables.toml"), r#"LAYER = "user""#).unwrap();
-        let (mut ctx_with_user, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx_with_user, _) = Context::new(&dir, &config, None, false).unwrap();
         ctx_with_user.set_profile(ctx.profile.clone());
 
         let mut pkg = Package::new("pkg", "src", "/dest");
@@ -455,7 +455,7 @@ mod get_context_variables_tests {
     fn package_variable_overrides_platform_variable() {
         let dir = temp_dir("package-over-platform");
         let config = Config::new();
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut platform_variables = Table::new();
         platform_variables.insert("LAYER".to_string(), var("platform"));
@@ -482,7 +482,7 @@ mod get_context_variables_tests {
     fn platform_variable_is_used_when_nothing_more_specific_sets_it() {
         let dir = temp_dir("platform-fallback");
         let config = Config::new();
-        let (mut ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         let mut platform_variables = Table::new();
         platform_variables.insert("PLATFORM_ONLY".to_string(), var("platform"));

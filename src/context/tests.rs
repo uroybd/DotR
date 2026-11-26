@@ -30,7 +30,7 @@ mod context_tests {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         assert_eq!(&ctx.working_dir, &temp_dir);
         assert!(
@@ -48,7 +48,7 @@ mod context_tests {
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         // HOME should always be in environment
         assert!(
@@ -149,7 +149,7 @@ key = "secret-key"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "TEST_VAR".to_string(),
@@ -176,8 +176,8 @@ key = "secret-key"
             .prompts
             .insert("USER_VAR".to_string(), "Enter USER_VAR".to_string());
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
 
         assert_eq!(
@@ -200,8 +200,8 @@ key = "secret-key"
             .insert("PRIORITY_VAR".to_string(), "Enter PRIORITY_VAR".to_string());
 
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
         ctx.variables.insert(
             "PRIORITY_VAR".to_string(),
@@ -220,7 +220,7 @@ key = "secret-key"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "CONFIG_ONLY".to_string(),
@@ -239,7 +239,7 @@ key = "secret-key"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables
             .insert("TEST".to_string(), toml::Value::String("value".to_string()));
@@ -262,8 +262,8 @@ key = "secret-key"
             .insert("USER_VAR".to_string(), "Enter USER_VAR".to_string());
 
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
         let user_vars = ctx.get_user_variables();
 
@@ -293,8 +293,8 @@ OVERRIDE_VAR = "user_override"
             .insert("OVERRIDE_VAR".to_string(), "Enter OVERRIDE_VAR".to_string());
 
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
         ctx.variables.insert(
             "CONFIG_VAR".to_string(),
@@ -323,7 +323,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.profile.platform_variables.insert(
             "PLATFORM_VAR".to_string(),
@@ -342,7 +342,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.profile.platform_variables.insert(
             "PLATFORM_ONLY".to_string(),
@@ -363,7 +363,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.profile.platform_variables.insert(
             "SHARED".to_string(),
@@ -389,7 +389,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "SHARED".to_string(),
@@ -411,7 +411,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.profile.platform_variables.insert(
             "PLATFORM_VAR".to_string(),
@@ -431,7 +431,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         let mut new_vars = Table::new();
         new_vars.insert(
@@ -452,7 +452,7 @@ OVERRIDE_VAR = "user_override"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables.insert(
             "EXISTING".to_string(),
@@ -515,8 +515,8 @@ value = 2
         }
 
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
         let user_vars = ctx.get_user_variables();
 
@@ -536,7 +536,7 @@ value = 2
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         assert_eq!(ctx.working_dir, temp_dir);
     }
@@ -546,7 +546,7 @@ value = 2
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         // Should have Debug implementation
         let debug_str = format!("{ctx:?}");
@@ -574,12 +574,12 @@ value = 2
             .expect("Failed to write");
 
         let (mut ctx1, _) =
-            Context::new(&temp_dir1, &config1, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir1, &config1, None, false).expect("Failed to create context");
         let (mut ctx2, _) =
-            Context::new(&temp_dir2, &config2, &None, false).expect("Failed to create context");
-        ctx1.get_prompted_variables(&config1, &None)
+            Context::new(&temp_dir2, &config2, None, false).expect("Failed to create context");
+        ctx1.get_prompted_variables(&config1, None)
             .expect("Failed to resolve prompted variables");
-        ctx2.get_prompted_variables(&config2, &None)
+        ctx2.get_prompted_variables(&config2, None)
             .expect("Failed to resolve prompted variables");
 
         assert_eq!(
@@ -614,8 +614,8 @@ VAR2 = "user_value2"
             .insert("VAR2".to_string(), "Enter VAR2".to_string());
 
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
-        ctx.get_prompted_variables(&config, &None)
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
+        ctx.get_prompted_variables(&config, None)
             .expect("Failed to resolve prompted variables");
 
         // Add some config variables
@@ -664,7 +664,7 @@ VAR2 = "user_value2"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
         let cloned = ctx.clone();
 
         assert_eq!(ctx.working_dir, cloned.working_dir);
@@ -795,7 +795,7 @@ VAR2 = "user_value2"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
         ctx.variables.clear(); // Clear all variables including env vars
         ctx.print_variables();
         // No assertion - just testing that it doesn't panic
@@ -807,7 +807,7 @@ VAR2 = "user_value2"
         let temp_dir = create_temp_dir();
         let config = create_test_config(&temp_dir);
         let (mut ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         ctx.variables
             .insert("float_var".to_string(), toml::Value::Float(2.5));
@@ -896,14 +896,14 @@ USER_NAME = "Enter your name"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Mock input
         let input = b"John Doe\n";
         let mut output = Vec::new();
 
         let result = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Verify prompted variables were captured
@@ -945,14 +945,14 @@ USER_NAME = "Enter your name"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Mock input - only provide input for USER_NAME
         let input = b"John Doe\n";
         let mut output = Vec::new();
 
         let result = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Verify existing variable was preserved
@@ -980,13 +980,13 @@ USER_NAME = "Enter your name"
         fs::write(&config_path, "").unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"";
         let mut output = Vec::new();
 
         let result = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Should return empty user variables
@@ -1007,7 +1007,7 @@ USER_NAME = "Enter your name"
         fs::write(&config_path, r"").unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Set profile with prompts
         let mut profile_prompts = HashMap::new();
@@ -1026,7 +1026,7 @@ USER_NAME = "Enter your name"
         let mut output = Vec::new();
 
         let result = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Verify profile prompt was processed
@@ -1055,13 +1055,13 @@ API_KEY = "Enter your API key"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Mock input
         let input = b"secret-key-123\n";
         let mut output = Vec::new();
 
-        ctx.get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+        ctx.get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Verify file was written
@@ -1095,7 +1095,7 @@ VAR2 = "Enter value 2"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Provide insufficient input (only one value instead of two)
         let input = b"value1\n";
@@ -1103,7 +1103,7 @@ VAR2 = "Enter value 2"
 
         // Should not panic, should handle the error gracefully
         let result =
-            ctx.get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output);
+            ctx.get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output);
 
         // Should succeed even with error (error is printed to stderr)
         assert!(result.is_ok());
@@ -1132,7 +1132,7 @@ USER_EMAIL = "Enter your email"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         // Get last modified time before
         let metadata_before = fs::metadata(&uservars_path).unwrap();
@@ -1145,7 +1145,7 @@ USER_EMAIL = "Enter your email"
         let mut output = Vec::new();
 
         let result = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         // Verify existing variable was preserved
@@ -1183,12 +1183,12 @@ NEW = "Enter new"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"typed-value\n";
         let mut output = Vec::new();
         let resolved = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         assert_eq!(
@@ -1221,12 +1221,12 @@ VAR = "Enter a value"
             config.prompt_backend,
             Some(crate::prompt_store::PromptBackendType::File)
         );
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"a-value\n";
         let mut output = Vec::new();
         let resolved = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         assert_eq!(
@@ -1266,12 +1266,12 @@ prompt_backend = "file"
             config.profiles.get("default").unwrap().prompt_backend,
             Some(crate::prompt_store::PromptBackendType::File)
         );
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"a-value\n";
         let mut output = Vec::new();
         let resolved = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .unwrap();
 
         assert_eq!(
@@ -1302,12 +1302,12 @@ KEYCHAIN_SECRET = "Enter a secret"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"super-secret\n";
         let mut output = Vec::new();
         let resolved = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .expect("a real OS keychain must be available to run this test");
         assert_eq!(
             resolved.get("KEYCHAIN_SECRET"),
@@ -1325,7 +1325,7 @@ KEYCHAIN_SECRET = "Enter a secret"
         let input2 = b"";
         let mut output2 = Vec::new();
         let resolved2 = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input2[..], &mut output2)
+            .get_prompted_variables_with_io(&config, None, &mut &input2[..], &mut output2)
             .unwrap();
         assert_eq!(
             resolved2.get("KEYCHAIN_SECRET"),
@@ -1354,12 +1354,12 @@ BW_SECRET = "Enter a secret"
         .unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
-        let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
+        let (mut ctx, _) = Context::new(&temp_dir, &config, None, false).unwrap();
 
         let input = b"bw-secret-value\n";
         let mut output = Vec::new();
         let resolved = ctx
-            .get_prompted_variables_with_io(&config, &None, &mut &input[..], &mut output)
+            .get_prompted_variables_with_io(&config, None, &mut &input[..], &mut output)
             .expect("bw must be installed, unlocked, with a 'dotr-secrets' note pre-created");
         assert_eq!(
             resolved.get("BW_SECRET"),
@@ -1387,7 +1387,7 @@ BW_SECRET = "Enter a secret"
         .expect("Failed to write .uservariables.toml");
 
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         // The resolved profile is always folded into `variables` as a
         // fallback (see below), independent of whatever's in the file -
@@ -1417,7 +1417,7 @@ BW_SECRET = "Enter a secret"
         .expect("Failed to write .uservariables.toml");
 
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         assert_eq!(
             ctx.get_variable("DOTR_BITWARDEN_NOTE"),
@@ -1441,7 +1441,7 @@ BW_SECRET = "Enter a secret"
         let config = create_test_config(&temp_dir);
 
         let (ctx, _) =
-            Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
+            Context::new(&temp_dir, &config, None, false).expect("Failed to create context");
 
         assert_eq!(
             ctx.get_variable("DOTR_PROFILE"),
@@ -1476,7 +1476,7 @@ dependencies = []
         )
         .expect("Failed to write .uservariables.toml");
 
-        let (ctx, _) = Context::new(&temp_dir, &config, &Some("work".to_string()), false)
+        let (ctx, _) = Context::new(&temp_dir, &config, Some("work"), false)
             .expect("Failed to create context");
 
         assert_eq!(
@@ -1501,7 +1501,7 @@ dependencies = []
         unsafe {
             std::env::set_var("DOTR_PROFILE", "env-value");
         }
-        let result = Context::new(&temp_dir, &config, &None, false);
+        let result = Context::new(&temp_dir, &config, None, false);
         // SAFETY: as above; this puts the environment back.
         unsafe {
             std::env::remove_var("DOTR_PROFILE");
@@ -1531,7 +1531,7 @@ dependencies = []
         unsafe {
             std::env::set_var("DOTR_BITWARDEN_NOTE", "env-note");
         }
-        let result = Context::new(&temp_dir, &config, &None, false);
+        let result = Context::new(&temp_dir, &config, None, false);
         // SAFETY: as above; this puts the environment back.
         unsafe {
             std::env::remove_var("DOTR_BITWARDEN_NOTE");
@@ -1636,7 +1636,7 @@ mod input_tests {
         let mut variables = toml::Table::new();
         variables.insert("DOTR_PROFILE".into(), toml::Value::Integer(1));
         let config = Config::default();
-        let error = Context::get_profile_from_config(&config, &None, false, &variables)
+        let error = Context::get_profile_from_config(&config, None, false, &variables)
             .err()
             .map(|e| e.to_string());
         assert_eq!(error.as_deref(), Some("'DOTR_PROFILE' must be a string"));
@@ -1666,7 +1666,7 @@ mod input_tests {
         )
         .unwrap();
         let config = Config::from_path(&dir).unwrap();
-        let (ctx, _) = Context::new(&dir, &config, &None, false).unwrap();
+        let (ctx, _) = Context::new(&dir, &config, None, false).unwrap();
 
         assert_eq!(
             ctx.secrets(),

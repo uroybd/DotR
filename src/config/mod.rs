@@ -204,7 +204,7 @@ impl Config {
     pub fn filter_packages(
         &self,
         ctx: &Profile,
-        names: &Option<Vec<String>>,
+        names: Option<&[String]>,
         ignore_dependencies: bool,
     ) -> anyhow::Result<HashMap<String, Package>> {
         let mut packages: HashMap<String, Package> = HashMap::new();
@@ -251,7 +251,7 @@ impl Config {
     pub fn update_needs_variables(
         &self,
         profile: &Profile,
-        names: &Option<Vec<String>>,
+        names: Option<&[String]>,
         working_dir: &Path,
     ) -> anyhow::Result<bool> {
         for pkg in self.filter_packages(profile, names, false)?.values() {
@@ -266,7 +266,7 @@ impl Config {
         cprintln("Backing up packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
         for pkg in self
-            .filter_packages(&ctx.profile, &args.packages, false)?
+            .filter_packages(&ctx.profile, args.packages.as_deref(), false)?
             .values()
         {
             match pkg.backup(ctx, args) {
@@ -301,8 +301,11 @@ impl Config {
     pub fn deploy_packages(&self, ctx: &Context, args: &DeployArgs) -> Result<(), anyhow::Error> {
         cprintln("Deploying packages...", &LogLevel::Info);
         let mut stats: HashMap<BackupDeployResult, u32> = HashMap::new();
-        let packages =
-            self.filter_packages(&ctx.profile, &args.packages, args.ignore_dependencies)?;
+        let packages = self.filter_packages(
+            &ctx.profile,
+            args.packages.as_deref(),
+            args.ignore_dependencies,
+        )?;
         if packages.is_empty() {
             cprintln("No packages to deploy.", &LogLevel::Info);
             return Ok(());
@@ -373,7 +376,7 @@ impl Config {
 
     pub fn diff_packages(&self, ctx: &Context, args: &DiffArgs) -> Result<(), anyhow::Error> {
         cprintln("Checking differences...", &LogLevel::Info);
-        let packages = self.filter_packages(&ctx.profile, &args.packages, false)?;
+        let packages = self.filter_packages(&ctx.profile, args.packages.as_deref(), false)?;
         if packages.is_empty() {
             cprintln("No packages to diff.", &LogLevel::Info);
             return Ok(());
@@ -482,7 +485,7 @@ impl Config {
     }
 
     pub fn list_packages(&self, ctx: &Context, args: &PackagesListArgs) -> anyhow::Result<()> {
-        let packages = self.filter_packages(&ctx.profile, &None, false)?;
+        let packages = self.filter_packages(&ctx.profile, None, false)?;
         if args.plain {
             for pkg in packages.values() {
                 outln!("{}", pkg.name);
