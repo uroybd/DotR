@@ -481,71 +481,57 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
             .unwrap_or(&self.dest)
     }
 
-    pub fn diff_file(
-        &self,
-        src: &PathBuf,
-        dest: &PathBuf,
-        ctx: &Context,
-    ) -> Result<(), anyhow::Error> {
-        if let Ok(src_content) = std::fs::read_to_string(src) {
-            let compiled_content = if is_templated_str(&src_content) {
-                compile_string(&src_content, &self.get_context_variables(ctx))?
-            } else {
-                src_content
-            };
+    /// What deploying `src` writes: a template compiled with this package's variables, anything else (binary files
+    /// included) its bytes as they are.
+    fn render(&self, src: &Path, ctx: &Context) -> anyhow::Result<Vec<u8>> {
+        let bytes = std::fs::read(src)?;
+        match utils::as_text(&bytes) {
+            Some(text) if is_templated_str(text) => {
+                Ok(compile_string(text, &self.get_context_variables(ctx))?.into_bytes())
+            }
+            _ => Ok(bytes),
+        }
+    }
 
-            if dest.exists() {
-                let existing = std::fs::read(dest)?;
-                let Some(existing_content) = utils::as_text(&existing) else {
-                    // A deployed file that is not text is told apart, never diffed line by line.
-                    cprintln(
-                        &format!(
-                            "{} {} -> {}: the deployed file is not text",
-                            if existing == compiled_content.as_bytes() {
-                                "No changes in"
-                            } else {
-                                "Changes in"
-                            },
-                            src.file_name().unwrap_or_default().to_string_lossy(),
-                            dest.display()
-                        ),
-                        &LogLevel::Info,
-                    );
-                    return Ok(());
-                };
-                if existing_content == compiled_content {
-                    cprintln(
-                        &format!(
-                            "No changes in {}",
-                            src.file_name().unwrap_or_default().to_string_lossy()
-                        ),
-                        &LogLevel::Info,
-                    );
-                } else {
-                    cprintln(
-                        &format!(
-                            "Changes in {} -> {}:",
-                            src.file_name().unwrap_or_default().to_string_lossy(),
-                            dest.display()
-                        ),
-                        &LogLevel::Info,
-                    );
-                    for diff in diff::lines(existing_content, &compiled_content) {
-                        match diff {
-                            diff::Result::Left(l) => {
-                                let s = format!("-{l}");
-                                print_with_color(s.as_str(), RED);
-                            }
-                            diff::Result::Both(l, _) => {
-                                outln!(" {l}");
-                            }
-                            diff::Result::Right(r) => {
-                                let s = format!("+{r}");
-                                print_with_color(s.as_str(), GREEN);
-                            }
-                        };
-                    }
-                }
+    /// Prints how the deployed file differs from what deploying `src` would write: the same comparison
+    /// [`Self::deploy_file`] makes, so diff reports a change exactly where deploy would write.
+    pub fn diff_file(&self, src: &Path, dest: &Path, ctx: &Context) -> anyhow::Result<()> {
+        let rendered = self.render(src, ctx)?;
+        let name = src.file_name().unwrap_or_default().to_string_lossy();
+        if !dest.exists() {
+            cprintln(
+                &format!("Changes in {name} -> {}: not deployed", dest.display()),
+                &LogLevel::Info,
+            );
+            return Ok(());
+        }
+        let existing = std::fs::read(dest)?;
+        if existing == rendered {
+            cprintln(&format!("No changes in {name}"), &LogLevel::Info);
+            return Ok(());
+        }
+        // Only text is diffed line by line; a binary file on either side is told apart, never diffed.
+        let (Some(existing), Some(rendered)) =
+            (utils::as_text(&existing), utils::as_text(&rendered))
+        else {
+            cprintln(
+                &format!(
+                    "Changes in {name} -> {}: the files are not text",
+                    dest.display()
+                ),
+                &LogLevel::Info,
+            );
+            return Ok(());
+        };
+        cprintln(
+            &format!("Changes in {name} -> {}:", dest.display()),
+            &LogLevel::Info,
+        );
+        for diff in diff::lines(existing, rendered) {
+            match diff {
+                diff::Result::Left(l) => print_with_color(&format!("-{l}"), RED),
+                diff::Result::Both(l, _) => outln!(" {l}"),
+                diff::Result::Right(r) => print_with_color(&format!("+{r}"), GREEN),
             }
         }
         Ok(())
@@ -563,7 +549,7 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
                 }
                 let dest_path = dest.join(relative_path);
                 if entry.path().is_file() {
-                    self.diff_file(&entry.path().to_path_buf(), &dest_path, ctx)?;
+                    self.diff_file(entry.path(), &dest_path, ctx)?;
                 }
             }
         } else {
@@ -572,53 +558,32 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
         Ok(())
     }
 
+    /// Deploys one file, unless the deployed copy already holds exactly what it would write (compared as bytes, so
+    /// binary files too): `Skipped` then, `Success` when it wrote (or, in a dry run, would write).
     pub fn deploy_file(
         &self,
-        src: &PathBuf,
-        dest: &PathBuf,
+        src: &Path,
+        dest: &Path,
         ctx: &Context,
         backup: bool,
         dry_run: bool,
-    ) -> Result<BackupDeployResult, anyhow::Error> {
-        if let Ok(src_content) = std::fs::read_to_string(src) {
-            let compiled_content = if is_templated_str(&src_content) {
-                compile_string(&src_content, &self.get_context_variables(ctx))?
+    ) -> anyhow::Result<BackupDeployResult> {
+        let rendered = self.render(src, ctx)?;
+        if dest.exists() && std::fs::read(dest)? == rendered {
+            return Ok(BackupDeployResult::Skipped);
+        }
+        if !dry_run {
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            if backup && dest.exists() && !self.effective_symlink(ctx) {
+                std::fs::copy(dest, create_backup_path(dest))?;
+            }
+            if utils::as_text(&rendered).is_some() {
+                // Written in place: a deployed file keeps its own mode (a 600 ~/.ssh/config stays 600).
+                std::fs::write(dest, rendered)?;
             } else {
-                src_content
-            };
-
-            let mut should_copy = false;
-            if !dest.exists() {
-                should_copy = true;
-            } else {
-                // Bytes, not text: the deployed file may be binary, and is then simply replaced.
-                if std::fs::read(dest)? != compiled_content.as_bytes() {
-                    should_copy = true;
-                }
-            }
-            if !should_copy {
-                return Ok(BackupDeployResult::Skipped);
-            }
-            if !dry_run {
-                if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                if backup && dest.exists() && !self.effective_symlink(ctx) {
-                    let backup_path = create_backup_path(dest);
-                    std::fs::copy(dest, &backup_path)?;
-                }
-                std::fs::write(dest, compiled_content)?;
-            }
-        } else {
-            // Binary file: copy as-is
-            if !dry_run {
-                if let Some(parent) = dest.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                if backup && dest.exists() && !self.effective_symlink(ctx) {
-                    let backup_path = create_backup_path(dest);
-                    std::fs::copy(dest, &backup_path)?;
-                }
+                // A binary file is copied, mode and all (an executable stays executable).
                 std::fs::copy(src, dest)?;
             }
         }
@@ -650,16 +615,13 @@ template syntax, such as `{{{{`, as text. Edit the template by hand"
                     continue;
                 }
                 let dest_path = copy_to.join(relative_path);
-                if entry.path().is_dir() && !args.dry_run {
-                    std::fs::create_dir_all(&dest_path)?;
+                if entry.path().is_dir() {
+                    if !args.dry_run {
+                        std::fs::create_dir_all(&dest_path)?;
+                    }
                 } else {
-                    let dep_result = self.deploy_file(
-                        &entry.path().to_path_buf(),
-                        &dest_path,
-                        ctx,
-                        true,
-                        args.dry_run,
-                    )?;
+                    let dep_result =
+                        self.deploy_file(entry.path(), &dest_path, ctx, true, args.dry_run)?;
                     if let BackupDeployResult::Success = dep_result {
                         result = BackupDeployResult::Success;
                         outln!("=> Deployed {}", dest_path.display());
