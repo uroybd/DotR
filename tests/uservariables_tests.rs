@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -24,7 +33,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -254,13 +263,11 @@ DATABASE_NAME = "production-db"
 
     assert!(
         content.contains("API_KEY=secret-key-12345"),
-        "User variable should be used in template: {}",
-        content
+        "User variable should be used in template: {content}"
     );
     assert!(
         content.contains("DATABASE_NAME=production-db"),
-        "User variable should be used in template: {}",
-        content
+        "User variable should be used in template: {content}"
     );
 }
 

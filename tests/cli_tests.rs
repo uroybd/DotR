@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -24,7 +33,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<Command>) -> Cli {
         Cli {
             command,
-            working_dir: Some(self.cwd.to_str().unwrap().to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -168,8 +177,7 @@ fn test_completions_all_shells_succeed() {
             run_cli(fixture.get_cli(Some(Command::Completions(CompletionsArgs { shell }))));
         assert!(
             result.is_ok(),
-            "completions generation should succeed for {:?}",
-            shell
+            "completions generation should succeed for {shell:?}"
         );
     }
 }
@@ -194,8 +202,7 @@ fn test_completions_include_nested_packages_and_profiles_subcommands() {
     for sub in ["list", "import", "deploy", "update", "remove", "diff"] {
         assert!(
             script.contains(sub),
-            "Bash completions should include 'packages {}'",
-            sub
+            "Bash completions should include 'packages {sub}'"
         );
     }
 
@@ -203,8 +210,7 @@ fn test_completions_include_nested_packages_and_profiles_subcommands() {
     for sub in ["add", "list", "remove"] {
         assert!(
             script.contains(sub),
-            "Bash completions should include 'profiles {}'",
-            sub
+            "Bash completions should include 'profiles {sub}'"
         );
     }
 }
@@ -250,7 +256,7 @@ fn test_packages_and_profiles_list_plain_output_is_scriptable() {
             .args(["-w", cwd])
             .args(args)
             .output()
-            .unwrap_or_else(|e| panic!("Failed to run dotr {:?}: {}", args, e));
+            .unwrap_or_else(|e| panic!("Failed to run dotr {args:?}: {e}"));
         assert!(
             output.status.success(),
             "dotr {:?} should succeed: {}",
@@ -269,7 +275,7 @@ fn test_packages_and_profiles_list_plain_output_is_scriptable() {
 
     let packages_plain = run(&["packages", "list", "--plain"]);
     let mut package_lines: Vec<&str> = packages_plain.lines().collect();
-    package_lines.sort();
+    package_lines.sort_unstable();
     assert_eq!(
         package_lines,
         // Names get the usual `f_`/`d_` prefix and `-`-to-`_` sanitization.
@@ -280,7 +286,7 @@ fn test_packages_and_profiles_list_plain_output_is_scriptable() {
 
     let profiles_plain = run(&["profiles", "list", "--plain"]);
     let mut profile_lines: Vec<&str> = profiles_plain.lines().collect();
-    profile_lines.sort();
+    profile_lines.sort_unstable();
     assert_eq!(
         profile_lines,
         vec!["default", "work"],
@@ -317,8 +323,7 @@ fn test_packages_list_plain_suppresses_banner_even_when_enabled() {
     let stdout = String::from_utf8(output.stdout).expect("Output should be valid UTF-8");
     assert!(
         !stdout.contains('█'),
-        "--plain output must never include the banner, even when banner = true: {:?}",
-        stdout
+        "--plain output must never include the banner, even when banner = true: {stdout:?}"
     );
 }
 
@@ -329,12 +334,13 @@ fn test_import_creates_package() {
     fixture.init();
     fixture.write_file("test.conf", "test content");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         name: None,
         path: fixture.cwd.join("test.conf").to_str().unwrap().to_string(),
         profile: None,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     let config = fixture.get_config();
     assert!(
@@ -352,12 +358,13 @@ fn test_import_with_profile() {
     fixture.init();
     fixture.write_file("work.conf", "work content");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         name: None,
         path: fixture.cwd.join("work.conf").to_str().unwrap().to_string(),
         profile: Some("work".to_string()),
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     let config = fixture.get_config();
     let package = config
@@ -409,7 +416,7 @@ fn test_deploy_creates_files() {
         .push("f_test".to_string());
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default())))).ok();
 
     fixture.assert_file_exists("deploy_dest/config.txt", "Deployed file should exist");
 }
@@ -457,14 +464,15 @@ fn test_deploy_with_profile() {
     config.profiles.insert("work".to_string(), profile);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("work".to_string()),
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     fixture.assert_file_exists(
         "work_dest/app.conf",
@@ -514,14 +522,15 @@ fn test_deploy_specific_packages() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy only pkg1
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: Some(vec!["f_pkg1".to_string()]),
         profile: None,
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     fixture.assert_file_exists("dest1/file1.txt", "pkg1 should be deployed");
     fixture.assert_file_not_exists("dest2/file2.txt", "pkg2 should not be deployed");
@@ -558,7 +567,7 @@ fn test_update_backs_up_files() {
     // Create file at dest
     fixture.write_file("update_dest", "updated content");
 
-    let _ = run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs::default()))));
+    run_cli(fixture.get_cli(Some(Command::Update(UpdateArgs::default())))).ok();
 
     fixture.assert_file_exists("dotfiles/f_update", "File should be backed up");
     let content = fixture.read_file("dotfiles/f_update");
@@ -601,9 +610,10 @@ fn test_print_vars_with_profile() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // This will print to stdout - we're just testing it doesn't panic
-    let _ = run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
+    run_cli(fixture.get_cli(Some(Command::PrintVars(PrintVarsArgs {
         profile: Some("dev".to_string()),
-    }))));
+    }))))
+    .ok();
 }
 
 #[test]
@@ -618,7 +628,7 @@ fn test_banner_display() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default())))).ok();
 
     // Just testing it doesn't panic
 }
@@ -635,7 +645,7 @@ fn test_banner_disabled() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy command should not show banner
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default())))).ok();
 
     // Just testing it doesn't panic
 }
@@ -683,7 +693,7 @@ fn test_skip_flag_prevents_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy without profile (skip packages should not be deployed)
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default()))));
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs::default())))).ok();
 
     fixture.assert_file_not_exists("skip_dest/skip.txt", "Skip package should not be deployed");
 }
@@ -738,14 +748,15 @@ fn test_profile_dependencies_deployment() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Deploy with profile
-    let _ = run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
+    run_cli(fixture.get_cli(Some(Command::Deploy(DeployArgs {
         packages: None,
         profile: Some("minimal".to_string()),
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     fixture.assert_file_exists(
         "dep1_dest/dep1.txt",
@@ -863,6 +874,7 @@ fn test_update_with_invalid_profile_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_err(), "Update with invalid profile should fail");
@@ -927,6 +939,7 @@ fn test_update_nonexistent_package_fails() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     // Update should fail with error for nonexistent package
@@ -969,8 +982,7 @@ fn test_invalid_uservariables_toml_fails() {
     let error_msg = result.unwrap_err().to_string();
     assert!(
         error_msg.contains("parse") || error_msg.contains("Failed to parse"),
-        "Error should mention parsing failure, got: {}",
-        error_msg
+        "Error should mention parsing failure, got: {error_msg}"
     );
 }
 
@@ -1046,8 +1058,7 @@ fn test_deploy_missing_source_fails() {
         let error_msg = e.to_string();
         assert!(
             error_msg.contains("No such file") || error_msg.contains("does not exist"),
-            "Error should mention missing source, got: {}",
-            error_msg
+            "Error should mention missing source, got: {error_msg}"
         );
     }
 }
@@ -1063,12 +1074,13 @@ fn test_import_normalizes_home_path() {
     fs::write(test_dir.join("test.txt"), "content").expect("Failed to write test file");
 
     // Import the file
-    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         name: None,
         path: test_dir.to_str().unwrap().to_string(),
         profile: None,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     let config = fixture.get_config();
     let package = config
@@ -1106,7 +1118,7 @@ fn test_import_preserves_tilde_path() {
 
     for path in paths {
         let normalized = dotr_dear::utils::normalize_home_path(path);
-        assert_eq!(normalized, path, "Tilde path {} should be preserved", path);
+        assert_eq!(normalized, path, "Tilde path {path} should be preserved");
     }
 }
 
@@ -1120,12 +1132,13 @@ fn test_import_converts_absolute_home_path_to_tilde() {
     fs::write(&test_file, "content").expect("Failed to write test file");
 
     let abs_path = test_file.to_str().unwrap().to_string();
-    let _ = run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
+    run_cli(fixture.get_cli(Some(Command::Import(ImportArgs {
         name: None,
         path: abs_path.clone(),
         profile: None,
         ..Default::default()
-    }))));
+    }))))
+    .ok();
 
     let config = fixture.get_config();
     let package = config
@@ -1147,8 +1160,7 @@ fn test_import_converts_absolute_home_path_to_tilde() {
     let normalized = dotr_dear::utils::normalize_home_path(&mock_home_path);
     assert!(
         normalized.starts_with('~'),
-        "Path in home directory should be normalized to ~, got: {}",
-        normalized
+        "Path in home directory should be normalized to ~, got: {normalized}"
     );
     assert_eq!(
         normalized, "~/test/path",
@@ -1261,6 +1273,7 @@ fn test_dotr_profile_env_var_update() {
         ignore_errors: false,
         clean: Some(false),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(
@@ -1591,6 +1604,7 @@ fn test_backup_with_ignore_errors_continues_on_failure() {
         ignore_errors: true,
         clean: Some(false),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(
@@ -1808,6 +1822,7 @@ fn test_backup_with_clean_removes_extra_files() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");
@@ -2383,6 +2398,7 @@ fn test_clean_ignore_patterns_in_backup() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_ok(), "Backup with clean should succeed");

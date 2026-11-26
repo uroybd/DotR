@@ -28,8 +28,8 @@ Prompts are collected — from config-level, the active profile, and every
 package being operated on — and checked before any command that reads
 variables: `deploy`, `diff`, `print-vars`, and `dump-user-vars` — plus their
 `packages` equivalents. `update` checks them only when a selected package's
-`dest` (or the `targets` entry used in its place) is templated, since that
-path is all it renders. `import`, `packages list`, `remove` and the
+`dest` (or the `targets` entry used in its place) is templated, or the
+package holds a templated file, since those are what it renders. `import`, `packages list`, `remove` and the
 `profiles` commands never touch prompts, since none of them reads variables. Any key not already answered (via
 whichever [backend](#where-answers-go-backends) is configured) triggers an
 interactive prompt; the rest are skipped silently.

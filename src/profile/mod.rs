@@ -61,11 +61,11 @@ impl Profile {
         let bitwarden_note = table
             .get("bitwarden_note")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let platform = table
             .get("platform")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let pre_actions = get_vec_string_from_value(table.get("pre_actions"))?;
         let post_actions = get_vec_string_from_value(table.get("post_actions"))?;
         Ok(Self {

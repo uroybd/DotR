@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::cli::{Cli, Command, DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli};
@@ -20,7 +29,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<Command>) -> Cli {
         Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 

@@ -55,9 +55,11 @@ Copy changes from deployed files back into the repository.
 | `--ignore-errors`             | Keep updating remaining packages if one fails.                             |
 | `--clean <true\|false>`       | Override clean mode for this run.                                          |
 | `--dry-run`                   | Preview without changing anything.                                        |
+| `--conflict <CHOICE>`         | Settle every conflict in a templated file: `ours`, `theirs`, `both`, `edit` or `skip`. Without it, `update` asks in a terminal and skips otherwise. |
 
-Templated packages are skipped by `update` — see
-[Templating](../concepts/templating.md#templated-files-are-never-backed-up).
+Templated files are merged into their templates, values written back as
+`{{ tags }}`, and every change is reported — see
+[Backing up templated files](../concepts/templating.md#backing-up-templated-files).
 
 ## `dotr diff`
 

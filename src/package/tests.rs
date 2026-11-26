@@ -226,7 +226,7 @@ mod resolve_dest_tests {
     use std::env;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let dir = env::temp_dir().join(format!("dotr_test_resolve_dest_{}", name));
+        let dir = env::temp_dir().join(format!("dotr_test_resolve_dest_{name}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -394,7 +394,7 @@ mod get_context_variables_tests {
     use toml::Table;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let dir = env::temp_dir().join(format!("dotr_test_get_context_variables_{}", name));
+        let dir = env::temp_dir().join(format!("dotr_test_get_context_variables_{name}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

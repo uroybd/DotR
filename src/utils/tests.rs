@@ -68,7 +68,7 @@ fn test_normalize_home_path_in_home_directory() {
     let home_str = home.to_string_lossy();
 
     // Test a path in home directory
-    let path = format!("{}/.config/nvim", home_str);
+    let path = format!("{home_str}/.config/nvim");
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/.config/nvim");
 }
@@ -99,7 +99,7 @@ fn test_normalize_home_path_with_trailing_slash() {
     let home = std::env::home_dir().expect("Failed to get home directory");
     let home_str = home.to_string_lossy();
 
-    let path = format!("{}/.config/", home_str);
+    let path = format!("{home_str}/.config/");
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/.config/");
 }
@@ -109,7 +109,7 @@ fn test_normalize_home_path_deep_nested() {
     let home = std::env::home_dir().expect("Failed to get home directory");
     let home_str = home.to_string_lossy();
 
-    let path = format!("{}/a/b/c/d/e/f", home_str);
+    let path = format!("{home_str}/a/b/c/d/e/f");
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/a/b/c/d/e/f");
 }
@@ -135,7 +135,7 @@ fn test_normalize_home_path_similar_prefix() {
     let home_str = home.to_string_lossy();
 
     // Create a path that has home as substring but isn't actually in home
-    let fake_path = format!("{}_fake/config", home_str);
+    let fake_path = format!("{home_str}_fake/config");
     let normalized = normalize_home_path(&fake_path);
     // Should not be normalized since it's not actually in home
     assert_eq!(normalized, fake_path);
@@ -163,7 +163,7 @@ fn test_normalize_home_path_with_spaces() {
     let home = std::env::home_dir().expect("Failed to get home directory");
     let home_str = home.to_string_lossy();
 
-    let path = format!("{}/My Documents/file.txt", home_str);
+    let path = format!("{home_str}/My Documents/file.txt");
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/My Documents/file.txt");
 }
@@ -173,7 +173,7 @@ fn test_normalize_home_path_with_dots() {
     let home = std::env::home_dir().expect("Failed to get home directory");
     let home_str = home.to_string_lossy();
 
-    let path = format!("{}/.config/.hidden/..dotfile", home_str);
+    let path = format!("{home_str}/.config/.hidden/..dotfile");
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/.config/.hidden/..dotfile");
 }

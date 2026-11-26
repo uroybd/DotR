@@ -63,11 +63,13 @@ commands:
       --ignore-errors: Keep updating remaining packages if one fails
       --clean=: Override clean mode for this run
       --dry-run: Preview without changing anything
+      --conflict=: Settle every conflict in a templated file
     completion:
       flag:
         packages: ["$(dotr packages list --plain)"]
         profile: ["$(dotr profiles list --plain)"]
         clean: ["true", "false"]
+        conflict: ["ours", "theirs", "both", "edit", "skip"]
 
   - name: diff
     description: Show a colored, line-by-line diff between the repository and what's currently deployed
@@ -152,11 +154,13 @@ commands:
           --ignore-errors: Keep updating remaining packages if one fails
           --clean=: Override clean mode for this run
           --dry-run: Preview without changing anything
+          --conflict=: Settle every conflict in a templated file
         completion:
           flag:
             packages: ["$(dotr packages list --plain)"]
             profile: ["$(dotr profiles list --plain)"]
             clean: ["true", "false"]
+            conflict: ["ours", "theirs", "both", "edit", "skip"]
 
       - name: diff
         description: Show a colored, line-by-line diff between the repository and what's currently deployed

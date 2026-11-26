@@ -46,7 +46,7 @@ post_actions = ["reload"]
 
     #[test]
     fn errors_when_a_post_action_is_not_a_string() {
-        let toml_str = r#"post_actions = [true]"#;
+        let toml_str = r"post_actions = [true]";
         let table: Table = toml_str.parse().unwrap();
 
         assert!(Profile::from_table("work", &table).is_err());
@@ -62,7 +62,7 @@ mod get_context_variables_tests {
     use toml::Table;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
-        let dir = env::temp_dir().join(format!("dotr_test_profile_ctx_vars_{}", name));
+        let dir = env::temp_dir().join(format!("dotr_test_profile_ctx_vars_{name}"));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

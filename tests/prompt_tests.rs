@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -24,7 +33,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -257,13 +266,13 @@ fn test_prompts_with_empty_message() {
     let mut config = fixture.get_config();
     config
         .prompts
-        .insert("VAR_WITH_EMPTY_MSG".to_string(), "".to_string());
+        .insert("VAR_WITH_EMPTY_MSG".to_string(), String::new());
     config.save(&fixture.cwd).expect("Failed to save config");
 
     let reloaded_config = fixture.get_config();
     assert_eq!(
         reloaded_config.prompts.get("VAR_WITH_EMPTY_MSG"),
-        Some(&"".to_string())
+        Some(&String::new())
     );
 }
 
@@ -384,10 +393,9 @@ fn test_many_prompts() {
 
     let mut config = fixture.get_config();
     for i in 0..20 {
-        config.prompts.insert(
-            format!("VAR_{}", i),
-            format!("Enter value for variable {}", i),
-        );
+        config
+            .prompts
+            .insert(format!("VAR_{i}"), format!("Enter value for variable {i}"));
     }
     config.save(&fixture.cwd).expect("Failed to save config");
 

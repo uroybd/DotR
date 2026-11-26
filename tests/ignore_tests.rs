@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -23,7 +32,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -64,6 +73,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                conflict: Some(dotr_dear::merge::Resolution::Skip),
             }))),
         )
         .expect("Update failed");
@@ -78,16 +88,11 @@ impl TestFixture {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
-        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {}", path));
+        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {path}"));
     }
 
     fn assert_file_exists(&self, path: &str, message: &str) {
         assert!(self.cwd.join(path).exists(), "{}", message);
-    }
-
-    #[allow(dead_code)]
-    fn assert_file_not_exists(&self, path: &str, message: &str) {
-        assert!(!self.cwd.join(path).exists(), "{}", message);
     }
 }
 

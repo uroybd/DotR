@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -28,7 +37,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -70,6 +79,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                conflict: Some(dotr_dear::merge::Resolution::Skip),
             }))),
         )
         .expect("Update failed");
@@ -89,12 +99,7 @@ impl TestFixture {
 
     fn assert_is_symlink(&self, path: &str, message: &str) {
         let full_path = self.cwd.join(path);
-        assert!(
-            full_path.exists(),
-            "Path {} should exist for {}",
-            path,
-            message
-        );
+        assert!(full_path.exists(), "Path {path} should exist for {message}");
         assert!(full_path.is_symlink(), "{}", message);
     }
 
@@ -109,31 +114,30 @@ impl TestFixture {
         let full_path = self.cwd.join(symlink_path);
         assert!(
             full_path.is_symlink(),
-            "Path {} should be a symlink",
-            symlink_path
+            "Path {symlink_path} should be a symlink"
         );
 
         let target = fs::read_link(&full_path)
-            .unwrap_or_else(|_| panic!("Failed to read symlink: {}", symlink_path));
+            .unwrap_or_else(|_| panic!("Failed to read symlink: {symlink_path}"));
 
         // Convert expected_target to absolute path for comparison
         let expected_relative = self.cwd.join(expected_target);
         let expected_absolute = std::path::absolute(&expected_relative)
-            .unwrap_or_else(|_| panic!("Failed to get absolute path for: {}", expected_target));
-        assert_eq!(target, expected_absolute, "{}", message);
+            .unwrap_or_else(|_| panic!("Failed to get absolute path for: {expected_target}"));
+        assert_eq!(target, expected_absolute, "{message}");
     }
 
     fn write_file(&self, path: &str, content: &str) {
         let file_path = self.cwd.join(path);
         if let Some(parent) = file_path.parent() {
-            let _ = fs::create_dir_all(parent);
+            fs::create_dir_all(parent).ok();
         }
-        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {}", path));
+        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {path}"));
     }
 
     fn read_file(&self, path: &str) -> String {
         let file_path = self.cwd.join(path);
-        fs::read_to_string(&file_path).unwrap_or_else(|_| panic!("Failed to read file: {}", path))
+        fs::read_to_string(&file_path).unwrap_or_else(|_| panic!("Failed to read file: {path}"))
     }
 }
 
@@ -143,14 +147,14 @@ impl Drop for TestFixture {
         if std::env::var("NO_CLEANUP").is_err() {
             let deployed_dir = self.cwd.join(SYMLINK_FOLDER);
             if deployed_dir.exists() {
-                let _ = fs::remove_dir_all(&deployed_dir);
+                fs::remove_dir_all(&deployed_dir).ok();
             }
             // Ad-hoc foreign files created by unfold_symlink tests aren't known
             // to `common::teardown`'s restore list; remove them explicitly so a
             // panicking test can't leave a dangling symlink for the next run.
             // `remove_file` works on both real files and (possibly broken)
             // symlinks, so this is safe even if nothing was ever created.
-            let _ = fs::remove_file(self.cwd.join("src/tmux/foreign.txt"));
+            fs::remove_file(self.cwd.join("src/tmux/foreign.txt")).ok();
         }
         common::teardown(&self.cwd);
     }
@@ -235,7 +239,7 @@ fn test_deploy_with_symlink_points_to_deployed_folder() {
         .expect("Should have a package");
 
     // Import with symlink flag automatically deploys and creates symlink
-    let expected_target = format!("{}/{}", SYMLINK_FOLDER, package_name);
+    let expected_target = format!("{SYMLINK_FOLDER}/{package_name}");
     fixture.assert_symlink_target(
         BASHRC_PATH,
         &expected_target,
@@ -257,7 +261,7 @@ fn test_deploy_with_symlink_deploys_to_deployed_folder() {
         .expect("Should have a package");
 
     // Import with symlink flag automatically deploys, so deployed folder should already exist
-    let deployed_file = format!("{}/{}", SYMLINK_FOLDER, package_name);
+    let deployed_file = format!("{SYMLINK_FOLDER}/{package_name}");
     fixture.assert_file_exists(
         &deployed_file,
         "File should be deployed to deployed folder after import with symlink",
@@ -279,7 +283,7 @@ fn test_deploy_with_symlink_directory() {
 
     // Import with symlink flag automatically deploys
     // Check that the deployed directory contains the files
-    let deployed_init = format!("{}/{}/init.lua", SYMLINK_FOLDER, package_name);
+    let deployed_init = format!("{SYMLINK_FOLDER}/{package_name}/init.lua");
     fixture.assert_file_exists(
         &deployed_init,
         "init.lua should be in deployed folder after import with symlink",
@@ -385,7 +389,7 @@ fn test_symlink_replaces_existing_symlink() {
         .keys()
         .next()
         .expect("Should have a package");
-    let expected_target = format!("{}/{}", SYMLINK_FOLDER, package_name);
+    let expected_target = format!("{SYMLINK_FOLDER}/{package_name}");
 
     fixture.assert_symlink_target(
         BASHRC_PATH,
@@ -414,8 +418,7 @@ fn test_multiple_symlink_packages() {
         let deployed_path = fixture.cwd.join(SYMLINK_FOLDER).join(package_name);
         assert!(
             deployed_path.exists(),
-            "Package {} should be in deployed folder",
-            package_name
+            "Package {package_name} should be in deployed folder"
         );
     }
 }
@@ -685,7 +688,7 @@ fn test_global_symlink_flag_target_points_to_deployed_folder() {
         .keys()
         .next()
         .expect("Should have a package");
-    let expected_target = format!("{}/{}", SYMLINK_FOLDER, package_name);
+    let expected_target = format!("{SYMLINK_FOLDER}/{package_name}");
 
     fixture.assert_symlink_target(
         BASHRC_PATH,
@@ -776,11 +779,11 @@ fn test_global_symlink_flag_skips_backup_on_redeploy() {
     fixture.deploy(None);
 
     fixture.assert_file_not_exists(
-        &format!("{}/{}.dotrbak", SYMLINK_FOLDER, package_name),
+        &format!("{SYMLINK_FOLDER}/{package_name}.dotrbak"),
         "Redeploying via the global symlink flag should not create a backup in the deployed folder",
     );
     fixture.assert_file_not_exists(
-        &format!("{}.dotrbak", BASHRC_PATH),
+        &format!("{BASHRC_PATH}.dotrbak"),
         "Redeploying via the global symlink flag should not create a backup at the destination",
     );
 }
@@ -869,7 +872,7 @@ fn test_unfold_symlink_target_points_to_staged_file() {
 
     fixture.deploy(None);
 
-    let expected_target = format!("{}/{}/tmux.conf", SYMLINK_FOLDER, pkg_name);
+    let expected_target = format!("{SYMLINK_FOLDER}/{pkg_name}/tmux.conf");
     fixture.assert_symlink_target(
         "src/tmux/tmux.conf",
         &expected_target,
@@ -1074,13 +1077,13 @@ fn test_unfold_symlink_update_pulls_changes_without_absorbing_foreign_file() {
 
     let config = fixture.get_config();
     let src = package_name_src(&config);
-    let repo_content = fixture.read_file(&format!("{}/tmux.conf", src));
+    let repo_content = fixture.read_file(&format!("{src}/tmux.conf"));
     assert_eq!(
         repo_content, "# Modified through symlink\n",
         "Edits made through a managed symlink should be pulled back into the repo"
     );
     fixture.assert_file_not_exists(
-        &format!("{}/foreign.txt", src),
+        &format!("{src}/foreign.txt"),
         "Foreign files must never be pulled into the tracked repository",
     );
 }

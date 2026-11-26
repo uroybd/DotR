@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -27,7 +36,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<Command>) -> Cli {
         Cli {
             command,
-            working_dir: Some(self.cwd.to_str().unwrap().to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -161,7 +170,7 @@ fn test_packages_list_verbose() {
     }))));
 
     if let Err(e) = &result {
-        println!("Error: {:?}", e);
+        println!("Error: {e:?}");
     }
     assert!(result.is_ok());
 }

@@ -549,7 +549,7 @@ value = 2
             Context::new(&temp_dir, &config, &None, false).expect("Failed to create context");
 
         // Should have Debug implementation
-        let debug_str = format!("{:?}", ctx);
+        let debug_str = format!("{ctx:?}");
         assert!(debug_str.contains("Context"));
     }
 
@@ -1004,7 +1004,7 @@ USER_NAME = "Enter your name"
 
         // Create config
         let config_path = temp_dir.join("config.toml");
-        fs::write(&config_path, r#""#).unwrap();
+        fs::write(&config_path, r"").unwrap();
 
         let config = Config::from_path(&temp_dir).unwrap();
         let (mut ctx, _) = Context::new(&temp_dir, &config, &None, false).unwrap();
@@ -1462,10 +1462,10 @@ BW_SECRET = "Enter a secret"
         let temp_dir = create_temp_dir();
         fs::write(
             temp_dir.join("config.toml"),
-            r#"
+            r"
 [profiles.work]
 dependencies = []
-"#,
+",
         )
         .unwrap();
         let config = Config::from_path(&temp_dir).unwrap();
@@ -1496,12 +1496,13 @@ dependencies = []
         )
         .expect("Failed to write .uservariables.toml");
 
-        // SAFETY: single-threaded within this test; restored immediately
-        // after constructing the context.
+        // SAFETY: the suite runs single-threaded (`make test` and CI pass `--test-threads=1`), so no other thread
+        // reads the environment while it changes.
         unsafe {
             std::env::set_var("DOTR_PROFILE", "env-value");
         }
         let result = Context::new(&temp_dir, &config, &None, false);
+        // SAFETY: as above; this puts the environment back.
         unsafe {
             std::env::remove_var("DOTR_PROFILE");
         }
@@ -1525,12 +1526,13 @@ dependencies = []
         )
         .expect("Failed to write .uservariables.toml");
 
-        // SAFETY: single-threaded within this test; restored immediately
-        // after constructing the context.
+        // SAFETY: the suite runs single-threaded (`make test` and CI pass `--test-threads=1`), so no other thread
+        // reads the environment while it changes.
         unsafe {
             std::env::set_var("DOTR_BITWARDEN_NOTE", "env-note");
         }
         let result = Context::new(&temp_dir, &config, &None, false);
+        // SAFETY: as above; this puts the environment back.
         unsafe {
             std::env::remove_var("DOTR_BITWARDEN_NOTE");
         }

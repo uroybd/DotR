@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     ffi::OsStr,
+    io::{self, IsTerminal},
     path::{Path, PathBuf},
     sync::LazyLock,
 };
@@ -11,6 +12,8 @@ use toml::Table;
 use crate::{
     cli::{DeployArgs, ImportArgs, UpdateArgs},
     context::Context,
+    merge::{self, Change, Outcome, Resolution},
+    outln,
     profile::Profile,
     utils::{
         self, BACKUP_EXT, LogLevel, compile_string, cprintln, execute_action,
@@ -22,15 +25,27 @@ use crate::{
 #[cfg(test)]
 mod tests;
 
+#[expect(
+    clippy::expect_used,
+    reason = "a fixed pattern: it compiles, and every test that detects a template runs it"
+)]
 static TEMPLATE_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"(\{\{[-]?|[-]?\}\}|\{[%][-]?|[-]?%\}|\{[#][-]?|[-]?#\})")
         .expect("Failed to compile template regex")
 });
 
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde's skip_serializing_if passes a reference"
+)]
 fn is_false(b: &bool) -> bool {
     !*b
 }
 
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde's skip_serializing_if passes a reference"
+)]
 fn is_true(b: &bool) -> bool {
     *b
 }
@@ -108,7 +123,7 @@ impl Package {
             anyhow::bail!("Path '{}' does not exist", resolved_path.display());
         }
         let (package_name, pkg_ns) = get_pkg_name_and_rel_path(args, cwd)?;
-        let src_path_str = format!("dotfiles/{}", pkg_ns);
+        let src_path_str = format!("dotfiles/{pkg_ns}");
 
         let mut dest_path_str = resolved_path
             .to_str()
@@ -147,18 +162,18 @@ impl Package {
         let dest = get_string_from_value(pkg_val.get("dest"), "dest")?;
         let skip = pkg_val
             .get("skip")
-            .and_then(|v| v.as_bool())
+            .and_then(toml::Value::as_bool)
             .unwrap_or(false);
         let prompts = get_string_hashmap_from_value(pkg_val.get("prompts"))?;
         let ignore = get_vec_string_from_value(pkg_val.get("ignore"))?;
-        let symlink = pkg_val.get("symlink").and_then(|v| v.as_bool());
+        let symlink = pkg_val.get("symlink").and_then(toml::Value::as_bool);
         let unfold_symlink = pkg_val
             .get("unfold_symlink")
-            .and_then(|v| v.as_bool())
+            .and_then(toml::Value::as_bool)
             .unwrap_or(false);
         let clean = pkg_val
             .get("clean")
-            .and_then(|v| v.as_bool())
+            .and_then(toml::Value::as_bool)
             .unwrap_or(true);
 
         Ok(Self {
@@ -265,16 +280,11 @@ impl Package {
                     all_copied_paths.push(dest_path);
                 } else if entry.path().extension() != Some(OsStr::new(BACKUP_EXT)) {
                     if is_templated(&dest_path) {
-                        cprintln(
-                            &format!(
-                                "Skipping backup for templated file '{}'",
-                                dest_path.display()
-                            ),
-                            &LogLevel::Warning,
-                        );
+                        self.backup_templated(&dest_path, entry.path(), ctx, args)?;
                         all_copied_paths.push(dest_path);
                         continue;
                     }
+                    // Not a template (binary files included): copied byte for byte.
                     if !args.dry_run {
                         if let Some(parent) = dest_path.parent() {
                             std::fs::create_dir_all(parent)?;
@@ -287,17 +297,148 @@ impl Package {
             if self.should_clean(args.clean) {
                 clean(&copy_to, &all_copied_paths, &self.ignore, args.dry_run)?;
             }
+        } else if is_templated(&copy_to) {
+            return self.backup_templated(&copy_to, &copy_from, ctx, args);
         } else if !args.dry_run {
-            if is_templated(&copy_to) {
-                cprintln(
-                    &format!("Skipping backup for templated file '{}'", copy_to.display()),
-                    &LogLevel::Warning,
-                );
-                return Ok(BackupDeployResult::Skipped);
-            }
             std::fs::copy(&copy_from, &copy_to)?;
         }
         Ok(BackupDeployResult::Success)
+    }
+
+    /// Backs up one templated file by merging its deployed copy into the template (see [`crate::merge`]), and reports
+    /// every change made on the way: nothing reaches the template differently from the deployed file unannounced.
+    fn backup_templated(
+        &self,
+        template_path: &Path,
+        deployed_path: &Path,
+        ctx: &Context,
+        args: &UpdateArgs,
+    ) -> anyhow::Result<BackupDeployResult> {
+        let template = std::fs::read_to_string(template_path)?;
+        let deployed = std::fs::read(deployed_path)?;
+        let vars = self.get_context_variables(ctx);
+        let secrets = ctx.secret_names();
+        let interactive =
+            args.conflict.is_none() && io::stdin().is_terminal() && io::stdout().is_terminal();
+        let fixed = args.conflict.unwrap_or(Resolution::Skip);
+        let mut resolve = |conflict: &merge::Conflict| {
+            if interactive {
+                merge::ask(
+                    template_path,
+                    conflict,
+                    &mut io::stdin().lock(),
+                    &mut io::stdout(),
+                )
+            } else {
+                Ok(fixed)
+            }
+        };
+        let outcome = merge::merge_template(&template, &deployed, &vars, &secrets, &mut resolve)?;
+        let (t, d) = (template_path.display(), deployed_path.display());
+        let not_backed_up = |why: &str| {
+            cprintln(
+                &format!("Not backing up templated file '{t}': {why}"),
+                &LogLevel::Warning,
+            );
+            Ok(BackupDeployResult::Skipped)
+        };
+        match outcome {
+            Outcome::Unchanged => Ok(BackupDeployResult::Skipped),
+            Outcome::NotText => not_backed_up(&format!("its deployed copy '{d}' is not text")),
+            Outcome::RoundTripFailed { error } => not_backed_up(&match error {
+                Some(error) => format!(
+                    "the merged template does not compile ({error}); the deployed file may hold \
+template syntax, such as `{{{{`, as text. Edit the template by hand"
+                ),
+                None => format!(
+                    "the merged template would not render back to '{d}'; edit the template by hand"
+                ),
+            }),
+            Outcome::Conflicts(conflicts) => {
+                let how = if interactive {
+                    "skipped at the prompt"
+                } else {
+                    "rerun in a terminal, or with --conflict ours|theirs|both|edit, to settle"
+                };
+                let result = not_backed_up(&format!(
+                    "{} conflict(s) with lines the template computes ({how})",
+                    conflicts.len()
+                ));
+                for conflict in &conflicts {
+                    for line in merge::describe(conflict) {
+                        outln!("{line}");
+                    }
+                }
+                result
+            }
+            Outcome::Merged { template, changes } => {
+                report_merge(template_path, deployed_path, &changes, args.dry_run);
+                if !args.dry_run {
+                    std::fs::write(template_path, template)?;
+                }
+                Ok(BackupDeployResult::Success)
+            }
+            Outcome::Edit { draft, changes } => {
+                if args.dry_run {
+                    report_merge(template_path, deployed_path, &changes, true);
+                    cprintln(
+                        &format!("Would open '{t}' in your editor to settle its conflicts"),
+                        &LogLevel::Info,
+                    );
+                    return Ok(BackupDeployResult::Skipped);
+                }
+                let Some(editor) = merge::editor_command() else {
+                    return not_backed_up(
+                        "no editor to settle its conflicts in: set DOTR_EDITOR, VISUAL or EDITOR",
+                    );
+                };
+                let deployed = std::str::from_utf8(&deployed)?;
+                let mut draft = draft;
+                loop {
+                    let saved = merge::edit_in_editor(&editor, &draft, template_path)?;
+                    match merge::check_edit(&saved, deployed, &vars, &secrets) {
+                        Ok(edited) => {
+                            report_merge(template_path, deployed_path, &changes, false);
+                            report_edit(template_path, deployed_path, edited);
+                            std::fs::write(template_path, saved)?;
+                            return Ok(BackupDeployResult::Success);
+                        }
+                        Err(problem) => {
+                            cprintln(
+                                &format!("Your edit of '{t}' can't be used: {problem}"),
+                                &LogLevel::Warning,
+                            );
+                            let reopen = (io::stdin().is_terminal() && io::stdout().is_terminal())
+                                && merge::ask_reopen(&mut io::stdin().lock(), &mut io::stdout())?;
+                            if !reopen {
+                                return not_backed_up("the edit was not finished");
+                            }
+                            draft = saved;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Whether a file this package backs up into is a template, so `update` has to render it to merge. A source
+    /// not there yet (a package never backed up) has none.
+    pub fn has_templated_source(&self, working_dir: &Path) -> anyhow::Result<bool> {
+        let src = resolve_path(&self.src, working_dir)?;
+        if !src.exists() {
+            return Ok(false);
+        }
+        for entry in walkdir::WalkDir::new(&src) {
+            let entry = entry?;
+            let relative = entry.path().strip_prefix(&src)?;
+            if entry.file_type().is_file()
+                && !self.should_ignore(relative)
+                && is_templated(entry.path())
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn should_clean(&self, arg_val: Option<bool>) -> bool {
@@ -346,13 +487,26 @@ impl Package {
                 src_content
             };
 
-            let mut should_diff = false;
             if dest.exists() {
-                let existing_content = std::fs::read_to_string(dest).unwrap_or_default();
-                if existing_content != compiled_content {
-                    should_diff = true;
-                }
-                if !should_diff {
+                let existing = std::fs::read(dest)?;
+                let Some(existing_content) = utils::as_text(&existing) else {
+                    // A deployed file that is not text is told apart, never diffed line by line.
+                    cprintln(
+                        &format!(
+                            "{} {} -> {}: the deployed file is not text",
+                            if existing == compiled_content.as_bytes() {
+                                "No changes in"
+                            } else {
+                                "Changes in"
+                            },
+                            src.file_name().unwrap_or_default().to_string_lossy(),
+                            dest.display()
+                        ),
+                        &LogLevel::Info,
+                    );
+                    return Ok(());
+                };
+                if existing_content == compiled_content {
                     cprintln(
                         &format!(
                             "No changes in {}",
@@ -369,17 +523,17 @@ impl Package {
                         ),
                         &LogLevel::Info,
                     );
-                    for diff in diff::lines(&existing_content, &compiled_content) {
+                    for diff in diff::lines(existing_content, &compiled_content) {
                         match diff {
                             diff::Result::Left(l) => {
-                                let s = format!("-{}", l);
+                                let s = format!("-{l}");
                                 print_with_color(s.as_str(), RED);
                             }
                             diff::Result::Both(l, _) => {
-                                println!(" {}", l);
+                                outln!(" {l}");
                             }
                             diff::Result::Right(r) => {
-                                let s = format!("+{}", r);
+                                let s = format!("+{r}");
                                 print_with_color(s.as_str(), GREEN);
                             }
                         };
@@ -430,8 +584,8 @@ impl Package {
             if !dest.exists() {
                 should_copy = true;
             } else {
-                let existing_content = std::fs::read_to_string(dest)?;
-                if existing_content != compiled_content {
+                // Bytes, not text: the deployed file may be binary, and is then simply replaced.
+                if std::fs::read(dest)? != compiled_content.as_bytes() {
                     should_copy = true;
                 }
             }
@@ -501,7 +655,7 @@ impl Package {
                     )?;
                     if let BackupDeployResult::Success = dep_result {
                         result = BackupDeployResult::Success;
-                        println!("=> Deployed {}", dest_path.display());
+                        outln!("=> Deployed {}", dest_path.display());
                     }
                 }
                 all_deployed_paths.push(dest_path);
@@ -519,7 +673,7 @@ impl Package {
             let dep_result = self.deploy_file(&copy_from, &copy_to, ctx, true, args.dry_run)?;
             if let BackupDeployResult::Success = dep_result {
                 result = BackupDeployResult::Success;
-                println!("=> Deployed {}", copy_to.display());
+                outln!("=> Deployed {}", copy_to.display());
             }
         }
         if self.effective_symlink(ctx) {
@@ -659,12 +813,12 @@ pub fn get_pkg_name_and_rel_path(
     };
 
     let sanitized_name = name.replace(['-', '.'], "_");
-    let package_name = format!("{}{}", prefix, sanitized_name);
+    let package_name = format!("{prefix}{sanitized_name}");
 
     let pkg_ns = if let Some(ext) = extension {
-        let base_name = name.trim_end_matches(&format!(".{}", ext));
+        let base_name = name.trim_end_matches(&format!(".{ext}"));
         let sanitized_base = base_name.replace(['-', '.'], "_");
-        format!("{}{}.{}", prefix, sanitized_base, ext)
+        format!("{prefix}{sanitized_base}.{ext}")
     } else {
         package_name.clone()
     };
@@ -679,27 +833,113 @@ fn create_backup_path(path: &Path) -> PathBuf {
     PathBuf::from(backup_path)
 }
 
-pub fn is_templated(p: &PathBuf) -> bool {
-    if !p.exists() {
-        return false;
-    }
-    let content = std::fs::read_to_string(p);
-    if let Ok(text) = content {
-        is_templated_str(&text)
-    } else {
-        false
-    }
+/// Whether the file at `p` is a template: text (see [`utils::as_text`]) holding template tags.
+pub fn is_templated(p: &Path) -> bool {
+    std::fs::read(p)
+        .ok()
+        .as_deref()
+        .and_then(utils::as_text)
+        .is_some_and(is_templated_str)
 }
 
+/// Whether text holds template tags. Text with a NUL byte is binary, however its bytes happen to read.
 pub fn is_templated_str(s: &str) -> bool {
-    TEMPLATE_REGEX.is_match(s)
+    utils::is_text(s) && TEMPLATE_REGEX.is_match(s)
 }
 
 const RED: &str = "31";
 const GREEN: &str = "32";
 
+/// Reports a merge into a template: one line per change it made to the deployed content on the way.
+fn report_merge(template: &Path, deployed: &Path, changes: &[Change], dry_run: bool) {
+    let (t, d) = (template.display(), deployed.display());
+    let verb = if dry_run { "Would merge" } else { "Merged" };
+    cprintln(
+        &format!("{verb} changes from '{d}' into template '{t}'"),
+        &LogLevel::Info,
+    );
+    for change in changes {
+        let (message, level) = match change {
+            Change::Substituted { line, name, secret } => (
+                format!(
+                    "  {t}:{line}: wrote {{{{ {name} }}}} in place of {}",
+                    if *secret {
+                        "a secret value"
+                    } else {
+                        "its value"
+                    }
+                ),
+                LogLevel::Info,
+            ),
+            Change::Ambiguous { line, names } => (
+                format!(
+                    "  {t}:{line}: left a value as text: it is the value of {} alike",
+                    names.join(", ")
+                ),
+                LogLevel::Warning,
+            ),
+            Change::Rewritten { lines } => (
+                format!(
+                    "  {t}: {}: rewritten from the deployed file, its variables put back as tags",
+                    merge::span(lines)
+                ),
+                LogLevel::Info,
+            ),
+            Change::KeptTemplate {
+                lines,
+                deployed_lines,
+            } => (
+                format!(
+                    "  {t}: {}: kept the template's; the deployed {} left out (the next deploy puts the \
+template's back)",
+                    merge::span(lines),
+                    merge::span(deployed_lines)
+                ),
+                LogLevel::Warning,
+            ),
+            Change::TookDeployed { lines } => (
+                format!(
+                    "  {t}: {}: replaced by the deployed lines; any template logic there is gone",
+                    merge::span(lines)
+                ),
+                LogLevel::Warning,
+            ),
+            Change::Union { lines, added } => (
+                format!(
+                    "  {t}: {}: kept, with the deployed lines added after them as {}: the file now renders \
+both; tidy it before the next deploy",
+                    merge::span(lines),
+                    merge::span(added)
+                ),
+                LogLevel::Warning,
+            ),
+        };
+        cprintln(&message, &level);
+    }
+}
+
+/// Reports a template saved from the editor, and how its render compares with the deployed file.
+fn report_edit(template: &Path, deployed: &Path, edited: merge::Edited) {
+    let (t, d) = (template.display(), deployed.display());
+    if edited.renders_deployed() {
+        cprintln(
+            &format!("Saved '{t}' from your editor; it renders '{d}' exactly"),
+            &LogLevel::Info,
+        );
+    } else {
+        cprintln(
+            &format!(
+                "Saved '{t}' from your editor; its render differs from '{d}' ({} line(s) left out or \
+changed, {} added): the next deploy will change the deployed file",
+                edited.missing, edited.added
+            ),
+            &LogLevel::Warning,
+        );
+    }
+}
+
 pub fn print_with_color(s: &str, color_code: &str) {
-    println!("\x1b[{}m{}\x1b[0m", color_code, s);
+    outln!("\x1b[{color_code}m{s}\x1b[0m");
 }
 
 pub fn clean(
@@ -818,9 +1058,7 @@ pub fn clean_unfolded(
 /// resolves into `staged_root` - as opposed to unrelated/foreign content.
 pub fn is_managed_symlink(path: &Path, staged_root: &Path) -> bool {
     path.is_symlink()
-        && std::fs::read_link(path)
-            .map(|target| target.starts_with(staged_root))
-            .unwrap_or(false)
+        && std::fs::read_link(path).is_ok_and(|target| target.starts_with(staged_root))
 }
 
 pub fn should_ignore(ignore: &[String], rel_path: &Path) -> bool {

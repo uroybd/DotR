@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::fs;
 
 use dotr_dear::{
@@ -23,7 +32,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -56,7 +65,7 @@ impl TestFixture {
 
     fn assert_file_content_contains(&self, path: &str, content: &str, message: &str) {
         let file_content = fs::read_to_string(self.cwd.join(path))
-            .unwrap_or_else(|_| panic!("Failed to read file: {}", path));
+            .unwrap_or_else(|_| panic!("Failed to read file: {path}"));
         assert!(file_content.contains(content), "{}", message);
     }
 }
@@ -179,7 +188,7 @@ fn test_dest_with_user_variable() {
 
     // Verify the file was deployed with username in path
     fixture.assert_file_exists(
-        &format!("src/{}_config.txt", username),
+        &format!("src/{username}_config.txt"),
         "File should be deployed with username in path",
     );
 }

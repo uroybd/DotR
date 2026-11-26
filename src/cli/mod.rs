@@ -5,6 +5,7 @@ use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use crate::{
     config::{self, Config},
     context::Context,
+    out, outln,
     utils::{LogLevel, cprintln},
 };
 
@@ -216,8 +217,10 @@ pub struct DiffArgs {
     name = "update",
     about = "Update dotfiles from deployed versions.",
     long_about = "Copies changes made to deployed files back into the repository, so \
-dotfiles/ keeps reflecting what's actually deployed. Templated packages are skipped, \
-since the template file is the source of truth."
+dotfiles/ keeps reflecting what's actually deployed. A templated file is merged: changes to \
+its plain lines are carried into the template, values written back as {{ tags }}; a change to a line \
+the template computes is a conflict, asked about in a terminal or settled by --conflict. Every change \
+made on the way is reported."
 )]
 pub struct UpdateArgs {
     /// Update only these packages. Omit to update the active profile's packages.
@@ -239,6 +242,12 @@ pub struct UpdateArgs {
     /// Preview without changing anything.
     #[arg(long, default_value_t = false)]
     pub dry_run: bool,
+
+    /// What to do when a deployed templated file changes lines the template computes: keep the template
+    /// (ours), take the deployed lines (theirs), keep both, open the file in your editor (edit; DOTR_EDITOR,
+    /// VISUAL or EDITOR), or leave the file (skip). Asked for each conflict in a terminal; skip otherwise.
+    #[arg(long, value_enum)]
+    pub conflict: Option<crate::merge::Resolution>,
 }
 
 #[derive(Debug, Args, Default)]
@@ -409,14 +418,14 @@ pub struct ProfilesAddArgs {
     pub set_as_current: bool,
 }
 
-const BANNER: &str = r#"
+const BANNER: &str = r"
 ██████╗  ██████╗ ████████╗██████╗ 
 ██╔══██╗██╔═══██╗╚══██╔══╝██╔══██╗
 ██║  ██║██║   ██║   ██║   ██████╔╝
 ██║  ██║██║   ██║   ██║   ██╔══██╗
 ██████╔╝╚██████╔╝   ██║   ██║  ██║
 ╚═════╝  ╚═════╝    ╚═╝   ╚═╝  ╚═╝
-"#;
+";
 
 pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
     let mut working_dir = std::env::current_dir()?;
@@ -431,9 +440,9 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
 
     match args.command {
         Some(Command::Init(_)) => {
-            println!("Initializing configuration...");
+            outln!("Initializing configuration...");
             Config::init(&working_dir)?;
-            println!("Configuration initialized successfully.");
+            outln!("Configuration initialized successfully.");
         }
         Some(Command::Import(args)) => {
             let (mut conf, ctx) = init_config(&working_dir, &args.profile, true, true)?;
@@ -446,7 +455,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
         }
         Some(Command::Update(args)) => {
             let (conf, mut ctx) = init_config(&working_dir, &args.profile, false, true)?;
-            if conf.update_needs_variables(&ctx.profile, &args.packages)? {
+            if conf.update_needs_variables(&ctx.profile, &args.packages, &working_dir)? {
                 ctx.get_prompted_variables(&conf, &args.packages)?;
             }
             conf.backup_packages(&ctx, &args)?;
@@ -473,7 +482,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                         &LogLevel::Info,
                     );
                 }
-                None => print!("{}", toml_string),
+                None => out!("{toml_string}"),
             }
         }
         Some(Command::Remove(args)) => {
@@ -495,7 +504,11 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.deploy_packages(&ctx, &deploy_args)?;
                 }
                 Some(PackagesCommand::Update(update_args)) => {
-                    if conf.update_needs_variables(&ctx.profile, &update_args.packages)? {
+                    if conf.update_needs_variables(
+                        &ctx.profile,
+                        &update_args.packages,
+                        &working_dir,
+                    )? {
                         ctx.get_prompted_variables(&conf, &update_args.packages)?;
                     }
                     conf.backup_packages(&ctx, &update_args)?;
@@ -508,7 +521,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.remove_packages(&remove_args, &ctx)?;
                 }
                 None => {
-                    println!("No packages command provided. Use --help for more information.");
+                    outln!("No packages command provided. Use --help for more information.");
                 }
             }
         }
@@ -526,7 +539,7 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     conf.remove_profile(&remove_args, &ctx)?;
                 }
                 None => {
-                    println!("No profiles command provided. Use --help for more information.");
+                    outln!("No profiles command provided. Use --help for more information.");
                 }
             }
         }
@@ -571,16 +584,20 @@ pub fn run_cli(args: Cli) -> Result<(), anyhow::Error> {
                     bin_name,
                     &mut stdout,
                 ),
-                CompletionShell::Carapace => print!("{}", CARAPACE_SPEC),
+                CompletionShell::Carapace => out!("{CARAPACE_SPEC}"),
             }
         }
         None => {
-            println!("No command provided. Use --help for more information.");
+            outln!("No command provided. Use --help for more information.");
         }
     }
     Ok(())
 }
 
+#[expect(
+    clippy::ref_option,
+    reason = "passed straight to `Context::new`, which takes `&Option` like the rest of the public API"
+)]
 fn init_config(
     working_dir: &Path,
     profile: &Option<String>,
@@ -589,7 +606,7 @@ fn init_config(
 ) -> anyhow::Result<(Config, Context)> {
     let mut conf = config::Config::from_path(working_dir)?;
     if conf.banner && show_banner {
-        println!("{}", BANNER);
+        outln!("{BANNER}");
     }
     let (ctx, profile_created) = Context::new(working_dir, &conf, profile, create_if_missing)?;
     if profile_created {

@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod config;
 pub mod context;
+pub mod merge;
 pub mod package;
 pub mod platform;
 pub mod profile;

@@ -52,10 +52,10 @@ pub fn get_platforms_from_table(
 ) -> anyhow::Result<HashMap<String, Platform>> {
     let mut platforms: HashMap<String, Platform> = HashMap::new();
     if let Some(table) = value.and_then(|v| v.as_table()) {
-        for (key, val) in table.iter() {
+        for (key, val) in table {
             let val_table = val
                 .as_table()
-                .ok_or_else(|| anyhow::anyhow!("Platform '{}' must be a table", key))?;
+                .ok_or_else(|| anyhow::anyhow!("Platform '{key}' must be a table"))?;
             let platform = Platform::from_table(key, val_table)?;
             platforms.insert(platform.name.clone(), platform);
         }

@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::fs;
 
 use dotr_dear::{
@@ -26,7 +35,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<Command>) -> Cli {
         Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -41,19 +50,18 @@ impl TestFixture {
 
     fn create_test_file(&self, name: &str, content: &str) {
         fs::create_dir_all(self.cwd.join("dotfiles")).expect("Failed to create dotfiles dir");
-        fs::write(self.cwd.join(format!("dotfiles/{}", name)), content)
+        fs::write(self.cwd.join(format!("dotfiles/{name}")), content)
             .expect("Failed to create test file");
     }
 
     fn assert_file_exists(&self, path: &str) {
-        assert!(self.cwd.join(path).exists(), "File should exist: {}", path);
+        assert!(self.cwd.join(path).exists(), "File should exist: {path}");
     }
 
     fn assert_file_not_exists(&self, path: &str) {
         assert!(
             !self.cwd.join(path).exists(),
-            "File should not exist: {}",
-            path
+            "File should not exist: {path}"
         );
     }
 }
@@ -175,6 +183,7 @@ fn test_packages_update_subcommand() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            conflict: Some(dotr_dear::merge::Resolution::Skip),
         })),
     }))))
     .expect("Packages update failed");
@@ -440,6 +449,7 @@ fn test_packages_update_dry_run() {
             ignore_errors: false,
             clean: Some(false),
             dry_run: true,
+            conflict: Some(dotr_dear::merge::Resolution::Skip),
         })),
     }))))
     .expect("Packages update dry-run failed");
@@ -466,12 +476,12 @@ fn test_packages_multiple_packages_deploy() {
     let mut config = fixture.get_config();
     for i in 1..=3 {
         let package = dotr_dear::package::Package {
-            name: format!("f_multi{}", i),
-            src: format!("dotfiles/f_multi{}", i),
-            dest: format!("src/.multi{}", i),
+            name: format!("f_multi{i}"),
+            src: format!("dotfiles/f_multi{i}"),
+            dest: format!("src/.multi{i}"),
             ..Default::default()
         };
-        config.packages.insert(format!("f_multi{}", i), package);
+        config.packages.insert(format!("f_multi{i}"), package);
     }
     config.save(&fixture.cwd).expect("Failed to save config");
 

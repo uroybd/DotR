@@ -1,10 +1,10 @@
 use std::{fs, path::Path};
 
-#[allow(dead_code)]
+#[allow(dead_code, reason = "shared by every test file; not each one calls it")]
 pub fn setup(cwd: &Path) {
     // Ensure src directory exists
     let src_dir = cwd.join("src");
-    let _ = fs::create_dir_all(&src_dir);
+    fs::create_dir_all(&src_dir).ok();
 
     // Restore all test files
     restore_test_files(cwd);
@@ -18,17 +18,17 @@ pub fn teardown(cwd: &Path) {
     // Clean up created config file after tests
     let config_path = cwd.join("config.toml");
     if config_path.exists() {
-        let _ = std::fs::remove_file(&config_path);
+        std::fs::remove_file(&config_path).ok();
     }
     // Clean up .gitignore file
     let gitignore_path = cwd.join(".gitignore");
     if gitignore_path.exists() {
-        let _ = std::fs::remove_file(&gitignore_path);
+        std::fs::remove_file(&gitignore_path).ok();
     }
     // Delete the dotfiles directory if it exists
     let dotfiles_dir = cwd.join("dotfiles");
     if dotfiles_dir.exists() {
-        let _ = std::fs::remove_dir_all(&dotfiles_dir);
+        std::fs::remove_dir_all(&dotfiles_dir).ok();
     }
     // Clean up any backup directories created during tests
     cleanup_backups(cwd);
@@ -54,11 +54,12 @@ fn cleanup_backups(cwd: &Path) {
         // Check if it matches any backup pattern
         for pattern in &backup_patterns {
             if name_str.contains(pattern) {
-                let _ = if path.is_dir() {
-                    std::fs::remove_dir_all(path)
+                // Best effort: a backup another test already removed is fine.
+                if path.is_dir() {
+                    std::fs::remove_dir_all(path).ok();
                 } else {
-                    std::fs::remove_file(path)
-                };
+                    std::fs::remove_file(path).ok();
+                }
                 break;
             }
         }
@@ -71,9 +72,9 @@ fn restore_test_files(cwd: &Path) {
     // Helper function to write file, removing symlinks first
     let write_file = |path: &std::path::PathBuf, content: &str| {
         if path.exists() || path.is_symlink() {
-            let _ = fs::remove_file(path);
+            fs::remove_file(path).ok();
         }
-        let _ = fs::write(path, content);
+        fs::write(path, content).ok();
     };
 
     // Restore .bashrc
@@ -103,9 +104,9 @@ fn restore_test_files(cwd: &Path) {
     // Restore nvim/init.lua
     let nvim_dir = src_dir.join("nvim");
     if nvim_dir.is_symlink() {
-        let _ = fs::remove_file(&nvim_dir);
+        fs::remove_file(&nvim_dir).ok();
     }
-    let _ = fs::create_dir_all(&nvim_dir);
+    fs::create_dir_all(&nvim_dir).ok();
     write_file(
         &src_dir.join("nvim/init.lua"),
         "-- Neovim configuration\nvim.opt.number = true\nvim.opt.expandtab = true\n",
@@ -114,9 +115,9 @@ fn restore_test_files(cwd: &Path) {
     // Restore tmux files
     let tmux_dir = src_dir.join("tmux");
     if tmux_dir.is_symlink() {
-        let _ = fs::remove_file(&tmux_dir);
+        fs::remove_file(&tmux_dir).ok();
     }
-    let _ = fs::create_dir_all(&tmux_dir);
+    fs::create_dir_all(&tmux_dir).ok();
     write_file(
         &src_dir.join("tmux/tmux.conf"),
         "# Tmux Configuration\nset -g mouse on\nbind-key r source-file ~/.tmux.conf\n",
@@ -131,9 +132,9 @@ fn restore_test_files(cwd: &Path) {
     // Remove symlink if exists
     let config_dir = src_dir.join("config");
     if config_dir.join("alacritty").is_symlink() {
-        let _ = fs::remove_file(config_dir.join("alacritty"));
+        fs::remove_file(config_dir.join("alacritty")).ok();
     }
-    let _ = fs::create_dir_all(&alacritty_dir);
+    fs::create_dir_all(&alacritty_dir).ok();
     write_file(
         &src_dir.join("config/alacritty/alacritty.yml"),
         "# Alacritty Configuration\nwindow:\n  padding:\n    x: 10\n    y: 10\nfont:\n  size: 12.0\n",

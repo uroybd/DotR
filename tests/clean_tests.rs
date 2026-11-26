@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -21,7 +30,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<Command>) -> Cli {
         Cli {
             command,
-            working_dir: Some(self.cwd.to_str().unwrap().to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -146,6 +155,7 @@ fn test_update_clean_by_default() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -405,6 +415,7 @@ fn test_update_with_package_clean_false() {
         ignore_errors: false,
         clean: None,
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_ok(), "Update should succeed");
@@ -456,6 +467,7 @@ fn test_update_cli_override_package_clean() {
         ignore_errors: false,
         clean: Some(true),
         dry_run: false,
+        conflict: Some(dotr_dear::merge::Resolution::Skip),
     }))));
 
     assert!(result.is_ok(), "Update should succeed");

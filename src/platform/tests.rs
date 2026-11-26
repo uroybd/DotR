@@ -45,7 +45,7 @@ post_actions = ["echo three"]
 
     #[test]
     fn from_table_errors_when_a_post_action_is_not_a_string() {
-        let toml_str = r#"post_actions = [42]"#;
+        let toml_str = r"post_actions = [42]";
         let table: Table = toml_str.parse().unwrap();
 
         assert!(Platform::from_table("macos", &table).is_err());

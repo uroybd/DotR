@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -36,7 +45,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -77,6 +86,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                conflict: Some(dotr_dear::merge::Resolution::Skip),
             }))),
         )
         .expect("Update failed");
@@ -105,13 +115,13 @@ impl TestFixture {
     fn assert_file_contains(&self, path: &str, content: &str, message: &str) {
         let file_path = self.cwd.join(path);
         let file_content = fs::read_to_string(&file_path)
-            .unwrap_or_else(|_| panic!("Failed to read file: {}", path));
+            .unwrap_or_else(|_| panic!("Failed to read file: {path}"));
         assert!(file_content.contains(content), "{}", message);
     }
 
     fn write_file(&self, path: &str, content: &str) {
         let file_path = self.cwd.join(path);
-        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {}", path));
+        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {path}"));
     }
 
     fn get_context_variables(&self) -> toml::Table {
@@ -133,7 +143,7 @@ impl Drop for TestFixture {
 fn test_no_command() {
     let fixture = TestFixture::new();
 
-    let _ = run_cli(fixture.get_cli(None));
+    run_cli(fixture.get_cli(None)).ok();
 
     fixture.assert_file_not_exists("config.toml", "config.toml should not be created");
     fixture.assert_file_not_exists("dotfiles", "dotfiles directory should not be created");
@@ -179,7 +189,7 @@ fn test_import_dots() {
     );
     assert_eq!(
         nvim_package.src,
-        format!("dotfiles/{}", nvim_package_name),
+        format!("dotfiles/{nvim_package_name}"),
         "Package src should be correctly set"
     );
 
@@ -191,7 +201,7 @@ fn test_import_dots() {
 
     // Verify files are copied to dotfiles directory
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/init.lua", nvim_package_name),
+        &format!("dotfiles/{nvim_package_name}/init.lua"),
         "nvim init.lua should be copied to dotfiles",
     );
 }
@@ -311,19 +321,16 @@ fn test_update_specific_package() {
 
     // Verify nvim was updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/init.lua", nvim_package_name),
+        &format!("dotfiles/{nvim_package_name}/init.lua"),
         "Modified nvim config",
         "nvim config should be updated in dotfiles",
     );
 
     // Verify bashrc was NOT updated
     let bashrc_package_name = fixture.get_package_name(BASHRC_PATH);
-    let bashrc_content = fs::read_to_string(
-        fixture
-            .cwd
-            .join(format!("dotfiles/{}", bashrc_package_name)),
-    )
-    .expect("Failed to read bashrc");
+    let bashrc_content =
+        fs::read_to_string(fixture.cwd.join(format!("dotfiles/{bashrc_package_name}")))
+            .expect("Failed to read bashrc");
     assert!(
         !bashrc_content.contains("Modified bashrc"),
         "bashrc should NOT be updated in dotfiles"
@@ -355,12 +362,12 @@ fn test_update_multiple_specific_packages() {
 
     // Verify both were updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/init.lua", nvim_package_name),
+        &format!("dotfiles/{nvim_package_name}/init.lua"),
         "Updated nvim config",
         "nvim config should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}", bashrc_package_name),
+        &format!("dotfiles/{bashrc_package_name}"),
         "Updated bashrc",
         "bashrc should be updated",
     );
@@ -428,30 +435,30 @@ fn test_import_multiple_files() {
 
     // Verify files are backed up
     fixture.assert_file_exists(
-        &format!("dotfiles/{}", bashrc_name),
+        &format!("dotfiles/{bashrc_name}"),
         "bashrc should be backed up",
     );
     fixture.assert_file_exists(
-        &format!("dotfiles/{}", zshrc_name),
+        &format!("dotfiles/{zshrc_name}"),
         "zshrc should be backed up",
     );
     fixture.assert_file_exists(
-        &format!("dotfiles/{}", vimrc_name),
+        &format!("dotfiles/{vimrc_name}"),
         "vimrc should be backed up",
     );
     fixture.assert_file_exists(
-        &format!("dotfiles/{}", gitconfig_name),
+        &format!("dotfiles/{gitconfig_name}"),
         "gitconfig should be backed up",
     );
 
     // Verify content
     fixture.assert_file_contains(
-        &format!("dotfiles/{}", bashrc_name),
+        &format!("dotfiles/{bashrc_name}"),
         "Bashrc configuration",
         "bashrc content should match",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}", gitconfig_name),
+        &format!("dotfiles/{gitconfig_name}"),
         "Test User",
         "gitconfig content should match",
     );
@@ -475,26 +482,26 @@ fn test_import_nested_directories() {
 
     // Verify directory contents are backed up
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/tmux.conf"),
         "tmux.conf should be backed up",
     );
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/theme.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/theme.conf"),
         "theme.conf should be backed up",
     );
     fixture.assert_file_exists(
-        &format!("dotfiles/{}/alacritty.yml", alacritty_name),
+        &format!("dotfiles/{alacritty_name}/alacritty.yml"),
         "alacritty.yml should be backed up",
     );
 
     // Verify content
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/tmux.conf"),
         "set -g mouse on",
         "tmux.conf content should match",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/alacritty.yml", alacritty_name),
+        &format!("dotfiles/{alacritty_name}/alacritty.yml"),
         "padding",
         "alacritty.yml content should match",
     );
@@ -572,22 +579,22 @@ fn test_update_preserves_changes() {
 
     // Verify updates in dotfiles
     fixture.assert_file_contains(
-        &format!("dotfiles/{}", vimrc_name),
+        &format!("dotfiles/{vimrc_name}"),
         "Updated vimrc",
         "vimrc should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}", vimrc_name),
+        &format!("dotfiles/{vimrc_name}"),
         "relativenumber",
         "vimrc should contain new content",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/tmux.conf"),
         "Updated tmux",
         "tmux.conf should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/tmux.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/tmux.conf"),
         "mouse off",
         "tmux.conf should contain modified content",
     );
@@ -672,12 +679,12 @@ fn test_mixed_files_and_directories() {
 
     // Verify only specified packages updated
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/init.lua", nvim_name),
+        &format!("dotfiles/{nvim_name}/init.lua"),
         "Modified nvim",
         "nvim should be updated",
     );
     fixture.assert_file_contains(
-        &format!("dotfiles/{}/theme.conf", tmux_name),
+        &format!("dotfiles/{tmux_name}/theme.conf"),
         "Modified theme",
         "tmux theme should be updated",
     );
@@ -690,11 +697,12 @@ fn test_print_vars_empty() {
     fixture.init();
 
     // Print vars should show environment variables including HOME
-    let _ = run_cli(
+    run_cli(
         fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
-    );
+    )
+    .ok();
 
     // Verify that Context has HOME environment variable
     let ctx_vars = fixture.get_context_variables();
@@ -726,11 +734,12 @@ fn test_print_vars_with_custom_variables() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Print vars should show custom variables
-    let _ = run_cli(
+    run_cli(
         fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
-    );
+    )
+    .ok();
 
     // Verify config contains variables
     let config = fixture.get_config();
@@ -1163,11 +1172,12 @@ fn test_nested_variables_print() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Test that print-vars works with nested variables
-    let _ = run_cli(
+    run_cli(
         fixture.get_cli(Some(dotr_dear::cli::Command::PrintVars(PrintVarsArgs {
             profile: None,
         }))),
-    );
+    )
+    .ok();
 
     // Verify the nested structure is preserved
     let reloaded_config = fixture.get_config();
@@ -1366,7 +1376,7 @@ fn test_deploy_package_with_custom_name() {
     let bashrc_content = fs::read_to_string(fixture.cwd.join("src/.bashrc")).unwrap();
     fs::write(
         fixture.cwd.join("src/.bashrc"),
-        format!("# Modified\n{}", bashrc_content),
+        format!("# Modified\n{bashrc_content}"),
     )
     .unwrap();
 

@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -19,14 +28,14 @@ impl TestFixture {
         let cwd = PathBuf::from(PLAYGROUND_DIR);
         common::setup(&cwd);
         // A prior interrupted run can leave this behind.
-        let _ = fs::remove_file(cwd.join(".uservariables.toml"));
+        fs::remove_file(cwd.join(".uservariables.toml")).ok();
         Self { cwd }
     }
 
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -42,7 +51,7 @@ impl TestFixture {
 
 impl Drop for TestFixture {
     fn drop(&mut self) {
-        let _ = fs::remove_file(self.cwd.join(".uservariables.toml"));
+        fs::remove_file(self.cwd.join(".uservariables.toml")).ok();
         common::teardown(&self.cwd);
     }
 }

@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use dotr_dear::utils::compile_string;
 use toml::Table;
 
@@ -322,7 +331,7 @@ fn test_compile_string_preserves_sql_query() {
     let mut context = Table::new();
     context.insert(
         "query".to_string(),
-        toml::Value::String(r#"SELECT * FROM users WHERE name='John' AND age>18"#.to_string()),
+        toml::Value::String(r"SELECT * FROM users WHERE name='John' AND age>18".to_string()),
     );
 
     let template = "SQL={{ query }}";
@@ -330,7 +339,7 @@ fn test_compile_string_preserves_sql_query() {
 
     assert_eq!(
         result,
-        r#"SQL=SELECT * FROM users WHERE name='John' AND age>18"#
+        r"SQL=SELECT * FROM users WHERE name='John' AND age>18"
     );
     assert!(result.contains('\''));
     assert!(result.contains('>'));

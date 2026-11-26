@@ -1166,8 +1166,7 @@ platform = "macos"
             assert_eq!(
                 profile.platform_variables.get("EDITOR"),
                 Some(&toml::Value::String("vim".to_string())),
-                "profile '{}' should carry the shared platform's variables",
-                name
+                "profile '{name}' should carry the shared platform's variables"
             );
         }
     }
@@ -1299,9 +1298,9 @@ post_actions = ["printf 'profile-post\n' >> log.txt"]
     #[test]
     fn actions_are_a_noop_when_profile_has_no_platform_and_no_actions() {
         let dir = temp_dir("noop");
-        let toml_str = r#"
+        let toml_str = r"
 [profiles.plain]
-"#;
+";
         let table: toml::Table = toml_str.parse().unwrap();
         let config = Config::from_table(&table).unwrap();
         let (ctx, _) = Context::new(&dir, &config, &Some("plain".to_string()), false).unwrap();
@@ -1486,7 +1485,11 @@ mod update_needs_variables_tests {
     fn test_literal_dest_needs_no_variables() {
         let (config, profile) =
             config_with(Package::new("nvim", "dotfiles/nvim", "~/.config/nvim"));
-        assert!(!config.update_needs_variables(&profile, &None).unwrap());
+        assert!(
+            !config
+                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -1496,7 +1499,11 @@ mod update_needs_variables_tests {
             "dotfiles/nvim",
             "{{ CONFIG_HOME }}/nvim",
         ));
-        assert!(config.update_needs_variables(&profile, &None).unwrap());
+        assert!(
+            config
+                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .unwrap()
+        );
     }
 
     #[test]
@@ -1505,6 +1512,49 @@ mod update_needs_variables_tests {
         pkg.targets
             .insert("work".to_string(), "{{ WORK_HOME }}/nvim".to_string());
         let (config, profile) = config_with(pkg);
-        assert!(config.update_needs_variables(&profile, &None).unwrap());
+        assert!(
+            config
+                .update_needs_variables(&profile, &None, std::path::Path::new("does-not-exist"))
+                .unwrap()
+        );
+    }
+}
+
+#[cfg(test)]
+mod update_needs_variables_for_templated_sources_tests {
+    use std::fs;
+
+    use crate::config::Config;
+    use crate::package::Package;
+    use crate::profile::Profile;
+
+    fn check(file: &str, content: &[u8]) -> bool {
+        let dir = std::env::temp_dir().join(format!("dotr-needs-vars-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(dir.join("dotfiles/app")).unwrap();
+        fs::write(dir.join("dotfiles/app").join(file), content).unwrap();
+        let mut config = Config::new();
+        let mut profile = Profile::new("work");
+        profile.dependencies.push("app".to_string());
+        config.packages.insert(
+            "app".to_string(),
+            Package::new("app", "dotfiles/app", "~/.config/app"),
+        );
+        let needs = config
+            .update_needs_variables(&profile, &None, &dir)
+            .unwrap();
+        fs::remove_dir_all(&dir).ok();
+        needs
+    }
+
+    #[test]
+    fn a_templated_file_in_the_source_needs_variables() {
+        assert!(check("env.nu", b"$env.HOME = \"{{ HOME }}\"\n"));
+    }
+
+    #[test]
+    fn plain_and_binary_files_need_none() {
+        assert!(!check("plain.conf", b"x = 1\n"));
+        assert!(!check("icon.png", b"\x89PNG\r\n\x1a\n{{ not text }}\xff"));
+        assert!(!check("data.bin", b"utf-8, but\0binary {{ x }}"));
     }
 }

@@ -63,7 +63,7 @@ impl FileStore {
         FileStore {}
     }
 
-    fn get_file_path(&self, cwd: &Path) -> PathBuf {
+    fn get_file_path(cwd: &Path) -> PathBuf {
         cwd.join(".uservariables.toml")
     }
 }
@@ -72,7 +72,7 @@ impl PromptStoreBackend for FileStore {
     // Unlike Keychain/Bitwarden, the file already holds everything - no
     // need to scope the read to just the currently-declared prompt keys.
     fn get(&mut self, cwd: &Path, _keys: &[String]) -> anyhow::Result<Table> {
-        let path = self.get_file_path(cwd);
+        let path = Self::get_file_path(cwd);
         if !path.exists() {
             return Ok(Table::new());
         }
@@ -82,7 +82,7 @@ impl PromptStoreBackend for FileStore {
     }
 
     fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()> {
-        let path = self.get_file_path(cwd);
+        let path = Self::get_file_path(cwd);
         let content_string = toml::to_string(records)?;
         fs::write(path, content_string)?;
         Ok(())
@@ -104,7 +104,7 @@ impl KeychainStore {
 
     // No real "spec" for entry naming here — `DOTR`/`DOTR_` prefixes plus
     // the repo path just keep entries identifiable and scoped per-repo.
-    fn entry(&self, cwd: &Path, key: &str) -> anyhow::Result<keyring::Entry> {
+    fn entry(cwd: &Path, key: &str) -> anyhow::Result<keyring::Entry> {
         let service = format!("DOTR:{}", cwd.display());
         keyring::Entry::new(&service, &format!("DOTR_{key}"))
             .map_err(|e| anyhow::anyhow!("Failed to access the OS keychain for '{key}': {e}"))
@@ -115,7 +115,7 @@ impl PromptStoreBackend for KeychainStore {
     fn get(&mut self, cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
         let mut records = Table::new();
         for key in keys {
-            match self.entry(cwd, key)?.get_password() {
+            match Self::entry(cwd, key)?.get_password() {
                 Ok(value) => {
                     records.insert(key.clone(), toml::Value::String(value));
                 }
@@ -129,9 +129,9 @@ impl PromptStoreBackend for KeychainStore {
     }
 
     fn save(&mut self, cwd: &Path, records: &Table) -> anyhow::Result<()> {
-        for (key, value) in records.iter() {
+        for (key, value) in records {
             if let Some(v) = value.as_str() {
-                self.entry(cwd, key)?.set_password(v).map_err(|e| {
+                Self::entry(cwd, key)?.set_password(v).map_err(|e| {
                     anyhow::anyhow!("Failed to save '{key}' to the OS keychain: {e}")
                 })?;
             }
@@ -166,11 +166,10 @@ impl BitwardenStore {
         }
     }
 
-    fn auth_failed_hint(&self, detail: &str) -> anyhow::Error {
+    fn auth_failed_hint(detail: &str) -> anyhow::Error {
         anyhow::anyhow!(
-            "Bitwarden authentication failed: {}\nMake sure `bw login`/`bw unlock` can \
-complete in this terminal.",
-            detail
+            "Bitwarden authentication failed: {detail}\nMake sure `bw login`/`bw unlock` can \
+complete in this terminal."
         )
     }
 
@@ -226,7 +225,7 @@ complete in this terminal.",
     /// failure here isn't itself noteworthy - a real problem still
     /// surfaces properly from the get/set call that follows it.
     fn sync(&self) {
-        let _ = self.bw(&["sync"]);
+        self.bw(&["sync"]).ok();
     }
 
     /// Drives `bw login`/`bw unlock` interactively and caches the
@@ -282,6 +281,14 @@ complete in this terminal.",
         Ok(())
     }
 
+    /// The note, read from Bitwarden on first use.
+    fn loaded(&mut self) -> anyhow::Result<&mut BitwardenState> {
+        self.ensure_loaded()?;
+        self.state
+            .as_mut()
+            .ok_or_else(|| anyhow::anyhow!("Bitwarden note '{}' did not load", self.note))
+    }
+
     fn ensure_loaded(&mut self) -> anyhow::Result<()> {
         if self.state.is_some() {
             return Ok(());
@@ -296,7 +303,7 @@ complete in this terminal.",
         let mut output = self.bw(&["get", "item", &self.note])?;
         if !output.status.success() || output.stdout.is_empty() {
             self.authenticate_interactively()
-                .map_err(|e| self.auth_failed_hint(&e.to_string()))?;
+                .map_err(|e| Self::auth_failed_hint(&e.to_string()))?;
             output = self.bw(&["get", "item", &self.note])?;
         }
         if !output.status.success() || output.stdout.is_empty() {
@@ -357,8 +364,7 @@ and try again.",
 
 impl PromptStoreBackend for BitwardenStore {
     fn get(&mut self, _cwd: &Path, keys: &[String]) -> anyhow::Result<Table> {
-        self.ensure_loaded()?;
-        let values = &self.state.as_ref().expect("just ensured loaded").values;
+        let values = &self.loaded()?.values;
         let mut records = Table::new();
         for key in keys {
             if let Some(v) = values.get(key) {
@@ -369,11 +375,9 @@ impl PromptStoreBackend for BitwardenStore {
     }
 
     fn save(&mut self, _cwd: &Path, records: &Table) -> anyhow::Result<()> {
-        self.ensure_loaded()?;
-
         let (id, encoded_envelope) = {
-            let state = self.state.as_mut().expect("just ensured loaded");
-            for (key, value) in records.iter() {
+            let state = self.loaded()?;
+            for (key, value) in records {
                 state.values.insert(key.clone(), value.clone());
             }
             let notes_toml = toml::to_string(&state.values)?;
@@ -430,11 +434,11 @@ fn run_bw_encode(json: &str) -> anyhow::Result<String> {
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;
-    child
-        .stdin
-        .take()
-        .expect("stdin was piped")
-        .write_all(json.as_bytes())?;
+    let Some(mut stdin) = child.stdin.take() else {
+        anyhow::bail!("`bw encode` started without a stdin to write to");
+    };
+    stdin.write_all(json.as_bytes())?;
+    drop(stdin);
     let output = child
         .wait_with_output()
         .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;

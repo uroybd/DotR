@@ -45,6 +45,72 @@ optional = true
 version = "1.0.228"
 features = ["derive"]
 
+# The lints this crate holds itself to. CI runs clippy with `-D warnings`, so each one is an error there. `clippy.toml`
+# keeps `#[test]` code out of the panic-family lints. A lint that is wrong for one place is silenced there with
+# `#[expect(.., reason = "..")]`, not removed from this list.
+[lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+unused_lifetimes = "warn"
+unused_import_braces = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+
+[lints.clippy]
+# A lint is silenced with `#[expect(.., reason = "..")]`, which says when it is no longer needed; `#[allow]` only where
+# it fires on some targets and not others, and either way with its reason.
+allow_attributes_without_reason = "warn"
+# Code that can panic or write where it should not. A failure is returned (or, where it truly cannot happen, handled by
+# a pattern that shows why), never unwrapped. Printing goes through `utils::cprintln` and its siblings, the one place
+# this CLI writes to the terminal.
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+let_underscore_must_use = "warn"
+undocumented_unsafe_blocks = "warn"
+mem_forget = "warn"
+exit = "warn"
+# Hidden copies, and code that reads differently from what it does.
+cloned_instead_of_copied = "warn"
+explicit_into_iter_loop = "warn"
+explicit_iter_loop = "warn"
+flat_map_option = "warn"
+implicit_clone = "warn"
+inefficient_to_string = "warn"
+manual_assert = "warn"
+manual_let_else = "warn"
+manual_string_new = "warn"
+needless_continue = "warn"
+ref_option = "warn"
+used_underscore_binding = "warn"
+wildcard_imports = "warn"
+checked_conversions = "warn"
+large_types_passed_by_value = "warn"
+fn_params_excessive_bools = "warn"
+no_effect_underscore_binding = "warn"
+enum_glob_use = "warn"
+range_plus_one = "warn"
+stable_sort_primitive = "warn"
+unnecessary_wraps = "warn"
+match_wildcard_for_single_variants = "warn"
+option_option = "warn"
+semicolon_if_nothing_returned = "warn"
+uninlined_format_args = "warn"
+unused_self = "warn"
+default_trait_access = "warn"
+ignored_unit_patterns = "warn"
+trivially_copy_pass_by_ref = "warn"
+unnested_or_patterns = "warn"
+map_unwrap_or = "warn"
+needless_pass_by_value = "warn"
+needless_raw_string_hashes = "warn"
+cast_lossless = "warn"
+redundant_closure_for_method_calls = "warn"
+
 [profile.release]
 lto = true    # Link Time Optimization - improves speed and size
 strip = true  # Strip symbols - reduces size without performance impact

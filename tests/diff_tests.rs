@@ -1,9 +1,15 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
-use dotr_dear::{
-    cli::{DeployArgs, DiffArgs, ImportArgs, InitArgs, run_cli},
-    config::Config,
-};
+use dotr_dear::cli::{DeployArgs, DiffArgs, ImportArgs, InitArgs, run_cli};
 
 mod common;
 
@@ -26,7 +32,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -67,14 +73,9 @@ impl TestFixture {
         }))))
     }
 
-    #[allow(dead_code)]
-    fn get_config(&self) -> Config {
-        Config::from_path(&self.cwd).expect("Failed to load config")
-    }
-
     fn write_file(&self, path: &str, content: &str) {
         let file_path = self.cwd.join(path);
-        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {}", path));
+        fs::write(file_path, content).unwrap_or_else(|_| panic!("Failed to write file: {path}"));
     }
 
     fn get_package_name(&self, path: &str) -> String {

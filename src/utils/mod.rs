@@ -45,10 +45,10 @@ pub fn normalize_home_path(path: &str) -> String {
             return "~".to_string();
         }
 
-        let home_with_slash = format!("{}/", home_str);
+        let home_with_slash = format!("{home_str}/");
         if path.starts_with(&home_with_slash) {
             let relative = &path[home_str.len()..];
-            return format!("~{}", relative);
+            return format!("~{relative}");
         }
     }
 
@@ -88,6 +88,28 @@ impl LogLevel {
     }
 }
 
+/// Writes to standard output, as `print!` does. With [`outln!`] and [`cprintln`] it is the only way this crate
+/// prints: the `print_stdout` lint (Cargo.toml) forbids `print!` and `println!` everywhere else.
+#[macro_export]
+macro_rules! out {
+    ($($arg:tt)*) => {{
+        ::std::print!($($arg)*);
+    }};
+}
+
+/// Writes a line to standard output, as `println!` does. See [`out!`].
+#[macro_export]
+macro_rules! outln {
+    ($($arg:tt)*) => {{
+        ::std::println!($($arg)*);
+    }};
+}
+
+#[expect(
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "the crate's one way to write a status line to the terminal"
+)]
 pub fn cprintln(message: &str, level: &LogLevel) {
     match level {
         LogLevel::Error | LogLevel::Fatal => {
@@ -101,9 +123,9 @@ pub fn cprintln(message: &str, level: &LogLevel) {
 
 pub fn get_string_from_value(v: Option<&toml::Value>, field_name: &str) -> anyhow::Result<String> {
     Ok(
-        v.ok_or_else(|| anyhow::anyhow!("'{}' is required", field_name))?
+        v.ok_or_else(|| anyhow::anyhow!("'{field_name}' is required"))?
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("'{}' must be a string", field_name))?
+            .ok_or_else(|| anyhow::anyhow!("'{field_name}' must be a string"))?
             .to_string(),
     )
 }
@@ -136,7 +158,7 @@ pub fn get_vec_string_from_value(v: Option<&toml::Value>) -> anyhow::Result<Vec<
             .map(|v| {
                 v.as_str()
                     .ok_or_else(|| anyhow::anyhow!("array elements must be strings"))
-                    .map(|s| s.to_string())
+                    .map(std::string::ToString::to_string)
             })
             .collect::<Result<Vec<_>, _>>(),
         None => Ok(Vec::new()),
@@ -157,7 +179,7 @@ pub fn execute_action(
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     if dry_run {
         cprintln(
-            &format!("(Dry Run) Would execute action: {}", compiled_action),
+            &format!("(Dry Run) Would execute action: {compiled_action}"),
             &LogLevel::Info,
         );
         return Ok(());
@@ -177,6 +199,17 @@ pub fn execute_action(
         return Err(anyhow::anyhow!(msg));
     }
     Ok(())
+}
+
+/// Text as this crate means it: UTF-8 without a NUL byte. Anything else is binary, and is copied and compared
+/// byte for byte, never diffed or compiled.
+pub fn as_text(bytes: &[u8]) -> Option<&str> {
+    std::str::from_utf8(bytes).ok().filter(|text| is_text(text))
+}
+
+/// Whether a string that decoded as UTF-8 is text, not binary that happens to (see [`as_text`]).
+pub fn is_text(s: &str) -> bool {
+    !s.contains('\0')
 }
 
 pub fn compile_string(template_str: &str, context: &Table) -> anyhow::Result<String> {

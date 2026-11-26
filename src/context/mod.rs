@@ -10,6 +10,7 @@ use toml::Table;
 
 use crate::{
     config::Config,
+    outln,
     profile::Profile,
     prompt_store,
     utils::{LogLevel, cprintln},
@@ -110,12 +111,12 @@ impl Context {
     ) -> HashMap<String, String> {
         // config -> profile -> package, later wins.
         let mut prompts = conf.prompts.clone();
-        for (key, prompt) in profile.prompts.iter() {
+        for (key, prompt) in &profile.prompts {
             prompts.insert(key.clone(), prompt.clone());
         }
         if let Ok(filtered_packages) = conf.filter_packages(profile, packages, false) {
             for package in filtered_packages.values() {
-                for (key, prompt) in package.prompts.iter() {
+                for (key, prompt) in &package.prompts {
                     prompts.insert(key.clone(), prompt.clone());
                 }
             }
@@ -123,6 +124,10 @@ impl Context {
         prompts
     }
 
+    #[expect(
+        clippy::ref_option,
+        reason = "passed straight to `get_prompts`, which takes `&Option` like the rest of the public API"
+    )]
     fn get_prompted_variables_with_io<R: io::BufRead, W: io::Write>(
         &mut self,
         conf: &Config,
@@ -165,7 +170,7 @@ impl Context {
                 }
                 Err(e) => {
                     cprintln(
-                        &format!("Error getting prompted variable '{}': {}", key, e),
+                        &format!("Error getting prompted variable '{key}': {e}"),
                         &LogLevel::Warning,
                     );
                 }
@@ -305,7 +310,7 @@ impl Context {
         if let Some(prof) = profile {
             return Ok((prof.clone(), false));
         } else if !create_if_missing && profile_name != "default" {
-            anyhow::bail!("Profile {} not found", profile_name);
+            anyhow::bail!("Profile {profile_name} not found");
         }
         Ok((Profile::new(&profile_name), true))
     }
@@ -316,6 +321,16 @@ impl Context {
 
     pub fn get_user_variables(&self) -> &Table {
         &self.user_variables
+    }
+
+    /// The variables whose values must never be written into a tracked file: everything answered at a prompt or
+    /// kept in `.uservariables.toml` (which stays out of version control), except the two bootstrap settings.
+    pub fn secret_names(&self) -> std::collections::BTreeSet<String> {
+        self.user_variables
+            .keys()
+            .filter(|k| *k != DOTR_PROFILE_KEY && *k != BITWARDEN_NOTE_OVERRIDE_KEY)
+            .cloned()
+            .collect()
     }
 
     pub fn get_context_variables(&self) -> Table {
@@ -332,11 +347,11 @@ impl Context {
 
     pub fn print_variables(&self) {
         let variables = &self.get_context_variables();
-        println!("User Variables:");
+        outln!("User Variables:");
         if variables.is_empty() {
-            println!("  (none)");
+            outln!("  (none)");
         } else {
-            for (key, value) in variables.iter() {
+            for (key, value) in variables {
                 print_variable(key, value, 1);
             }
         }
@@ -347,53 +362,53 @@ pub fn print_variable(key: &str, value: &toml::Value, level: usize) {
     let indent = "  ".repeat(level);
     match value {
         toml::Value::String(s) => {
-            println!("{}{} = {}", indent, key, s);
+            outln!("{indent}{key} = {s}");
         }
         toml::Value::Integer(i) => {
-            println!("{}{} = {}", indent, key, i);
+            outln!("{indent}{key} = {i}");
         }
         toml::Value::Float(f) => {
-            println!("{}{} = {}", indent, key, f);
+            outln!("{indent}{key} = {f}");
         }
         toml::Value::Boolean(b) => {
-            println!("{}{} = {}", indent, key, b);
+            outln!("{indent}{key} = {b}");
         }
         toml::Value::Table(t) => {
-            println!("{}{} =", indent, key);
-            for (k, v) in t.iter() {
+            outln!("{indent}{key} =");
+            for (k, v) in t {
                 print_variable(k, v, level + 1);
             }
         }
         toml::Value::Array(arr) => {
-            println!("{}{} = [", indent, key);
-            for v in arr.iter() {
+            outln!("{indent}{key} = [");
+            for v in arr {
                 let item_indent = "  ".repeat(level + 1);
                 match v {
                     toml::Value::String(s) => {
-                        println!("{}- {}", item_indent, s);
+                        outln!("{item_indent}- {s}");
                     }
                     toml::Value::Integer(i) => {
-                        println!("{}- {}", item_indent, i);
+                        outln!("{item_indent}- {i}");
                     }
                     toml::Value::Float(f) => {
-                        println!("{}- {}", item_indent, f);
+                        outln!("{item_indent}- {f}");
                     }
                     toml::Value::Boolean(b) => {
-                        println!("{}- {}", item_indent, b);
+                        outln!("{item_indent}- {b}");
                     }
                     toml::Value::Table(_) | toml::Value::Array(_) => {
-                        println!("{}-", item_indent);
+                        outln!("{item_indent}-");
                         print_variable("", v, level + 2);
                     }
-                    _ => {
-                        println!("{}- {:?}", item_indent, v);
+                    toml::Value::Datetime(_) => {
+                        outln!("{item_indent}- {v:?}");
                     }
                 }
             }
-            println!("{}]", indent);
+            outln!("{indent}]");
         }
-        _ => {
-            println!("{}{} = {:?}", indent, key, value);
+        toml::Value::Datetime(_) => {
+            outln!("{indent}{key} = {value:?}");
         }
     }
 }
@@ -415,10 +430,10 @@ fn resolve_bitwarden_note(
             user_variables
                 .get(BITWARDEN_NOTE_OVERRIDE_KEY)
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
+                .map(std::string::ToString::to_string)
         })
-        .or_else(|| profile_note.map(|s| s.to_string()))
-        .or_else(|| config_note.map(|s| s.to_string()))
+        .or_else(|| profile_note.map(std::string::ToString::to_string))
+        .or_else(|| config_note.map(std::string::ToString::to_string))
         .unwrap_or_else(|| DEFAULT_BITWARDEN_NOTE.to_string())
 }
 
@@ -428,7 +443,7 @@ fn get_prompted_variables<R: io::BufRead, W: io::Write>(
     mut writer: W,
 ) -> anyhow::Result<String> {
     // Prompt the user for input
-    writer.write_all(format!("{}\n>>> ", prompt).as_bytes())?;
+    writer.write_all(format!("{prompt}\n>>> ").as_bytes())?;
     writer.flush()?;
     let mut input = String::new();
     reader.read_line(&mut input)?;

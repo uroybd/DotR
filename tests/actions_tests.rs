@@ -1,3 +1,12 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
@@ -23,7 +32,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -54,7 +63,7 @@ impl TestFixture {
         .expect("Deploy failed");
     }
 
-    fn deploy_with_args(&self, packages: Option<Vec<String>>, args: DeployArgs) {
+    fn deploy_with_args(&self, packages: Option<Vec<String>>, args: &DeployArgs) {
         run_cli(
             self.get_cli(Some(dotr_dear::cli::Command::Deploy(DeployArgs {
                 packages,
@@ -62,7 +71,7 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
-                ..args
+                ..*args
             }))),
         )
         .expect("Deploy failed");
@@ -773,11 +782,11 @@ fn test_skip_pre_actions_skips_only_pre() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Guard against leftover marker files from prior runs polluting the assertion below.
-    let _ = fs::remove_file(fixture.cwd.join("src/skip_pre_marker.txt"));
+    fs::remove_file(fixture.cwd.join("src/skip_pre_marker.txt")).ok();
 
     fixture.deploy_with_args(
         Some(vec!["f_skip_pre_test".to_string()]),
-        DeployArgs {
+        &DeployArgs {
             skip_pre_actions: true,
             ..Default::default()
         },
@@ -824,11 +833,11 @@ fn test_skip_post_actions_skips_only_post() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Guard against leftover marker files from prior runs polluting the assertion below.
-    let _ = fs::remove_file(fixture.cwd.join("src/skip_post_marker.txt"));
+    fs::remove_file(fixture.cwd.join("src/skip_post_marker.txt")).ok();
 
     fixture.deploy_with_args(
         Some(vec!["f_skip_post_test".to_string()]),
-        DeployArgs {
+        &DeployArgs {
             skip_post_actions: true,
             ..Default::default()
         },
@@ -875,12 +884,12 @@ fn test_skip_actions_skips_both_pre_and_post() {
     config.save(&fixture.cwd).expect("Failed to save config");
 
     // Guard against leftover marker files from prior runs polluting the assertions below.
-    let _ = fs::remove_file(fixture.cwd.join("src/skip_all_pre_marker.txt"));
-    let _ = fs::remove_file(fixture.cwd.join("src/skip_all_post_marker.txt"));
+    fs::remove_file(fixture.cwd.join("src/skip_all_pre_marker.txt")).ok();
+    fs::remove_file(fixture.cwd.join("src/skip_all_post_marker.txt")).ok();
 
     fixture.deploy_with_args(
         Some(vec!["f_skip_all_test".to_string()]),
-        DeployArgs {
+        &DeployArgs {
             skip_actions: true,
             ..Default::default()
         },
@@ -928,7 +937,7 @@ fn test_actions_run_by_default_without_skip_flags() {
 
     fixture.deploy_with_args(
         Some(vec!["f_no_skip_test".to_string()]),
-        DeployArgs::default(),
+        &DeployArgs::default(),
     );
 
     assert!(
@@ -976,7 +985,7 @@ fn test_pre_actions_run_once_for_multi_file_directory_package() {
 
     // Guard against a leftover log from a prior run polluting the count below;
     // common::teardown doesn't know about this ad-hoc filename.
-    let _ = fs::remove_file(fixture.cwd.join("src/pre_run_count.txt"));
+    fs::remove_file(fixture.cwd.join("src/pre_run_count.txt")).ok();
 
     fixture.deploy(Some(vec!["f_multi_file_pre_test".to_string()]));
 
@@ -986,8 +995,7 @@ fn test_pre_actions_run_once_for_multi_file_directory_package() {
     assert_eq!(
         run_count, 1,
         "pre_actions should run exactly once per deploy, regardless of how many \
-         files are in the package (ran {} times)",
-        run_count
+         files are in the package (ran {run_count} times)"
     );
 }
 
@@ -1026,7 +1034,7 @@ fn test_platform_and_profile_actions_wrap_the_deploy() {
         .insert("f_wrapped_deploy".to_string(), package);
     config.save(&fixture.cwd).expect("Failed to save config");
 
-    let _ = fs::remove_file(fixture.cwd.join("src/wrap_log.txt"));
+    fs::remove_file(fixture.cwd.join("src/wrap_log.txt")).ok();
 
     run_cli(dotr_dear::cli::Cli {
         command: Some(dotr_dear::cli::Command::Deploy(DeployArgs {
@@ -1091,7 +1099,7 @@ fn test_skip_actions_also_skips_platform_and_profile_actions() {
         "skip_wrap_profile_pre.txt",
         "skip_wrap_profile_post.txt",
     ] {
-        let _ = fs::remove_file(fixture.cwd.join("src").join(marker));
+        fs::remove_file(fixture.cwd.join("src").join(marker)).ok();
     }
 
     run_cli(dotr_dear::cli::Cli {
@@ -1114,8 +1122,7 @@ fn test_skip_actions_also_skips_platform_and_profile_actions() {
     ] {
         assert!(
             !fixture.cwd.join("src").join(marker).exists(),
-            "--skip-actions must skip platform/profile action '{}'",
-            marker
+            "--skip-actions must skip platform/profile action '{marker}'"
         );
     }
 

@@ -9,6 +9,7 @@ use crate::{
         RemovePackageArgs, UpdateArgs,
     },
     context::Context,
+    out, outln,
     package::{BackupDeployResult, Package, is_templated_str},
     platform::Platform,
     profile::Profile,
@@ -47,6 +48,7 @@ pub struct Config {
     pub prompt_backend: Option<crate::prompt_store::PromptBackendType>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) enum OpType {
     Backup,
     Deploy,
@@ -69,7 +71,7 @@ impl Config {
         // `init()` - otherwise the very next save (import, deploy, profiles
         // add/remove, ...) drops it, since serializing `Config` back to TOML
         // has no way to preserve a leading comment on its own.
-        let config_content = format!("#:schema {}\n{}", SCHEMA_URL, config_content);
+        let config_content = format!("#:schema {SCHEMA_URL}\n{config_content}");
         std::fs::write(cwd.join("config.toml"), config_content)?;
         Ok(())
     }
@@ -78,10 +80,10 @@ impl Config {
         let mut packages: HashMap<String, Package> = HashMap::new();
         let package_confs = table.get("packages").and_then(|v| v.as_table());
         if let Some(pkg_confs) = package_confs {
-            for (key, val) in pkg_confs.iter() {
+            for (key, val) in pkg_confs {
                 let pkg_val = val
                     .as_table()
-                    .ok_or_else(|| anyhow::anyhow!("Package '{}' must be a table", key))?;
+                    .ok_or_else(|| anyhow::anyhow!("Package '{key}' must be a table"))?;
                 let pkg = Package::from_table(key, pkg_val)?;
                 packages.insert(pkg.name.clone(), pkg);
             }
@@ -91,10 +93,10 @@ impl Config {
         let mut profiles: HashMap<String, Profile> = HashMap::new();
         let profile_confs = table.get("profiles").and_then(|v| v.as_table());
         if let Some(prof_confs) = profile_confs {
-            for (key, val) in prof_confs.iter() {
+            for (key, val) in prof_confs {
                 let prof_val = val
                     .as_table()
-                    .ok_or_else(|| anyhow::anyhow!("Profile '{}' must be a table", key))?;
+                    .ok_or_else(|| anyhow::anyhow!("Profile '{key}' must be a table"))?;
                 let mut profile = Profile::from_table(key, prof_val)?;
                 // Resolved once here, at parse time, rather than on every
                 // `Context::new` - a profile's `platform` is fixed for the
@@ -110,7 +112,7 @@ impl Config {
         }
         let mut variables: Table = Table::new();
         if let Some(vars) = table.get("variables").and_then(|v| v.as_table()) {
-            for (k, v) in vars.iter() {
+            for (k, v) in vars {
                 variables.insert(k.clone(), v.clone());
             }
         }
@@ -118,7 +120,7 @@ impl Config {
         let bitwarden_note = table
             .get("bitwarden_note")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let prompt_backend = table
             .get("prompt_backend")
             .and_then(|v| v.as_str())
@@ -127,11 +129,11 @@ impl Config {
         Ok(Self {
             banner: table
                 .get("banner")
-                .and_then(|v| v.as_bool())
+                .and_then(toml::Value::as_bool)
                 .unwrap_or(false),
             symlink: table
                 .get("symlink")
-                .and_then(|v| v.as_bool())
+                .and_then(toml::Value::as_bool)
                 .unwrap_or(false),
             packages,
             profiles,
@@ -156,6 +158,7 @@ impl Config {
             ignore_errors: false,
             clean: Some(false),
             dry_run: false,
+            conflict: Some(crate::merge::Resolution::Skip),
         };
         package.backup(ctx, &backup_args)?;
         profile.dependencies.push(pkg_name.clone());
@@ -169,9 +172,10 @@ impl Config {
         self.profiles.insert(profile_name.clone(), profile);
         self.save(&ctx.working_dir)?;
         if should_deploy {
-            let pkg = self.packages.get(&pkg_name).ok_or_else(|| {
-                anyhow::anyhow!("Package '{}' not found after insertion", pkg_name)
-            })?;
+            let pkg = self
+                .packages
+                .get(&pkg_name)
+                .ok_or_else(|| anyhow::anyhow!("Package '{pkg_name}' not found after insertion"))?;
             pkg.deploy(
                 ctx,
                 &crate::cli::DeployArgs {
@@ -187,7 +191,7 @@ impl Config {
                 },
             )?;
         }
-        cprintln(&format!("Package '{}' imported", pkg_name), &LogLevel::Info);
+        cprintln(&format!("Package '{pkg_name}' imported"), &LogLevel::Info);
         Ok(())
     }
 
@@ -203,7 +207,7 @@ impl Config {
                 if let Some(pkg) = self.packages.get(name) {
                     packages.insert(name.clone(), pkg.clone());
                 } else {
-                    return Err(anyhow::anyhow!("Package '{}' not found", name));
+                    return Err(anyhow::anyhow!("Package '{name}' not found"));
                 }
             }
         } else {
@@ -227,7 +231,7 @@ impl Config {
                     if let Some(dep_pkg) = self.packages.get(dep) {
                         dependencies.insert(dep.clone(), dep_pkg.clone());
                     } else {
-                        anyhow::bail!("Dependency package '{}' not found in configuration", dep);
+                        anyhow::bail!("Dependency package '{dep}' not found in configuration");
                     }
                 }
             }
@@ -236,17 +240,20 @@ impl Config {
         Ok(packages)
     }
 
-    /// Whether any package `update` would touch has a templated deployment
-    /// path, and so needs prompted variables resolved before it can run.
+    /// Whether any package `update` would touch has a templated deployment path or a templated file (which the
+    /// merge renders), and so needs prompted variables resolved before it can run.
     pub fn update_needs_variables(
         &self,
         profile: &Profile,
         names: &Option<Vec<String>>,
+        working_dir: &Path,
     ) -> anyhow::Result<bool> {
-        Ok(self
-            .filter_packages(profile, names, false)?
-            .values()
-            .any(|pkg| is_templated_str(pkg.raw_dest(profile))))
+        for pkg in self.filter_packages(profile, names, false)?.values() {
+            if is_templated_str(pkg.raw_dest(profile)) || pkg.has_templated_source(working_dir)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     pub fn backup_packages(&self, ctx: &Context, args: &UpdateArgs) -> Result<(), anyhow::Error> {
@@ -436,25 +443,27 @@ impl Config {
         let packages = self.filter_packages(&ctx.profile, &None, false)?;
         if args.plain {
             for pkg in packages.values() {
-                println!("{}", pkg.name);
+                outln!("{}", pkg.name);
             }
         } else if packages.is_empty() {
             cprintln("No packages found.", &LogLevel::Info);
         } else {
             for pkg in packages.values() {
-                println!("{}", pkg.name);
+                outln!("{}", pkg.name);
                 if args.verbose {
-                    print!(
+                    out!(
                         "    Source: {}\n    Destination: {}\n    skipped: {}\n",
-                        pkg.src, pkg.dest, pkg.skip
+                        pkg.src,
+                        pkg.dest,
+                        pkg.skip
                     );
                     if let Some(deps) = &pkg.dependencies {
-                        println!("    Dependencies: {:?}", deps);
+                        outln!("    Dependencies: {deps:?}");
                     }
                     if !pkg.targets.is_empty() {
-                        println!("    Targets:");
-                        for (target_name, target_dest) in pkg.targets.iter() {
-                            println!("      - {}: {}", target_name, target_dest);
+                        outln!("    Targets:");
+                        for (target_name, target_dest) in &pkg.targets {
+                            outln!("      - {target_name}: {target_dest}");
                         }
                     }
                 }
@@ -466,26 +475,26 @@ impl Config {
     pub fn list_profiles(&self, args: &crate::cli::ProfilesListArgs) -> anyhow::Result<()> {
         if args.plain {
             for profile in self.profiles.values() {
-                println!("{}", profile.name);
+                outln!("{}", profile.name);
             }
         } else if self.profiles.is_empty() {
             cprintln("No profiles found.", &LogLevel::Info);
         } else {
             for profile in self.profiles.values() {
-                println!("{}", profile.name);
+                outln!("{}", profile.name);
                 if args.verbose {
-                    println!("    Dependencies: {:?}", profile.dependencies);
-                    println!("    Variables: {:?}", profile.variables);
+                    outln!("    Dependencies: {:?}", profile.dependencies);
+                    outln!("    Variables: {:?}", profile.variables);
                     if let Some(backend) = profile.prompt_backend {
-                        println!("    Prompt backend: {}", backend.as_str());
+                        outln!("    Prompt backend: {}", backend.as_str());
                     }
                     if let Some(platform) = &profile.platform {
-                        println!("    Platform: {}", platform);
+                        outln!("    Platform: {platform}");
                     }
                     if !profile.prompts.is_empty() {
-                        println!("    Prompts:");
-                        for (var, prompt) in profile.prompts.iter() {
-                            println!("      - {}: {}", var, prompt);
+                        outln!("    Prompts:");
+                        for (var, prompt) in &profile.prompts {
+                            outln!("      - {var}: {prompt}");
                         }
                     }
                 }
@@ -542,18 +551,15 @@ impl Config {
         let ignored_profiles: Vec<String> = vec![ctx.profile.name.clone()];
         let mut dirty = false;
         let mut to_remove = HashMap::new();
-        for package_name in packages.iter() {
+        for package_name in &packages {
             if !self.packages.contains_key(package_name) {
-                anyhow::bail!("Package '{}' not found in configuration", package_name);
+                anyhow::bail!("Package '{package_name}' not found in configuration");
             }
             let (is_safe, dependent_profiles, dependent_packages) =
                 self.is_package_safe_to_remove(package_name, &ignored_profiles, &packages);
             if !is_safe && !args.force {
                 anyhow::bail!(
-                    "Package '{}' cannot be removed because it is depended on by profiles: {:?} and packages: {:?}. Use --force to override.",
-                    package_name,
-                    dependent_profiles,
-                    dependent_packages
+                    "Package '{package_name}' cannot be removed because it is depended on by profiles: {dependent_profiles:?} and packages: {dependent_packages:?}. Use --force to override."
                 );
             }
             to_remove.insert(
@@ -561,7 +567,7 @@ impl Config {
                 self.packages
                     .get(package_name)
                     .ok_or_else(|| {
-                        anyhow::anyhow!("Package '{}' not found in configuration", package_name)
+                        anyhow::anyhow!("Package '{package_name}' not found in configuration")
                     })?
                     .clone(),
             );
@@ -570,22 +576,22 @@ impl Config {
             cprintln("No packages to remove.", &LogLevel::Info);
             return Ok(());
         }
-        for (package_name, pkg) in to_remove.iter() {
+        for (package_name, pkg) in &to_remove {
             if args.dry_run {
                 cprintln(
-                    &format!("Package '{}' would be removed (dry run)", package_name),
+                    &format!("Package '{package_name}' would be removed (dry run)"),
                     &LogLevel::Info,
                 );
                 continue;
             }
             match self.remove_package(pkg, ctx) {
                 Err(e) => {
-                    anyhow::bail!("Error removing package '{}': {}", package_name, e);
+                    anyhow::bail!("Error removing package '{package_name}': {e}");
                 }
-                Ok(_) => {
+                Ok(()) => {
                     dirty = true;
                     cprintln(
-                        &format!("Package '{}' removed", package_name),
+                        &format!("Package '{package_name}' removed"),
                         &LogLevel::Info,
                     );
                 }
@@ -593,10 +599,10 @@ impl Config {
         }
         if args.remove_orphans {
             let orphan_packages = self.get_orphan_packages();
-            for orphan in orphan_packages.iter() {
+            for orphan in &orphan_packages {
                 if args.dry_run {
                     cprintln(
-                        &format!("Orphan package '{}' would be removed (dry run)", orphan),
+                        &format!("Orphan package '{orphan}' would be removed (dry run)"),
                         &LogLevel::Info,
                     );
                     continue;
@@ -605,17 +611,17 @@ impl Config {
                     .packages
                     .get(orphan)
                     .ok_or_else(|| {
-                        anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan)
+                        anyhow::anyhow!("Orphan package '{orphan}' not found in configuration")
                     })?
                     .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
-                        anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
+                        anyhow::bail!("Error removing orphan package '{orphan}': {e}");
                     }
-                    Ok(_) => {
+                    Ok(()) => {
                         dirty = true;
                         cprintln(
-                            &format!("Orphan package '{}' removed", orphan),
+                            &format!("Orphan package '{orphan}' removed"),
                             &LogLevel::Info,
                         );
                     }
@@ -710,22 +716,22 @@ impl Config {
         if args.remove_orphans {
             let orphan_packages = self.get_orphan_packages();
             let mut dirty = false;
-            for orphan in orphan_packages.iter() {
+            for orphan in &orphan_packages {
                 let pkg = self
                     .packages
                     .get(orphan)
                     .ok_or_else(|| {
-                        anyhow::anyhow!("Orphan package '{}' not found in configuration", orphan)
+                        anyhow::anyhow!("Orphan package '{orphan}' not found in configuration")
                     })?
                     .clone();
                 match self.remove_package(&pkg, ctx) {
                     Err(e) => {
-                        anyhow::bail!("Error removing orphan package '{}': {}", orphan, e);
+                        anyhow::bail!("Error removing orphan package '{orphan}': {e}");
                     }
-                    Ok(_) => {
+                    Ok(()) => {
                         dirty = true;
                         cprintln(
-                            &format!("Orphan package '{}' removed", orphan),
+                            &format!("Orphan package '{orphan}' removed"),
                             &LogLevel::Info,
                         );
                     }
@@ -746,23 +752,23 @@ pub(crate) fn print_stats(stats: &HashMap<BackupDeployResult, u32>, op_type: OpT
     };
     let mut summary_parts = vec![];
     if let Some(count) = stats.get(&BackupDeployResult::Success) {
-        summary_parts.push(format!("✅ {} {}", count, op_success_name));
+        summary_parts.push(format!("✅ {count} {op_success_name}"));
     }
     if let Some(count) = stats.get(&BackupDeployResult::Skipped) {
-        summary_parts.push(format!("🔄 {} no changes", count));
+        summary_parts.push(format!("🔄 {count} no changes"));
     }
     if let Some(count) = stats.get(&BackupDeployResult::Failed) {
-        summary_parts.push(format!("❌ {} failed", count));
+        summary_parts.push(format!("❌ {count} failed"));
     }
     if summary_parts.is_empty() {
         cprintln(
-            &format!("No packages processed for {}", op_name),
+            &format!("No packages processed for {op_name}"),
             &LogLevel::Info,
         );
     } else {
         let mut summary_string = summary_parts.join(", ");
         summary_string.push('.');
-        cprintln(&format!("{} summary:", op_name), &LogLevel::Info);
+        cprintln(&format!("{op_name} summary:"), &LogLevel::Info);
         cprintln(&summary_string, &LogLevel::Info);
     }
 }

@@ -1,8 +1,18 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    reason = "test code: a failure is the point"
+)]
+
 use std::{fs, path::PathBuf};
 
 use dotr_dear::{
     cli::{DeployArgs, ImportArgs, InitArgs, UpdateArgs, run_cli},
     config::Config,
+    merge::Resolution,
     package::get_pkg_name_and_rel_path,
 };
 
@@ -25,7 +35,7 @@ impl TestFixture {
     fn get_cli(&self, command: Option<dotr_dear::cli::Command>) -> dotr_dear::cli::Cli {
         dotr_dear::cli::Cli {
             command,
-            working_dir: Some(PLAYGROUND_DIR.to_string()),
+            working_dir: Some(self.cwd.display().to_string()),
         }
     }
 
@@ -66,9 +76,53 @@ impl TestFixture {
                 ignore_errors: false,
                 clean: Some(false),
                 dry_run: false,
+                conflict: Some(dotr_dear::merge::Resolution::Skip),
             }))),
         )
         .expect("Update failed");
+    }
+
+    fn update_with(&self, package: &str, conflict: Resolution, dry_run: bool) {
+        run_cli(
+            self.get_cli(Some(dotr_dear::cli::Command::Update(UpdateArgs {
+                packages: Some(vec![package.to_string()]),
+                clean: Some(false),
+                dry_run,
+                conflict: Some(conflict),
+                ..Default::default()
+            }))),
+        )
+        .expect("Update failed");
+    }
+
+    /// A single-file package `name` from `dotfiles/{name}` (holding `template`) to `src/.{name}`, with `vars` as
+    /// config variables, deployed. Returns the deployed path.
+    fn deployed_template(&self, name: &str, template: &str, vars: &[(&str, &str)]) -> PathBuf {
+        fs::create_dir_all(self.cwd.join("dotfiles")).unwrap();
+        fs::write(self.cwd.join("dotfiles").join(name), template).unwrap();
+        let mut config = self.get_config();
+        for (key, value) in vars {
+            config.variables.insert(
+                (*key).to_string(),
+                toml::Value::String((*value).to_string()),
+            );
+        }
+        config.packages.insert(
+            name.to_string(),
+            dotr_dear::package::Package {
+                name: name.to_string(),
+                src: format!("dotfiles/{name}"),
+                dest: format!("src/.{name}"),
+                ..Default::default()
+            },
+        );
+        config.save(&self.cwd).unwrap();
+        self.deploy(Some(vec![name.to_string()]));
+        self.cwd.join(format!("src/.{name}"))
+    }
+
+    fn template(&self, name: &str) -> String {
+        fs::read_to_string(self.cwd.join("dotfiles").join(name)).unwrap()
     }
 
     fn get_config(&self) -> Config {
@@ -134,7 +188,7 @@ fn test_template_detection_simple() {
 
     // Verify it still has template markers (not compiled)
     let pkg_ns = fixture.get_package_ns("src/.bashrc.template");
-    let template_content = fs::read_to_string(fixture.cwd.join(format!("dotfiles/{}", pkg_ns)))
+    let template_content = fs::read_to_string(fixture.cwd.join(format!("dotfiles/{pkg_ns}")))
         .expect("Failed to read template");
     assert!(
         template_content.contains("{{ USER }}"),
@@ -236,8 +290,7 @@ fn test_template_with_custom_variables() {
 
     assert!(
         content.contains("# MyApp v1.0.0"),
-        "Custom variables should be substituted: {}",
-        content
+        "Custom variables should be substituted: {content}"
     );
     assert!(
         !content.contains("{{ APP_NAME }}"),
@@ -333,6 +386,7 @@ fn test_clean_does_not_delete_templated_file() {
             ignore_errors: false,
             clean: None,
             dry_run: false,
+            conflict: Some(dotr_dear::merge::Resolution::Skip),
         }))),
     )
     .expect("Update failed");
@@ -551,9 +605,8 @@ fn test_mixed_template_and_regular_files() {
 
     // Regular file backup should reflect changes
     let bashrc_name = fixture.get_package_name(BASHRC_PATH);
-    let backed_up_content =
-        fs::read_to_string(fixture.cwd.join(format!("dotfiles/{}", bashrc_name)))
-            .expect("Failed to read backed up regular file");
+    let backed_up_content = fs::read_to_string(fixture.cwd.join(format!("dotfiles/{bashrc_name}")))
+        .expect("Failed to read backed up regular file");
     assert!(
         backed_up_content.contains("# Modified regular file"),
         "Regular file should be backed up with modifications"
@@ -609,5 +662,222 @@ fn test_template_with_tera_statements() {
     assert!(
         content.contains("user="),
         "Tera conditionals should be evaluated"
+    );
+}
+
+#[test]
+fn test_update_merges_deployed_edits_into_the_template() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template(
+        "f_merge_plain",
+        "dir = {{ APP_DIR }}\nmode = fast\n",
+        &[("APP_DIR", "/opt/app-test")],
+    );
+    let edited = "dir = /opt/app-test\nmode = slow\ncache = /opt/app-test/cache\n";
+    fs::write(&deployed, edited).unwrap();
+
+    fixture.update_with("f_merge_plain", Resolution::Skip, false);
+
+    assert_eq!(
+        fixture.template("f_merge_plain"),
+        "dir = {{ APP_DIR }}\nmode = slow\ncache = {{ APP_DIR }}/cache\n"
+    );
+    // The merged template renders the deployed file exactly, so deploying again changes nothing.
+    fixture.deploy(Some(vec!["f_merge_plain".to_string()]));
+    assert_eq!(fs::read_to_string(&deployed).unwrap(), edited);
+}
+
+#[test]
+fn test_update_keeps_the_variable_in_an_edited_line() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template(
+        "f_merge_var_line",
+        "data = \"{{ APP_DIR }}/Data\"\n",
+        &[("APP_DIR", "/opt/app-test")],
+    );
+    fs::write(&deployed, "data = \"/opt/app-test/Documents\"\n").unwrap();
+
+    fixture.update_with("f_merge_var_line", Resolution::Skip, false);
+
+    assert_eq!(
+        fixture.template("f_merge_var_line"),
+        "data = \"{{ APP_DIR }}/Documents\"\n"
+    );
+}
+
+#[test]
+fn test_update_conflicts_follow_the_chosen_resolution() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let template = "name = {{ NAME | upper }}\nmode = fast\n";
+    let deployed = fixture.deployed_template("f_merge_conflict", template, &[("NAME", "dotr")]);
+    fs::write(&deployed, "name = Custom\nmode = fast\n").unwrap();
+
+    fixture.update_with("f_merge_conflict", Resolution::Skip, false);
+    assert_eq!(
+        fixture.template("f_merge_conflict"),
+        template,
+        "skip leaves it"
+    );
+    fixture.update_with("f_merge_conflict", Resolution::Ours, false);
+    assert_eq!(
+        fixture.template("f_merge_conflict"),
+        template,
+        "ours keeps it"
+    );
+
+    fixture.update_with("f_merge_conflict", Resolution::Both, false);
+    assert_eq!(
+        fixture.template("f_merge_conflict"),
+        "name = {{ NAME | upper }}\nname = Custom\nmode = fast\n"
+    );
+
+    fs::write(fixture.cwd.join("dotfiles/f_merge_conflict"), template).unwrap();
+    fixture.update_with("f_merge_conflict", Resolution::Theirs, false);
+    assert_eq!(
+        fixture.template("f_merge_conflict"),
+        "name = Custom\nmode = fast\n"
+    );
+}
+
+#[test]
+fn test_update_dry_run_leaves_the_template_alone() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let template = "dir = {{ APP_DIR }}\nmode = fast\n";
+    let deployed =
+        fixture.deployed_template("f_merge_dry", template, &[("APP_DIR", "/opt/app-test")]);
+    fs::write(&deployed, "dir = /opt/app-test\nmode = slow\n").unwrap();
+
+    fixture.update_with("f_merge_dry", Resolution::Theirs, true);
+
+    assert_eq!(fixture.template("f_merge_dry"), template);
+}
+
+#[test]
+fn test_update_writes_a_secret_back_as_its_tag() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let secrets = fixture.cwd.join(".uservariables.toml");
+    fs::write(&secrets, "TOKEN = \"tok-123456\"\n").unwrap();
+    let deployed = fixture.deployed_template(
+        "f_merge_secret",
+        "dir = {{ APP_DIR }}\n",
+        &[("APP_DIR", "/opt/app-test")],
+    );
+    fs::write(&deployed, "dir = /opt/app-test\ntoken = tok-123456\n").unwrap();
+
+    fixture.update_with("f_merge_secret", Resolution::Skip, false);
+    let template = fixture.template("f_merge_secret");
+    fs::remove_file(&secrets).unwrap();
+
+    assert_eq!(template, "dir = {{ APP_DIR }}\ntoken = {{ TOKEN }}\n");
+}
+
+#[test]
+fn test_update_copies_binary_files_as_is_next_to_a_template() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    // The playground keeps deployed files between runs; start from none.
+    fs::remove_dir_all(fixture.cwd.join("src/.d_merge_binary")).ok();
+    let pkg_dir = fixture.cwd.join("dotfiles/d_merge_binary");
+    fs::create_dir_all(&pkg_dir).unwrap();
+    fs::write(pkg_dir.join("app.conf"), "dir = {{ APP_DIR }}\n").unwrap();
+    fs::write(
+        pkg_dir.join("icon.png"),
+        b"\x89PNG\r\n\x1a\n\x00\xff{{ x }}",
+    )
+    .unwrap();
+    let mut config = fixture.get_config();
+    config.variables.insert(
+        "APP_DIR".into(),
+        toml::Value::String("/opt/app-test".into()),
+    );
+    config.packages.insert(
+        "d_merge_binary".into(),
+        dotr_dear::package::Package {
+            name: "d_merge_binary".into(),
+            src: "dotfiles/d_merge_binary".into(),
+            dest: "src/.d_merge_binary".into(),
+            ..Default::default()
+        },
+    );
+    config.save(&fixture.cwd).unwrap();
+    fixture.deploy(Some(vec!["d_merge_binary".to_string()]));
+    let deployed = fixture.cwd.join("src/.d_merge_binary");
+    let new_icon: &[u8] = b"\x89PNG\r\n\x1a\n\x00\xfe\xfd changed";
+    fs::write(deployed.join("icon.png"), new_icon).unwrap();
+    // A templated file whose deployed copy turned binary is left alone, not diffed.
+    fs::write(deployed.join("app.conf"), b"\xff\xfe\x00binary").unwrap();
+
+    fixture.update_with("d_merge_binary", Resolution::Theirs, false);
+
+    assert_eq!(fs::read(pkg_dir.join("icon.png")).unwrap(), new_icon);
+    assert_eq!(
+        fs::read_to_string(pkg_dir.join("app.conf")).unwrap(),
+        "dir = {{ APP_DIR }}\n"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_update_edit_uses_what_the_editor_saved() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template(
+        "f_merge_edit",
+        "name = {{ NAME | upper }}\nmode = fast\n",
+        &[("NAME", "dotr")],
+    );
+    fs::write(&deployed, "name = Custom\nmode = fast\n").unwrap();
+    let editor = fixture.cwd.join("src/.merge-editor.sh");
+    fs::write(
+        &editor,
+        "#!/bin/sh\ngrep -q '^<<<<<<< template' \"$1\" || exit 1\nprintf 'name = {{ NAME | lower }}\\nmode = fast\\n' > \"$1\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&editor, fs::Permissions::from_mode(0o755)).unwrap();
+
+    // SAFETY: the integration tests run single-threaded (`make test` and CI pass `--test-threads=1`), so no other
+    // thread reads the environment while it changes.
+    unsafe { std::env::set_var("DOTR_EDITOR", fs::canonicalize(&editor).unwrap()) };
+    fixture.update_with("f_merge_edit", Resolution::Edit, false);
+    // SAFETY: as above; this puts the environment back.
+    unsafe { std::env::remove_var("DOTR_EDITOR") };
+    fs::remove_file(&editor).unwrap();
+
+    assert_eq!(
+        fixture.template("f_merge_edit"),
+        "name = {{ NAME | lower }}\nmode = fast\n"
+    );
+}
+
+#[test]
+fn test_deploy_and_diff_handle_a_deployed_file_that_is_not_text() {
+    let fixture = TestFixture::new();
+    fixture.init();
+    let deployed = fixture.deployed_template(
+        "f_binary_dest",
+        "dir = {{ APP_DIR }}\n",
+        &[("APP_DIR", "/opt/app-test")],
+    );
+    fs::write(&deployed, b"\xff\xfe\x00 not text").unwrap();
+
+    run_cli(fixture.get_cli(Some(dotr_dear::cli::Command::Diff(
+        dotr_dear::cli::DiffArgs {
+            packages: Some(vec!["f_binary_dest".to_string()]),
+            ..Default::default()
+        },
+    ))))
+    .expect("diff must not fail on a binary deployed file");
+    fixture.deploy(Some(vec!["f_binary_dest".to_string()]));
+
+    assert_eq!(
+        fs::read_to_string(&deployed).unwrap(),
+        "dir = /opt/app-test\n"
     );
 }
