@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf, process::Command};
 use super::{Finding, Source, scan};
 
 fn temp_dir() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("dotr-scan-{}", uuid::Uuid::new_v4()));
+    let dir = std::env::temp_dir().join(format!("dotr-scan-{}", crate::utils::unique_suffix()));
     fs::create_dir_all(&dir).unwrap();
     dir
 }

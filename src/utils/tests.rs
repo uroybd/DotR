@@ -177,3 +177,15 @@ fn test_normalize_home_path_with_dots() {
     let normalized = normalize_home_path(&path);
     assert_eq!(normalized, "~/.config/.hidden/..dotfile");
 }
+
+#[test]
+fn test_unique_suffix_differs_on_every_call() {
+    let suffixes: std::collections::HashSet<String> =
+        (0..1000).map(|_| super::unique_suffix()).collect();
+    assert_eq!(suffixes.len(), 1000);
+    assert!(
+        suffixes
+            .iter()
+            .all(|s| s.starts_with(&format!("{}-", std::process::id())))
+    );
+}

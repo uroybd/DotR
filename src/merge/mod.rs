@@ -565,8 +565,10 @@ pub fn edit_in_editor(command: &str, draft: &str, name: &Path) -> anyhow::Result
     let file_name = name
         .file_name()
         .map_or_else(|| "template".into(), |n| n.to_string_lossy());
-    let file =
-        std::env::temp_dir().join(format!("dotr-merge-{}-{file_name}", uuid::Uuid::new_v4()));
+    let file = std::env::temp_dir().join(format!(
+        "dotr-merge-{}-{file_name}",
+        crate::utils::unique_suffix()
+    ));
     std::fs::write(&file, draft)?;
     let status = std::process::Command::new(program)
         .args(parts)

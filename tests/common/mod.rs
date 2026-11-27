@@ -38,7 +38,8 @@ impl Playground {
 
     /// An empty temporary directory of this test's own.
     pub fn temp() -> Self {
-        let cwd = std::env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let cwd =
+            std::env::temp_dir().join(format!("dotr_test_{}", dotr_dear::utils::unique_suffix()));
         fs::create_dir_all(&cwd).expect("Failed to create temp dir");
         Self {
             cwd,

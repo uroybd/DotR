@@ -50,7 +50,10 @@ mod file_store_tests {
     use crate::prompt_store::{FileStore, PromptStoreBackend};
 
     fn temp_dir() -> std::path::PathBuf {
-        let dir = env::temp_dir().join(format!("dotr_prompt_store_test_{}", uuid::Uuid::new_v4()));
+        let dir = env::temp_dir().join(format!(
+            "dotr_prompt_store_test_{}",
+            crate::utils::unique_suffix()
+        ));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -156,7 +159,7 @@ esac
 "#;
 
     fn fake_bw() -> PathBuf {
-        let dir = env::temp_dir().join(format!("dotr_fake_bw_{}", uuid::Uuid::new_v4()));
+        let dir = env::temp_dir().join(format!("dotr_fake_bw_{}", crate::utils::unique_suffix()));
         fs::create_dir_all(&dir).unwrap();
         let program = dir.join("bw");
         fs::write(&program, FAKE_BW).unwrap();

@@ -1679,7 +1679,8 @@ mod input_tests {
 
     #[test]
     fn a_secret_saved_with_a_newline_is_looked_for_without_it() {
-        let dir = std::env::temp_dir().join(format!("dotr-secrets-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("dotr-secrets-{}", crate::utils::unique_suffix()));
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("config.toml"), "").unwrap();
         fs::write(

@@ -19,7 +19,8 @@ impl Repo {
     /// A repository holding one directory package, `d_app` (a text file in a subfolder and a binary file), deployed
     /// to `~/.app`, with `COLOR = "red"` among its variables.
     fn new() -> Self {
-        let root = std::env::temp_dir().join(format!("dotr-run-{}", uuid::Uuid::new_v4()));
+        let root =
+            std::env::temp_dir().join(format!("dotr-run-{}", dotr_dear::utils::unique_suffix()));
         fs::create_dir_all(root.join("home")).unwrap();
         fs::create_dir_all(root.join("repo/dotfiles/d_app/sub")).unwrap();
         let repo = Self { root };

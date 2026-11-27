@@ -555,7 +555,8 @@ mod is_templated_tests {
 
     #[test]
     fn a_missing_file_is_no_template_but_an_unreadable_one_is_an_error() {
-        let dir = std::env::temp_dir().join(format!("dotr-templated-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("dotr-templated-{}", crate::utils::unique_suffix()));
         fs::create_dir_all(&dir).unwrap();
         assert!(!is_templated(&dir.join("missing")).unwrap());
 

@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use toml::Table;
@@ -199,6 +201,17 @@ pub fn execute_action(
         return Err(anyhow::anyhow!(msg));
     }
     Ok(())
+}
+
+/// A suffix no other call returns, in this process or another one, for naming a temporary file or
+/// directory: the process id, the time in nanoseconds, and a count of the calls made so far.
+pub fn unique_suffix() -> String {
+    static CALLS: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    let call = CALLS.fetch_add(1, Ordering::Relaxed);
+    format!("{}-{nanos:x}-{call}", std::process::id())
 }
 
 /// Text as this crate means it: UTF-8 without a NUL byte. Anything else is binary, and is copied and compared

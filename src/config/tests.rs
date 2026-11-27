@@ -8,7 +8,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_respects_skip_flag() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -44,7 +44,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_with_no_skip_packages() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -74,7 +74,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_all_skipped() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -104,7 +104,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_specific_packages_override_skip() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -139,7 +139,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_includes_dependencies_by_default() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -167,7 +167,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_ignore_dependencies_excludes_deps() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -195,7 +195,7 @@ mod filter_packages_tests {
 
     #[test]
     fn test_filter_packages_ignore_dependencies_with_profile() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -370,7 +370,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_single_package_success() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
@@ -397,7 +397,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_not_found() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -425,7 +425,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_with_profile_dependency() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -460,7 +460,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_with_dependency_force() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
@@ -502,7 +502,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_with_package_dependency() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -532,7 +532,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_multiple_packages() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
@@ -566,7 +566,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_dry_run() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -593,7 +593,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_orphan_packages() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
@@ -632,7 +632,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_package_with_file_cleanup() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let pkg_dir = temp_dir.join("dotfiles").join("pkg1");
         std::fs::create_dir_all(&pkg_dir).unwrap();
@@ -661,7 +661,7 @@ mod remove_packages_tests {
 
     #[test]
     fn test_remove_no_packages_specified() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -699,7 +699,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_success() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -723,7 +723,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_not_found() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -749,7 +749,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_default_profile_fails() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -775,7 +775,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_dry_run() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -800,7 +800,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_with_orphan_cleanup() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::create_dir_all(temp_dir.join("dotfiles")).unwrap();
 
@@ -833,7 +833,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_without_orphan_cleanup() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -865,7 +865,7 @@ mod remove_profile_tests {
 
     #[test]
     fn test_remove_profile_keeps_shared_packages() {
-        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", uuid::Uuid::new_v4()));
+        let temp_dir = env::temp_dir().join(format!("dotr_test_{}", crate::utils::unique_suffix()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let mut config = Config::new();
@@ -1210,7 +1210,7 @@ mod platform_profile_actions_tests {
         let dir = env::temp_dir().join(format!(
             "dotr_test_platform_profile_actions_{}_{}",
             name,
-            uuid::Uuid::new_v4()
+            crate::utils::unique_suffix()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -1525,7 +1525,8 @@ mod update_needs_variables_for_templated_sources_tests {
     use crate::profile::Profile;
 
     fn check(file: &str, content: &[u8]) -> bool {
-        let dir = std::env::temp_dir().join(format!("dotr-needs-vars-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("dotr-needs-vars-{}", crate::utils::unique_suffix()));
         fs::create_dir_all(dir.join("dotfiles/app")).unwrap();
         fs::write(dir.join("dotfiles/app").join(file), content).unwrap();
         let mut config = Config::new();
@@ -1560,7 +1561,8 @@ mod gitignore_tests {
     use crate::config::{Config, uservariables_exposed};
 
     fn temp_dir() -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("dotr-gitignore-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("dotr-gitignore-{}", crate::utils::unique_suffix()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }
