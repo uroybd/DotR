@@ -134,9 +134,9 @@ reachable on `PATH`:
 brew install bitwarden-cli
 ```
 
-Nothing else to set up ahead of time — dotr drives `bw login`/`bw unlock`
-interactively the first time it's needed, and creates its secure note
-automatically.
+Nothing else to set up ahead of time — dotr uses an open session
+(`BW_SESSION`) if you have one, drives `bw login`/`bw unlock`
+interactively if not, and creates its secure note automatically.
 
 ## Verifying the install
 

@@ -63,14 +63,21 @@ prompt_backend = "bitwarden"  # overrides the repo-wide default for this profile
   bitwarden-backed variable in the repository, via the `bw` CLI. The note
   is named by the `bitwarden_note` setting (default `"dotr-secrets"`,
   also overridable per-profile the same way as `prompt_backend`) and
-  created automatically the first time it's needed. If `bw` isn't logged
-  in or the vault is locked, dotr drives `bw login`/`bw unlock`
-  interactively right there in your terminal, syncs the latest vault data
-  down before reading or writing (so a note edited on another device or
-  the web vault isn't missed), and locks the vault back up when the
-  command finishes — but only if *it* was the one that unlocked it; a
-  session you already had open (e.g. an exported `BW_SESSION`) is left
-  alone.
+  created automatically the first time it's needed. If a session is
+  already open — a valid `BW_SESSION` in the environment — dotr uses it
+  without asking for anything, and leaves it open. Otherwise (not logged
+  in, the vault locked, or `BW_SESSION` expired) it drives
+  `bw login`/`bw unlock` interactively right there in your terminal, and
+  locks the vault back up when the command finishes. Either way it syncs
+  the latest vault data down before reading or writing, so a note edited
+  on another device or the web vault isn't missed.
+
+  To be asked for the master password once per shell rather than once per
+  command, unlock it yourself and export the session:
+
+  ```sh
+  export BW_SESSION="$(bw unlock --raw)"
+  ```
 
 ### Machine-local override for `bitwarden_note`
 

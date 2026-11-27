@@ -154,15 +154,24 @@ struct BitwardenState {
 pub struct BitwardenStore {
     note: String,
     state: Option<BitwardenState>,
+    /// The session dotr unlocked itself, if it had to; `None` while it uses one that was
+    /// already open (an exported `BW_SESSION`).
     session: Option<String>,
+    /// The `bw` executable: `bw` on the `PATH`, or a stand-in under test.
+    program: PathBuf,
 }
 
 impl BitwardenStore {
     pub fn new(note: String) -> Self {
+        Self::with_program(note, PathBuf::from("bw"))
+    }
+
+    fn with_program(note: String, program: PathBuf) -> Self {
         Self {
             note,
             state: None,
             session: None,
+            program,
         }
     }
 
@@ -193,7 +202,7 @@ complete in this terminal."
             "secureNote": { "type": 0 },
             "collectionIds": []
         });
-        let encoded = run_bw_encode(&serde_json::to_string(&template)?)?;
+        let encoded = self.encode(&serde_json::to_string(&template)?)?;
         let output = self.bw(&["create", "item", &encoded])?;
         if !output.status.success() || output.stdout.is_empty() {
             anyhow::bail!(
@@ -205,10 +214,36 @@ complete in this terminal."
         Ok(output)
     }
 
+    /// `bw encode`: the base64 form `bw create`/`bw edit` take an item in.
+    fn encode(&self, json: &str) -> anyhow::Result<String> {
+        let mut child = Command::new(&self.program)
+            .arg("encode")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;
+        let Some(mut stdin) = child.stdin.take() else {
+            anyhow::bail!("`bw encode` started without a stdin to write to");
+        };
+        stdin.write_all(json.as_bytes())?;
+        drop(stdin);
+        let output = child
+            .wait_with_output()
+            .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;
+        if !output.status.success() {
+            anyhow::bail!(
+                "`bw encode` failed: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    }
+
     /// Runs a `bw` subcommand non-interactively, with `--session` appended
     /// if we already have one cached from `authenticate_interactively`.
     fn bw(&self, args: &[&str]) -> anyhow::Result<std::process::Output> {
-        let mut cmd = Command::new("bw");
+        let mut cmd = Command::new(&self.program);
         cmd.args(args);
         if let Some(session) = self.session.as_ref() {
             cmd.args(["--session", session]);
@@ -228,23 +263,36 @@ complete in this terminal."
         self.bw(&["sync"]).ok();
     }
 
-    /// Drives `bw login`/`bw unlock` interactively and caches the
-    /// resulting session for subsequent `bw` calls.
-    fn authenticate_interactively(&mut self) -> anyhow::Result<()> {
-        let status_output = Command::new("bw")
-            .arg("status")
-            .stdin(Stdio::null())
-            .output()
-            .map_err(|e| anyhow::anyhow!("Failed to run `bw status`: {e}"))?;
-        let status: serde_json::Value =
-            serde_json::from_slice(&status_output.stdout).unwrap_or(serde_json::Value::Null);
+    /// What `bw status` says of the vault: `unlocked`, `locked` or `unauthenticated`, or
+    /// `None` when it can't say. `unlocked` means a session is already open: a valid
+    /// `BW_SESSION` in the environment (which `bw` reads itself), or the one dotr unlocked
+    /// earlier in this run.
+    fn status(&self) -> Option<String> {
+        let output = self.bw(&["status"]).ok()?;
+        let status: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+        Some(status.get("status")?.as_str()?.to_string())
+    }
 
-        if status.get("status").and_then(|s| s.as_str()) == Some("unauthenticated") {
+    /// Uses the session already open if there is one, and otherwise drives
+    /// `bw login`/`bw unlock` interactively, caching the resulting session for
+    /// subsequent `bw` calls. Says whether a session was already open.
+    fn unlock_unless_open(&mut self) -> anyhow::Result<bool> {
+        match self.status().as_deref() {
+            Some("unlocked") => Ok(true),
+            status => self
+                .authenticate_interactively(status == Some("unauthenticated"))
+                .map(|()| false)
+                .map_err(|e| Self::auth_failed_hint(&e.to_string())),
+        }
+    }
+
+    fn authenticate_interactively(&mut self, log_in: bool) -> anyhow::Result<()> {
+        if log_in {
             cprintln(
                 "Not logged in to Bitwarden — running `bw login`...",
                 &LogLevel::Info,
             );
-            let login_ok = Command::new("bw")
+            let login_ok = Command::new(&self.program)
                 .arg("login")
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
@@ -260,7 +308,7 @@ complete in this terminal."
         cprintln("Unlocking your Bitwarden vault...", &LogLevel::Info);
         // Prompt text goes to stderr (inherited, so it's visible); the raw
         // session key on success is the only thing on stdout (captured).
-        let unlock_output = Command::new("bw")
+        let unlock_output = Command::new(&self.program)
             .args(["unlock", "--raw"])
             .stdin(Stdio::inherit())
             .stdout(Stdio::piped())
@@ -294,18 +342,12 @@ complete in this terminal."
             return Ok(());
         }
 
-        // Covers the "already had a valid session" case (e.g. an exported
-        // BW_SESSION) - if we end up authenticating below instead, that
-        // path syncs again right after, once we know it's worth reporting
-        // a failure.
-        self.sync();
+        // Unlocking syncs on its own; a session that was already open hasn't yet.
+        if self.unlock_unless_open()? {
+            self.sync();
+        }
 
         let mut output = self.bw(&["get", "item", &self.note])?;
-        if !output.status.success() || output.stdout.is_empty() {
-            self.authenticate_interactively()
-                .map_err(|e| Self::auth_failed_hint(&e.to_string()))?;
-            output = self.bw(&["get", "item", &self.note])?;
-        }
         if !output.status.success() || output.stdout.is_empty() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             // Only auto-create on a genuine "doesn't exist yet" - anything
@@ -385,18 +427,19 @@ impl PromptStoreBackend for BitwardenStore {
             (state.id.clone(), serde_json::to_string(&state.envelope)?)
         };
 
-        let encoded = run_bw_encode(&encoded_envelope)?;
+        let encoded = self.encode(&encoded_envelope)?;
 
         let mut edit_output = self.bw(&["edit", "item", &id, &encoded])?;
-        if !edit_output.status.success() {
-            self.authenticate_interactively()?;
+        // The vault may have locked since the note was read; an edit that failed for any
+        // other reason is not one that asking for the master password would fix.
+        if !edit_output.status.success() && !self.unlock_unless_open()? {
             edit_output = self.bw(&["edit", "item", &id, &encoded])?;
-            if !edit_output.status.success() {
-                anyhow::bail!(
-                    "`bw edit item` failed: {}",
-                    String::from_utf8_lossy(&edit_output.stderr).trim()
-                );
-            }
+        }
+        if !edit_output.status.success() {
+            anyhow::bail!(
+                "`bw edit item` failed: {}",
+                String::from_utf8_lossy(&edit_output.stderr).trim()
+            );
         }
         Ok(())
     }
@@ -424,29 +467,4 @@ impl Drop for BitwardenStore {
             }
         }
     }
-}
-
-fn run_bw_encode(json: &str) -> anyhow::Result<String> {
-    let mut child = Command::new("bw")
-        .arg("encode")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;
-    let Some(mut stdin) = child.stdin.take() else {
-        anyhow::bail!("`bw encode` started without a stdin to write to");
-    };
-    stdin.write_all(json.as_bytes())?;
-    drop(stdin);
-    let output = child
-        .wait_with_output()
-        .map_err(|e| anyhow::anyhow!("Failed to run `bw encode`: {e}"))?;
-    if !output.status.success() {
-        anyhow::bail!(
-            "`bw encode` failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        );
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
